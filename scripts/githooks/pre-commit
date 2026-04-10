@@ -30,25 +30,26 @@ for FILE in `exec git diff-index --check --cached $against -- | sed '/^[+-]/d' |
     git add $FILE
 done
 
-echo 'Running JSLint...'
-result=$(make lint)
-if ! egrep "(^|[^\d])0 errors" <<< "$result"; then
-    num=$(grep "[0-9]+ error" <<< "$result")
-    testFail "JSLint: $num"
-    echo "$result"
+echo 'Running Lint...'
+lintOutput=$(make lint 2>&1)
+lintExitCode=$?
+if [[ $lintExitCode -ne 0 ]]; then
+    testFail "Lint errors detected"
+    echo "$lintOutput"
     echo ''
     lintFailed=1
 fi
 
-if [[ $lint_errors -gt 0 ]]; then
+if [[ $lintFailed ]]; then
     failCommit "Lint Errors"
 fi
 
 echo 'Running Tests...'
-result=$(make test)
-if grep -q FAILURES <<< $result; then
-    num=$(grep "FAILURES" <<< "$result")
-    testFail "Test $num"
+make test > /tmp/swig-test-output.txt 2>&1
+testExitCode=$?
+result=$(cat /tmp/swig-test-output.txt)
+if [[ $testExitCode -ne 0 ]] || grep -qE '([1-9][0-9]*) failing' <<< "$result"; then
+    testFail "Test failures detected"
     echo "$result"
     echo ''
     testsFailed=1

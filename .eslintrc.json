@@ -1,0 +1,17 @@
+{
+  "env": {
+    "node": true,
+    "mocha": true
+  },
+  "rules": {
+    "max-len": ["error", { "code": 600 }],
+    "semi": ["error", "always"],
+    "no-eval": "off",
+    "no-new-func": "off",
+    "strict": "off",
+    "eqeqeq": "off",
+    "no-trailing-spaces": "error",
+    "no-undef": "error",
+    "no-redeclare": "error"
+  }
+}
