@@ -7,7 +7,7 @@ var swig = require('../index'),
   path = require('path'),
   filters = require('../lib/filters'),
   utils = require('../lib/utils'),
-  uglify = require('uglify-js');
+  terser = require('terser');
 
 var command,
   wrapstart = 'var tpl = ',
@@ -23,7 +23,7 @@ var command,
       h: 'Show this help screen.',
       j: 'Variable context as a JSON file.',
       c: 'Variable context as a CommonJS-style file. Used only if option `j` is not provided.',
-      m: 'Minify compiled functions with uglify-js',
+      m: 'Minify compiled functions with terser',
       'filters': 'Custom filters as a CommonJS-style file',
       'tags': 'Custom tags as a CommonJS-style file',
       'options': 'Customize Swig\'s Options from a CommonJS-style file',
@@ -134,7 +134,7 @@ case 'compile':
     r = argv['wrap-start'] + r + argv['wrap-end'];
 
     if (argv.m) {
-      r = uglify.minify(r, { fromString: true }).code;
+      r = terser.minify_sync(r).code;
     }
 
     out(file, r);
