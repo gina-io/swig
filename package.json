@@ -1,6 +1,6 @@
 {
   "name": "@rhinostone/swig",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "A simple, powerful, and extendable templating engine for node.js and browsers, similar to Django, Jinja2, and Twig.",
   "keywords": [
     "template",
@@ -22,7 +22,7 @@
   ],
   "dependencies": {
     "terser": "^5.46.1",
-    "yargs": "~3.32"
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "blanket": "~1.1",
@@ -43,7 +43,7 @@
   "license": "MIT",
   "main": "index",
   "engines": {
-    "node": ">=0.10.0"
+    "node": ">=12"
   },
   "bin": {
     "swig": "./bin/swig.js"
