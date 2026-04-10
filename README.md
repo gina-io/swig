@@ -33,7 +33,7 @@ Installation
 Documentation
 -------------
 
-API reference is generated from [JSDoc](http://usejsdoc.org) comments inline in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/`. Run `make docs` to build and preview the static documentation site locally.
+API reference is generated from [JSDoc](https://jsdoc.app) comments inline in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/`. Run `make docs` to build and preview the static documentation site locally.
 
 Basic Example
 -------------
