@@ -1,4 +1,15 @@
+# Desktop
 .DS_Store
+
+# IDE — local history / editor state
+.lh
+.history
+.idea
+.vscode
+.jshintrc
+
+# Sources not needed in the published tarball
+# (browser/ source → shipped as dist/*.js; docs/ and examples/ are site/demos only)
 *.html
 browser/**
 docs/**
@@ -8,3 +19,7 @@ scripts/**
 tests/**
 .travis.yml
 CONTRIBUTING.md
+
+# AI / internal development notes (local only — mirror Gina's convention)
+.claude/
+CLAUDE.md
