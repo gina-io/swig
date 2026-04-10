@@ -24,7 +24,6 @@ Need Help? Have Questions? Comments?
 
 * File an issue at [gina-io/swig/issues](https://github.com/gina-io/swig/issues).
 * [Migration Guide](https://github.com/paularmstrong/swig/wiki/Migrating-from-v0.x.x-to-v1.0.0) (original upstream wiki, still authoritative for 0.x → 1.x migrations).
-* Legacy discussion venues (low traffic, not actively monitored): [Mailing List](http://groups.google.com/forum/#!forum/swig-templates), [StackOverflow](http://stackoverflow.com/questions/tagged/swig-template).
 
 Installation
 ------------
