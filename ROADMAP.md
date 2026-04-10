@@ -10,12 +10,16 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 | Status | Item |
 | --- | --- |
-| Planned | Investigate replacing external deps with internal modules |
 | Planned | Full security audit of dependency tree, template pipeline, and CLI argv flow |
 
 ---
 
 ## Completed
+
+### v1.4.6 (April 2026)
+
+- Replace `uglify-js` with `terser` in CLI (`--minify` flag), removing the last Snyk-flagged runtime dependency
+- Exclude `.github/` from npm tarball
 
 ### v1.4.5 (April 2026)
 
