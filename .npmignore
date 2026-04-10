@@ -8,6 +8,9 @@
 .vscode
 .jshintrc
 
+# CI / GitHub metadata
+.github/
+
 # Sources not needed in the published tarball
 # (browser/ source → shipped as dist/*.js; docs/ and examples/ are site/demos only)
 *.html
