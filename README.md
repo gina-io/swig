@@ -1,7 +1,7 @@
 Swig
 ====
 
-[![NPM version](http://img.shields.io/npm/v/swig.svg?style=flat)](https://www.npmjs.org/package/swig) [![NPM Downloads](http://img.shields.io/npm/dm/swig.svg?style=flat)](https://www.npmjs.org/package/swig)
+[![NPM version](http://img.shields.io/npm/v/@rhinostone/swig.svg?style=flat)](https://www.npmjs.org/package/@rhinostone/swig) [![NPM Downloads](http://img.shields.io/npm/dm/@rhinostone/swig.svg?style=flat)](https://www.npmjs.org/package/@rhinostone/swig)
 
 > **Maintained fork.** This is [gina-io/swig](https://github.com/gina-io/swig), a maintained fork of the abandoned [paularmstrong/swig](https://github.com/paularmstrong/swig). Security fixes and critical bug fixes land here; no new features are planned. The original project has not had a release since 2014.
 
@@ -29,7 +29,7 @@ Need Help? Have Questions? Comments?
 Installation
 ------------
 
-    npm install swig
+    npm install @rhinostone/swig
 
 Documentation
 -------------
@@ -53,7 +53,7 @@ Basic Example
 ### node.js code
 
 ```js
-var swig  = require('swig');
+var swig  = require('@rhinostone/swig');
 var template = swig.compileFile('/absolute/path/to/template.html');
 var output = template({
     pagename: 'awesome people',
