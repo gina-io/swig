@@ -21,7 +21,7 @@
     "Rhinostone <contact@gina.io>"
   ],
   "dependencies": {
-    "uglify-js": "~2.4",
+    "terser": "^5.46.1",
     "yargs": "~3.32"
   },
   "devDependencies": {
@@ -38,7 +38,6 @@
     "mocha-phantomjs": "~3.1",
     "phantomjs": "~1.9.1",
     "still": "0.0.7",
-    "terser": "^5.46.1",
     "travis-cov": "~0.2"
   },
   "license": "MIT",
