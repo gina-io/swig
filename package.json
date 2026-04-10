@@ -21,11 +21,8 @@
     "Rhinostone <contact@gina.io>"
   ],
   "dependencies": {
-    "optimist": "~0.6",
-    "uglify-js": "~2.4"
-  },
-  "overrides": {
-    "minimist": "^1.2.8"
+    "uglify-js": "~2.4",
+    "yargs": "~3.32"
   },
   "devDependencies": {
     "blanket": "~1.1",

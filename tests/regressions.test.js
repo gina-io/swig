@@ -54,17 +54,12 @@ describe('Regressions', function () {
     expect(function () { swig.render('{% set foo.__proto__ = "x" %}'); }).to.throwError(/Unsafe assignment/);
   });
 
-  it('CVE-2021-44906: minimist is pinned to a non-vulnerable version', function () {
-    // swig -> optimist@0.6.1 -> minimist@~0.0.1 is vulnerable to
-    // prototype pollution. The package.json "overrides" block pins
-    // minimist to ^1.2.8 (CVE fixed in 1.2.6, hardened in 1.2.7/8).
-    // Requires npm >= 8.3 to honour `overrides`.
-    var version = require('minimist/package.json').version;
-    var parts = version.split('.').map(Number);
-    var major = parts[0], minor = parts[1], patch = parts[2];
-    var safe = major > 1
-      || (major === 1 && minor > 2)
-      || (major === 1 && minor === 2 && patch >= 6);
-    expect(safe).to.be(true);
+  it('CVE-2021-44906: optimist is no longer a direct dependency', function () {
+    // swig -> optimist@0.6.1 -> minimist@~0.0.1 was vulnerable to
+    // prototype pollution. The fix was to replace optimist with yargs,
+    // which has no minimist dependency. Verify the vulnerable path is gone.
+    var deps = require('../package.json').dependencies;
+    expect(deps).to.not.have.property('optimist');
+    expect(deps).to.have.property('yargs');
   });
 });
