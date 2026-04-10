@@ -39,6 +39,21 @@ describe('Regressions', function () {
     expect(Object.keys(opts)).to.eql([]);
   });
 
+  it('CVE-2023-25345: __proto__ access is blocked in templates', function () {
+    expect(function () { swig.render('{{ __proto__ }}'); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ constructor }}'); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ prototype }}'); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ foo.__proto__ }}'); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ foo.constructor }}'); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ constructor.constructor }}'); }).to.throwError(/Unsafe access/);
+  });
+
+  it('CVE-2023-25345: __proto__ assignment is blocked via set tag', function () {
+    expect(function () { swig.render('{% set __proto__ = "x" %}'); }).to.throwError(/Unsafe assignment/);
+    expect(function () { swig.render('{% set constructor = "x" %}'); }).to.throwError(/Unsafe assignment/);
+    expect(function () { swig.render('{% set foo.__proto__ = "x" %}'); }).to.throwError(/Unsafe assignment/);
+  });
+
   it('CVE-2021-44906: minimist is pinned to a non-vulnerable version', function () {
     // swig -> optimist@0.6.1 -> minimist@~0.0.1 is vulnerable to
     // prototype pollution. The package.json "overrides" block pins
