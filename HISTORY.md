@@ -1,3 +1,11 @@
+[1.4.7](https://github.com/gina-io/swig/tree/v1.4.7) / 2026-04-10
+-----------------------------------------------------------------
+
+* **Changed** Upgrade `yargs` from 3.x to 17.x, replacing unmaintained transitive dependencies (`os-locale`, `window-size`, `number-is-nan`, `ansi-regex@2`, etc.) with actively maintained equivalents
+
+* **Changed** Update `engines` field to `node >= 12` (reflects actual minimum required by `terser` and `yargs` 17)
+
+* **Fixed** Replace private IP address (`192.168.0.2`) with `localhost:11211` in JSDoc example for template loaders
 [1.4.6](https://github.com/gina-io/swig/tree/v1.4.6) / 2026-04-10
 -----------------------------------------------------------------
 
