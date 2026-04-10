@@ -20,7 +20,7 @@ Here's an example of a great pull request that followed the above checklist: [Pu
 Documentation
 -------------
 
-All documentation for Swig is generated from [JSDoc](http://usejsdoc.org) comments inline and Swig template files within the `./docs` folder. To make changes to any documentation, follow these steps and tips:
+All documentation for Swig is generated from [JSDoc](https://jsdoc.app) comments inline and Swig template files within the `./docs` folder. To make changes to any documentation, follow these steps and tips:
 
 ```sh
 # Clone the repo
@@ -46,7 +46,7 @@ $ make docs
 
 * Once you have the documentation test environment running, your browser will open showing you the documentation site.
 * If you are making changes to HTML files in `./docs`, reload the page to see them reflected immediately.
-* If you are changing any content from the inline [JSDoc](http://usejsdoc.org) comments, run `make build-docs` to rebuild the JSON data files.
+* If you are changing any content from the inline [JSDoc](https://jsdoc.app) comments, run `make build-docs` to rebuild the JSON data files.
 
 ### Important!
 
