@@ -6,18 +6,7 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ---
 
-## v1.4.5 (next)
-
-| Status | Item |
-| --- | --- |
-| Done | Clean up `paularmstrong` references in `docs/*.html` |
-| Done | Investigate `bin` field warning during npm 11 publish (not a bug) |
-| Planned | Replace `optimist` with `yargs` in CLI |
-| Planned | Fix `bin` field for npm 11 publish (if needed after `optimist` removal) |
-| Planned | Add CI badge to README when GH Actions workflow exists |
-| Planned | Add public `ROADMAP.md` to the repo root |
-
-## v1.5.0 (later)
+## v1.5.0 (next)
 
 | Status | Item |
 | --- | --- |
@@ -27,6 +16,13 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v1.4.5 (April 2026)
+
+- Replace `optimist` with `yargs` in CLI, removing `minimist` from the production dependency tree entirely (CVE-2021-44906 fully resolved)
+- Clean up legacy `paularmstrong` references in documentation
+- GitHub Actions CI workflow (lint + test on PRs and pushes)
+- Public roadmap (`ROADMAP.md`)
 
 ### v1.4.4 (April 2026)
 
