@@ -8,7 +8,7 @@
 
   <p>Via NPM:</p>
 
-  <pre><code data-language="sh">$ npm install swig --save</code></pre>
+  <pre><code data-language="sh">$ npm install @rhinostone/swig --save</code></pre>
 </section>
 
 <section id="usage" class="doc">
@@ -16,7 +16,7 @@
 
   <p>Swig has multiple ways to compile and render templates. Check the <a href="{{ baseurl }}/docs/api/">API documentation</a> for more detailed information and usage.</p>
 
-  <pre><code data-language="js">{% raw %}var swig = require('swig');
+  <pre><code data-language="js">{% raw %}var swig = require('@rhinostone/swig');
 
 // Compile a file and store it, rendering it later
 var tpl = swig.compileFile('/path/to/template.html');
@@ -170,7 +170,7 @@ It will be fully stripped and ignored during parsing.
   <p>Swig is easily compatible with <a href="http://expressjs.com">Express</a>, the simple web application framework for node. The following is a basic example of integrating Swig with Express:</p>
 
   <pre><code data-language="js">var app = require('express')(),
-  swig = require('swig'),
+  swig = require('@rhinostone/swig'),
   people;
 
 // This is where all the magic happens!
