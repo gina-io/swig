@@ -27,7 +27,7 @@
       <p>For a more in-depth intro, check out the <a href="{{ baseurl }}/docs/">Getting Started docs</a>.</p>
 
       <h3>Install Swig</h3>
-      <pre><code>npm install swig --save</code></pre>
+      <pre><code>npm install @rhinostone/swig --save</code></pre>
 
       <h3>Create Your Template</h3>
       <pre><code data-language="swig">{% raw %}&lt;h1&gt;{{ pagename|title }}&lt;/h1&gt;
@@ -40,7 +40,7 @@
 &lt;/ul&gt;{% endraw %}</code></pre>
 
       <h3>Render Your Template</h3>
-      <pre><code data-language="javascript">var swig  = require('swig');
+      <pre><code data-language="javascript">var swig  = require('@rhinostone/swig');
 swig.renderFile('/path/to/template.html', {
     pagename: 'awesome people',
     authors: ['Paul', 'Jim', 'Jane']
