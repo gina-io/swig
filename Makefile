@@ -18,7 +18,8 @@ all:
 
 .INTERMEDIATE version: \
 	browser/comments.js \
-	docs/index.json
+	docs/index.json \
+	docs/docs.json
 
 version:
 	@sed -i.bak 's/${VERSION_REGEX}/${VERSION}/' lib/swig.js
