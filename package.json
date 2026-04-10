@@ -1,5 +1,5 @@
 {
-  "name": "swig",
+  "name": "@rhinostone/swig",
   "version": "1.4.4",
   "description": "A simple, powerful, and extendable templating engine for node.js and browsers, similar to Django, Jinja2, and Twig.",
   "keywords": [
@@ -63,6 +63,9 @@
     "blanket": {
       "pattern": "swig/lib"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "bugs": {
     "url": "https://github.com/gina-io/swig/issues"
