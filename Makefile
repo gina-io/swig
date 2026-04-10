@@ -80,14 +80,14 @@ tests := $(shell find ./tests -name '*.test.js' ! -path "*node_modules/*")
 reporter = dot
 opts =
 test:
-	@${BIN}/mocha --check-leaks --reporter ${reporter} ${opts} ${tests}
+	@node node_modules/mocha/bin/_mocha --check-leaks --reporter ${reporter} ${opts} ${tests}
 
 test-browser: FORCE clean browser/test/tests.js
 	@${BIN}/mocha-phantomjs browser/test/index.html --reporter ${reporter}
 
 files := $(shell find . -name '*.js' ! -path "./node_modules/*" ! -path "./dist/*" ! -path "./browser*" ! -path "./docs*" ! -path "./tmp*")
 lint:
-	@${BIN}/nodelint ${files} --config=scripts/config-lint.js
+	@${BIN}/eslint ${files}
 
 out = tests/coverage.html
 cov-reporter = html-cov
