@@ -2,7 +2,7 @@
 /*jslint es5: true */
 
 var swig = require('../index'),
-  optimist = require('optimist'),
+  yargs = require('yargs'),
   fs = require('fs'),
   path = require('path'),
   filters = require('../lib/filters'),
@@ -11,7 +11,7 @@ var swig = require('../index'),
 
 var command,
   wrapstart = 'var tpl = ',
-  argv = optimist
+  argv = yargs
     .usage('\n Usage:\n' +
       '    $0 compile [files] [options]\n' +
       '    $0 run [files] [options]\n' +
@@ -43,7 +43,7 @@ var command,
     .default('method-name', 'tpl')
     .check(function (argv) {
       if (argv.v) {
-        return;
+        return true;
       }
 
       if (!argv._.length) {
@@ -62,6 +62,8 @@ var command,
       if (argv['method-name'] !== 'tpl') {
         argv['wrap-start'] = 'var ' + argv['method-name'] + ' = ';
       }
+
+      return true;
     })
     .argv,
   ctx = {},
