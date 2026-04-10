@@ -1,3 +1,10 @@
+[1.4.4](https://github.com/gina-io/swig/tree/v1.4.4) / 2026-04-10
+-----------------------------------------------------------------
+
+* **Changed** Replace uglify-js with terser in the Makefile build target -- make build now works on Node >= 14
+
+* **Security** Block __proto__, constructor, and prototype access in template variables and set-tag assignments to prevent prototype-chain traversal and arbitrary code execution (CVE-2023-25345)
+
 [1.4.3](https://github.com/gina-io/swig/tree/v1.4.3) / 2026-04-09
 -----------------------------------------------------------------
 
