@@ -67,7 +67,7 @@ dist/swig.js:
 
 dist/swig.min.js:
 	@echo "Building $@..."
-	@${BIN}/uglifyjs $^ --comments -c warnings=false -m --source-map dist/swig.js.map > $@
+	@${BIN}/terser $^ --comments -c -m --source-map "url=swig.js.map" -o $@
 
 browser/test/tests.js:
 	@echo "Building $@..."
