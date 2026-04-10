@@ -1,0 +1,26 @@
+changesDir: .changes
+unreleasedDir: unreleased
+changelogPath: HISTORY.md
+versionExt: md
+versionFormat: |-
+  {{- $h := printf "[%s](https://github.com/gina-io/swig/tree/v%s) / %s" .VersionNoPrefix .VersionNoPrefix (.Time.Format "2006-01-02") -}}
+  {{ $h }}
+  {{ repeat (len $h) "-" }}
+kindFormat: ''
+changeFormat: '* **{{.KindLabel}}** {{.Body}}{{with .Custom.Issue}} gh-{{.}}{{end}}'
+kinds:
+  - label: Added
+    key: added
+  - label: Fixed
+    key: fixed
+  - label: Changed
+    key: changed
+  - label: Security
+    key: security
+custom:
+  - key: Issue
+    type: string
+newlines:
+  afterChangelogVersion: 1
+  endOfVersion: 1
+  beforeChange: 1
