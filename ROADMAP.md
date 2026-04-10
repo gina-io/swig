@@ -16,6 +16,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Completed
 
+### v1.4.7 (April 2026)
+
+- Upgrade `yargs` from 3.x to 17.x, replacing unmaintained transitive dependencies with actively maintained equivalents
+- Update `engines` field to `node >= 12` (reflects actual minimum required by runtime dependencies)
+- Fix private IP address in JSDoc example for template loaders
+
 ### v1.4.6 (April 2026)
 
 - Replace `uglify-js` with `terser` in CLI (`--minify` flag), removing the last Snyk-flagged runtime dependency
