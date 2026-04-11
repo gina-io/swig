@@ -5,6 +5,8 @@ Swig
 
 > **Maintained fork.** This is [gina-io/swig](https://github.com/gina-io/swig), a maintained fork of the abandoned [paularmstrong/swig](https://github.com/paularmstrong/swig). Security fixes and critical bug fixes land here; no new features are planned. The original project has not had a release since 2014.
 
+> **Part of the [Gina](https://github.com/gina-io/gina) ecosystem.** This fork is the built-in template engine for [Gina](https://gina.io) ([npm](https://www.npmjs.com/package/gina)), a Node.js MVC framework with HTTP/2, multi-bundle architecture, and scope-based data isolation.
+
 Swig is a Django/Jinja-like template engine for node.js and browsers.
 
 Features
