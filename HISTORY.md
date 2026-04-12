@@ -1,3 +1,8 @@
+[1.5.0](https://github.com/gina-io/swig/tree/v1.5.0) / 2026-04-12
+-----------------------------------------------------------------
+
+* **Security** Extended CVE-2023-25345 guards to bracket-notation access (`foo["__proto__"]`), for-loop variables, macro names, and import aliases. All five gaps now rejected at parse time.
+
 [1.4.7](https://github.com/gina-io/swig/tree/v1.4.7) / 2026-04-10
 -----------------------------------------------------------------
 
