@@ -28,7 +28,6 @@ docs/coverage.html
 browser/test/tests.js
 tests/browser.js
 
-# Claude AI context (local only — mirror Gina's convention)
-# Use `git add -f <path>` to force-track a specific file if needed.
+# Local-only, never track
 CLAUDE.md
 .claude/
