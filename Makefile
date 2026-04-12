@@ -1,11 +1,7 @@
-SHA := $(shell git rev-parse HEAD)
-THIS_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 VERSION_REGEX = [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^\" ]*
 VERSION := $(shell npm ls | grep "swig@" |  grep -Eo "${VERSION_REGEX}" -m 1)
 
 TMP = 'tmp'
-REMOTE = origin
-BRANCH = gh-pages
 BIN = node_modules/.bin
 PWD = $(shell pwd | sed -e 's/[\/&]/\\&/g')
 
@@ -17,9 +13,7 @@ all:
 	@chmod -R +x .git/hooks/
 
 .INTERMEDIATE version: \
-	browser/comments.js \
-	docs/index.json \
-	docs/docs.json
+	browser/comments.js
 
 version:
 	@sed -i.bak 's/${VERSION_REGEX}/${VERSION}/' lib/swig.js
@@ -104,90 +98,8 @@ else
 	@echo
 endif
 
-docs/index.json: FORCE
-	@echo "Building $@..."
-	@sed -i.bak 's/v${VERSION_REGEX}/v${VERSION}/' $@
-	@rm $@.bak
-
-docs/docs.json: FORCE
-	@echo "Building $@..."
-	@sed -i.bak 's/v${VERSION_REGEX}/v${VERSION}/' $@
-	@rm $@.bak
-
-docs/coverage.html: FORCE
-	@echo "Building $@..."
-	@make coverage out=$@
-
-docs/docs/api.json: FORCE
-	@echo "Building $@..."
-	@echo '{ "api": ' > $@
-	@${BIN}/jsdoc lib/swig.js -X >> $@
-	@echo '}' >> $@
-
-docs/docs/filters.json: FORCE
-	@echo "Building $@..."
-	@echo '{ "filters": ' > $@
-	@${BIN}/jsdoc lib/filters.js -X >> $@
-	@echo '}' >> $@
-
-docs/docs/tags.json: FORCE
-	@echo "Building $@..."
-	@echo '{ "tags": ' > $@
-	@${BIN}/jsdoc lib/tags/ -X >> $@
-	@echo '}' >> $@
-
-docs/docs/loaders.json: FORCE
-	@echo "Building $@..."
-	@echo '{ "loaders": ' > $@
-	@${BIN}/jsdoc lib/loaders/ -X >> $@
-	@echo '}' >> $@
-
-docs/docs/extending.json: FORCE
-	@echo "Building $@..."
-	@echo '{ "ext": ' > $@
-	@${BIN}/jsdoc lib/parser.js lib/lexer.js -X >> $@
-	@echo '}' >> $@
-
-.SECONDARY build-docs: \
-	docs/index.json \
-	docs/docs.json
-
-.INTERMDIATE build-docs: \
-	docs/docs/api.json \
-	docs/docs/filters.json \
-	docs/docs/tags.json \
-	docs/docs/extending.json \
-	docs/docs/loaders.json
-
-build-docs: FORCE
-	@echo "Documentation built."
-
-gh-pages: clean build build-docs
-	@mkdir -p ${TMP}/js
-	@mkdir -p docs/css
-	@rm -f docs/coverage.html
-	@${BIN}/lessc --yui-compress --include-path=docs/less docs/less/swig.less docs/css/swig.css
-	@${BIN}/still docs -o ${TMP} -i "layout" -i "json" -i "less" -v
-	@make coverage out=${TMP}/coverage.html
-	@cp dist/swig.* ${TMP}/js/
-	@git checkout ${BRANCH}
-	@cp -r ${TMP}/* ./
-	@rm -rf ${TMP}
-ifeq (${THIS_BRANCH}, master)
-	@git add .
-	@git commit -n -am "Automated build from ${SHA}"
-	@git push ${REMOTE} ${BRANCH}
-	@git checkout ${THIS_BRANCH}
-	@git clean -f -d docs/
-endif
-
-port = 3000
-docs: build build-docs
-	@${BIN}/still-server docs/ -p ${port} -o
-
 FORCE:
 
 .PHONY: all version \
-	build build-docs \
-	test test-browser lint coverage \
-	docs gh-pages
+	build \
+	test test-browser lint coverage
