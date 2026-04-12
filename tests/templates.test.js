@@ -1,6 +1,5 @@
 var fs = require('fs'),
   path = require('path'),
-  file = require('file'),
   swig = require('../lib/swig'),
   expect = require('expect.js'),
   _ = require('lodash'),
@@ -12,6 +11,23 @@ function isTest(f) {
 
 function isExpectation(f) {
   return (/\.expectation\.html$/).test(f);
+}
+
+function walkSync(dir, cb) {
+  var entries = fs.readdirSync(dir),
+    dirs = [],
+    files = [];
+  _.each(entries, function (name) {
+    if (fs.statSync(path.join(dir, name)).isDirectory()) {
+      dirs.push(name);
+    } else {
+      files.push(name);
+    }
+  });
+  cb(dir, dirs, files);
+  _.each(dirs, function (sub) {
+    walkSync(path.join(dir, sub), cb);
+  });
 }
 
 describe('Templates', function () {
@@ -27,7 +43,7 @@ describe('Templates', function () {
     expectations,
     cases;
 
-  file.walkSync(__dirname + '/cases/', function (start, dirs, files) {
+  walkSync(__dirname + '/cases/', function (start, dirs, files) {
     _.each(files, function (f) {
       return casefiles.push(path.normalize(start + '/' + f));
     });
