@@ -20,37 +20,15 @@ Here's an example of a great pull request that followed the above checklist: [Pu
 Documentation
 -------------
 
-All documentation for Swig is generated from [JSDoc](https://jsdoc.app) comments inline and Swig template files within the `./docs` folder. To make changes to any documentation, follow these steps and tips:
+User-facing documentation lives in the [Gina Docusaurus site](https://gina.io/docs/swig), maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/swig/`. The [JSDoc](https://jsdoc.app) blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored by hand into the Docusaurus pages.
 
-```sh
-# Clone the repo
-$ git clone git@github.com:gina-io/swig.git
-$ cd swig
-```
+To update the documentation:
 
-```sh
-# Get dependencies
-$ make
-```
+1. Open a PR against `develop` in this repo for any changes to JSDoc in `lib/*.js`.
+2. Open a separate PR against `develop` in [gina-io/docs](https://github.com/gina-io/docs) for user-facing changes under `docs/swig/`.
+3. Reference the paired PR in both descriptions so reviewers can follow the round-trip.
 
-```sh
-# Ensure your $NODE_PATH is set
-# Place this in your ~/.bash_profile
-export NODE_PATH=$(npm -g root 2>/dev/null)
-```
-
-```sh
-# Run the documentation test environment
-$ make docs
-```
-
-* Once you have the documentation test environment running, your browser will open showing you the documentation site.
-* If you are making changes to HTML files in `./docs`, reload the page to see them reflected immediately.
-* If you are changing any content from the inline [JSDoc](https://jsdoc.app) comments, run `make build-docs` to rebuild the JSON data files.
-
-### Important!
-
-Once your documentation pull request is accepted, the person merging your request will be responsible for pushing the changes to the live site. Any attempts to push to or run a pull request to the `gh-pages` branch will not be accepted.
+See [docs/README.md](./docs/README.md) for more detail on the docs workflow.
 
 Build Tasks
 -----------
@@ -74,18 +52,6 @@ Builds for browser and runs a large subset of tests from the `make test` task wi
 ### make coverage
 
 Builds a test coverage report.
-
-### make docs
-
-Builds documentation and runs a web-server for viewing a preview of the documentation site.
-
-### make build-docs
-
-Builds documentation for `docs` and `gh-pages` tasks from jsdoc comments in `./lib`.
-
-### make gh-pages
-
-Builds documentation as static HTML files and pushes them to the `gh-pages` git branch.
 
 ### make version
 
