@@ -14,3 +14,4 @@ exports.ir = require('./ir');
 exports.loaders = require('./loaders');
 exports.filters = require('./filters');
 exports.backend = require('./backend');
+exports.cache = require('./cache');
