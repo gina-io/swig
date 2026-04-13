@@ -7,7 +7,7 @@ Swig
 
 > **Part of the [Gina](https://github.com/gina-io/gina) ecosystem.** This fork is the built-in template engine for [Gina](https://gina.io) ([npm](https://www.npmjs.com/package/gina)), a Node.js MVC framework with HTTP/2, multi-bundle architecture, and scope-based data isolation.
 
-Swig is a Django/Jinja-like template engine for node.js and browsers.
+Swig is a **Jinja2/Django-inspired** template engine for node.js and browsers. The syntax will feel familiar to Jinja2 and Django users, but Swig is **not drop-in compatible** with either — porting templates from an existing project requires a handful of changes. See the [Migration Guide](https://gina.io/docs/swig/migration) for the full parity list and workaround patterns.
 
 Features
 --------
@@ -25,7 +25,7 @@ Need Help? Have Questions? Comments?
 ------------------------------------
 
 * File an issue at [gina-io/swig/issues](https://github.com/gina-io/swig/issues).
-* [Migration Guide](https://github.com/paularmstrong/swig/wiki/Migrating-from-v0.x.x-to-v1.0.0) (original upstream wiki, still authoritative for 0.x → 1.x migrations).
+* [Swig v0.x → v1.x migration notes](https://github.com/paularmstrong/swig/wiki/Migrating-from-v0.x.x-to-v1.0.0) — original upstream wiki, still authoritative for that version jump. (For porting *from Jinja2 or Django* into Swig, see the [Migration Guide](https://gina.io/docs/swig/migration) below.)
 
 Installation
 ------------
@@ -74,6 +74,22 @@ var output = template({
 ```
 
 For working example see [examples/basic](https://github.com/gina-io/swig/tree/master/examples/basic).
+
+Migrating from Jinja2 or Django
+-------------------------------
+
+Swig is *inspired by* Jinja2 and Django, not a drop-in replacement. Common pitfalls when porting existing templates:
+
+* **No `is` / `is not` / `not in` operators** — rewrite `{% if x is defined %}` as `{% if x !== undefined %}`, `{% if x not in xs %}` as `{% if not (x in xs) %}`.
+* **Django `forloop.counter` → Swig `loop.index`** (Swig follows Jinja2 loop-variable naming).
+* **`{{ super() }}` / `{{ block.super }}` → `{% parent %}`** — Swig uses a dedicated tag inside the overriding block.
+* **Django filter args use a colon (`|date:"Y-m-d"`) — Swig uses parens (`|date("Y-m-d")`)**.
+* **`{% with x=1 %}` → `{% set x = 1 %}`**, and no block-form `{% set %}…{% endset %}`.
+* **No `{% from "f" import x %}` — use `{% import "f" as ns %}` + `ns.x` instead**.
+* **Method calls require parens** — Django auto-invokes `x.get_absolute_url`; Swig needs `x.get_absolute_url()`.
+* **~25 Jinja2 filters are absent** — `default`, `truncate`, `tojson`, `round`, `int`, `float`, `map`, `select`, `batch`, `trim`, etc. Register them via `swig.setFilter(name, fn)`.
+
+Full parity tables and workaround patterns: **[Migration Guide](https://gina.io/docs/swig/migration)**.
 
 How it works
 ------------
