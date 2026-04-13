@@ -11,3 +11,4 @@
 exports.utils = require('./utils');
 exports.security = require('./security');
 exports.ir = require('./ir');
+exports.loaders = require('./loaders');
