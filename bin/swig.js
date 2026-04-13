@@ -11,9 +11,11 @@ var swig = require('../index'),
 
 var command,
   wrapstart = 'var tpl = ',
+  wrapend = ';',
   argv = yargs
     .usage('\n Usage:\n' +
       '    $0 compile [files] [options]\n' +
+      '    $0 compile --recursive <dir> [options]\n' +
       '    $0 run [files] [options]\n' +
       '    $0 render [files] [options]\n'
       )
@@ -24,6 +26,8 @@ var command,
       j: 'Variable context as a JSON file.',
       c: 'Variable context as a CommonJS-style file. Used only if option `j` is not provided.',
       m: 'Minify compiled functions with terser',
+      r: 'Recursively compile every template in <dir> into a single AOT bundle module.',
+      'ext': 'Comma-separated list of file extensions to include when using --recursive (e.g. ".html,.swig"). Defaults to no filter.',
       'filters': 'Custom filters as a CommonJS-style file',
       'tags': 'Custom tags as a CommonJS-style file',
       'options': 'Customize Swig\'s Options from a CommonJS-style file',
@@ -38,8 +42,9 @@ var command,
     .alias('j', 'json')
     .alias('c', 'context')
     .alias('m', 'minify')
+    .alias('r', 'recursive')
     .default('wrap-start', wrapstart)
-    .default('wrap-end', ';')
+    .default('wrap-end', wrapend)
     .default('method-name', 'tpl')
     .check(function (argv) {
       if (argv.v) {
@@ -61,6 +66,25 @@ var command,
 
       if (argv['method-name'] !== 'tpl') {
         argv['wrap-start'] = 'var ' + argv['method-name'] + ' = ';
+      }
+
+      if (argv.r) {
+        if (command !== 'compile') {
+          throw new Error('--recursive can only be used with "compile".');
+        }
+        if (argv._.length) {
+          throw new Error('--recursive does not accept positional file arguments; pass a single directory via --recursive <dir>.');
+        }
+        if (argv['method-name'] !== 'tpl') {
+          throw new Error('--recursive cannot be combined with --method-name; the bundle exports a map of templates, not a single named function.');
+        }
+        if (argv['wrap-start'] !== wrapstart || argv['wrap-end'] !== wrapend) {
+          throw new Error('--recursive cannot be combined with --wrap-start / --wrap-end; the bundle wrapper is fixed.');
+        }
+      }
+
+      if (argv.ext && !argv.r) {
+        throw new Error('--ext is only meaningful with --recursive.');
       }
 
       return true;
@@ -88,7 +112,7 @@ if (argv.j) {
   ctx = require(argv.c);
 }
 
-if (argv.o !== 'stdout') {
+if (argv.o !== 'stdout' && !argv.r) {
   argv.o += '/';
   argv.o = path.normalize(argv.o);
 
@@ -158,7 +182,100 @@ case 'render':
   break;
 }
 
-argv._.forEach(function (file) {
-  var str = fs.readFileSync(file, 'utf8');
-  fn(file, str);
-});
+if (argv.r) {
+  bundleRecursive(argv.r);
+} else {
+  argv._.forEach(function (file) {
+    var str = fs.readFileSync(file, 'utf8');
+    fn(file, str);
+  });
+}
+
+/**
+ * Walk a directory recursively, returning every regular-file path found.
+ * Skips dotfile entries and dot-directories so platform metadata such as
+ * <code>.DS_Store</code> never reaches the compiler.
+ *
+ * @param  {string} dir Directory to walk.
+ * @return {string[]}   Absolute file paths in deterministic, sorted order.
+ * @private
+ */
+function walkSync(dir) {
+  var out = [],
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  entries.sort(function (a, b) {
+    return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+  });
+
+  entries.forEach(function (entry) {
+    if (entry.name.charAt(0) === '.') {
+      return;
+    }
+    var full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      out = out.concat(walkSync(full));
+    } else if (entry.isFile()) {
+      out.push(full);
+    }
+  });
+
+  return out;
+}
+
+/**
+ * Compile every template under <var>dir</var> into a single CommonJS module
+ * mapping resolved relative paths to compiled template functions.
+ *
+ * Note: <code>extends</code>, <code>include</code>, and <code>import</code>
+ * resolution still happens at render time through the consumer's loader. The
+ * bundle is not a closed module against inheritance chains.
+ *
+ * @param  {string}  dir Directory to walk.
+ * @return {undefined}   Writes to stdout or to <code>argv.o</code>.
+ * @private
+ */
+function bundleRecursive(dir) {
+  var extFilter = null,
+    files,
+    parts = [],
+    output;
+
+  if (argv.ext) {
+    extFilter = String(argv.ext).split(',').map(function (e) {
+      e = e.trim();
+      return e.charAt(0) === '.' ? e : '.' + e;
+    });
+  }
+
+  files = walkSync(dir).filter(function (file) {
+    if (!extFilter) {
+      return true;
+    }
+    return extFilter.indexOf(path.extname(file)) !== -1;
+  });
+
+  files.forEach(function (file) {
+    var src = fs.readFileSync(file, 'utf8'),
+      key = path.relative(dir, file).split(path.sep).join('/'),
+      tpl = swig.precompile(src, { filename: file, locals: ctx }).tpl
+        .toString()
+        .replace('anonymous', '');
+
+    parts.push(JSON.stringify(key) + ': ' + tpl);
+  });
+
+  output = 'module.exports = {\n' + parts.join(',\n') + '\n};\n';
+
+  if (argv.m) {
+    output = terser.minify_sync(output).code;
+  }
+
+  if (argv.o === 'stdout') {
+    console.log(output);
+    return;
+  }
+
+  fs.writeFileSync(argv.o, output, { flags: 'w' });
+  console.log('Wrote', argv.o);
+}
