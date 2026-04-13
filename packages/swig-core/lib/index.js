@@ -11,6 +11,7 @@
 exports.utils = require('./utils');
 exports.security = require('./security');
 exports.ir = require('./ir');
+exports.tokentypes = require('./tokentypes');
 exports.loaders = require('./loaders');
 exports.filters = require('./filters');
 exports.backend = require('./backend');
