@@ -1,3 +1,8 @@
+[1.6.0](https://github.com/gina-io/swig/tree/v1.6.0) / 2026-04-13
+-----------------------------------------------------------------
+
+* **Added** `swig compile --recursive <dir>` walks a directory and emits a single AOT bundle module mapping relative paths to compiled template functions. Honours optional `--ext` extension filter; conflicts with `--method-name` / `--wrap-start` / `--wrap-end`. `extends` / `include` / `import` are still resolved at render time through the consumer's loader.
+
 [1.5.0](https://github.com/gina-io/swig/tree/v1.5.0) / 2026-04-12
 -----------------------------------------------------------------
 
