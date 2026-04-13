@@ -1,4 +1,5 @@
-var utils = require('./utils');
+var utils = require('./utils'),
+  backend = require('./backend');
 
 /**
  * Runtime engine plumbing shared across @rhinostone/swig-family frontends.
@@ -113,4 +114,33 @@ exports.getParents = function (tokens, options, deps) {
   }
 
   return parents;
+};
+
+/**
+ * Build a renderable template Function from a parsed token tree.
+ *
+ * Walks tokens via the swig-core backend codegen, wraps the emitted body
+ * in the `new Function('_swig', '_ctx', '_filters', '_utils', '_fn', ...)`
+ * construction, and returns the function. The argument list is the
+ * contract every tag's compile() output depends on — `_output`, `_ext`,
+ * `_ctx`, etc. are referenced by name in emitted code.
+ *
+ * Filename attribution on compile-time failures lives on the frontend
+ * per the seam rule (the caller knows which template the body came from
+ * and can attach that via options.filename in its own try/catch). This
+ * helper only throws whatever `new Function(...)` throws — the caller
+ * can catch and rewrap.
+ *
+ * @param  {object|array} tokens   Parsed token tree.
+ * @param  {array}  [parents]      Parent tokens from getParents().
+ * @param  {object} [options]      Swig options object.
+ * @return {Function}              Template function.
+ */
+exports.buildTemplateFunction = function (tokens, parents, options) {
+  return new Function('_swig', '_ctx', '_filters', '_utils', '_fn',
+    '  var _ext = _swig.extensions,\n' +
+    '    _output = "";\n' +
+    backend.compile(tokens, parents, options) + '\n' +
+    '  return _output;\n'
+    );
 };
