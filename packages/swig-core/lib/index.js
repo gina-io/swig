@@ -9,3 +9,4 @@
  */
 
 exports.utils = require('./utils');
+exports.security = require('./security');
