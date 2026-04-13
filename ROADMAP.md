@@ -6,15 +6,37 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ---
 
-## v1.5.0 (next)
+## Next
 
 | Status | Item |
 | --- | --- |
-| Planned | Full security audit of dependency tree, template pipeline, and CLI argv flow |
+| Planned | Carve `@rhinostone/swig-core` — extract IR, backend (JS codegen), and runtime (cache, loader, filter infra, `_dangerousProps` guards) into a standalone package. `@rhinostone/swig` becomes the native-syntax frontend plus a core re-export. Target: `2.0.0-alpha.1`. |
+
+## Future (post-2.0)
+
+Multi-flavor architecture — a single backend with swappable frontends so Twig / Jinja2 / Django templates can run on the same compile pipeline. Design: `multi-flavor-ir.md`.
+
+| Status | Item |
+| --- | --- |
+| Planned | Port the native Swig frontend to emit IR instead of JS directly. Test gate: byte-identical compiled output for existing suites. Target: `2.0.0-alpha.2`. |
+| Planned | Ship `@rhinostone/swig-twig` frontend — expression sugar (`~`, `??`, `?:`, `..`, `is X`, `not in`, `#{}`), Twig tag rewrites (`apply`, `verbatim`, `set/endset`, `with/endwith`, `from import`), ~20 filter parity. |
+| Planned | Ship Jinja2 and Django frontends. On demand — when there's concrete user demand. |
+| Planned | Engine bump + test framework migration. Move to Node ≥ 18, `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. Bundled with `2.0.0`. |
 
 ---
 
 ## Completed
+
+### v1.6.0 (April 2026)
+
+- AOT compile target: `swig compile --recursive <dir>` walks a directory and emits a single CommonJS module mapping relative template paths to compiled functions. New `--ext` filter flag. Conflicts with `--method-name` / `--wrap-start` / `--wrap-end` / positional file arguments.
+
+### v1.5.0 (April 2026)
+
+- Full security audit — template compilation pipeline, `bin/swig.js` argv flow, and all `eval` / `new Function` usage paths
+- Fix five CVE-2023-25345 coverage gaps: bracket-notation access in `parser.js`, bracket-notation assignment in `set.js`, loop variable names in `for.js`, macro names in `macro.js`, import aliases in `import.js`
+- Document the security model (template source trusted, context untrusted), runtime bracket-access limitation, and complete `eval` / `new Function` inventory
+- Fold user-facing documentation into the Gina Docusaurus site at `/swig/`; retire the legacy `make docs` / `make build-docs` / `make gh-pages` pipeline
 
 ### v1.4.7 (April 2026)
 
