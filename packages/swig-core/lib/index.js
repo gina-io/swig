@@ -15,3 +15,4 @@ exports.loaders = require('./loaders');
 exports.filters = require('./filters');
 exports.backend = require('./backend');
 exports.cache = require('./cache');
+exports.engine = require('./engine');
