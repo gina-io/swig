@@ -38,6 +38,9 @@
   },
   "license": "MIT",
   "main": "index",
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
     "node": ">=12"
   },
