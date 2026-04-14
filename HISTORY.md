@@ -1,3 +1,8 @@
+[2.0.0-alpha.1](https://github.com/gina-io/swig/tree/v2.0.0-alpha.1) / 2026-04-14
+---------------------------------------------------------------------------------
+
+* **Changed** First release on the 2.0.0 track. Internals carved into `@rhinostone/swig-core` (Phase 1). No user-visible API changes vs 1.6.0 — same entry points, same compiled output, same test suite.
+
 [1.6.0](https://github.com/gina-io/swig/tree/v1.6.0) / 2026-04-13
 -----------------------------------------------------------------
 
