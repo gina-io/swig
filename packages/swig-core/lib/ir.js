@@ -216,8 +216,16 @@
 /**
  * Emit the parent block's compiled content (super() / block.super).
  *
+ * During Phase 2 (#T15), IRParent optionally carries a `body` slot so
+ * the native frontend's parent tag can resolve the parent-chain lookup
+ * at compile time (emitting the matched block's body) without the
+ * backend having to re-walk the parents array. Target shape is a bare
+ * marker — the backend resolves parent() by itself — reached once the
+ * IR owns the extends/blocks graph directly (post-Phase 2).
+ *
  * @typedef {Object} IRParent
  * @property {'Parent'} type
+ * @property {IRStatement[]} [body]           Transitional: pre-resolved parent-block content.
  * @property {IRLoc} [loc]
  */
 
@@ -626,11 +634,21 @@ exports.raw = function (value, loc) {
 
 /**
  * Build an {@link IRParent} super()-equivalent node.
- * @param  {IRLoc} [loc]
+ *
+ * Phase 2: optional `body` slot carries the pre-resolved parent-block
+ * content as IR statements. Swig's parent tag walks the parents chain
+ * at compile time and drops the matched block's body here; backends
+ * emit the body as-is. A bare Parent (no body) is valid and means the
+ * backend will resolve the lookup itself — reached post-Phase 2.
+ *
+ * @param  {IRStatement[]} [body]
+ * @param  {IRLoc}         [loc]
  * @return {IRParent}
  */
-exports.parent = function (loc) {
-  return withLoc({ type: 'Parent' }, loc);
+exports.parent = function (body, loc) {
+  var node = { type: 'Parent' };
+  if (body !== undefined) { node.body = body; }
+  return withLoc(node, loc);
 };
 
 /**

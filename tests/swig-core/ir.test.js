@@ -290,8 +290,14 @@ describe('swig-core/lib/ir — node factories', function () {
       expect(node).to.eql({ type: 'Parent' });
     });
 
+    it('parent: body slot stored when provided (Phase 2 transitional)', function () {
+      var body = [ir.legacyJS('_output += "x";\n')];
+      var node = ir.parent(body);
+      expect(node).to.eql({ type: 'Parent', body: body });
+    });
+
     it('parent: attaches loc when provided', function () {
-      expect(ir.parent(sampleLoc).loc).to.be(sampleLoc);
+      expect(ir.parent(undefined, sampleLoc).loc).to.be(sampleLoc);
     });
   });
 
@@ -465,7 +471,7 @@ describe('swig-core/lib/ir — node factories', function () {
         ir.call(ir.varRef(['f']), [], sampleLoc),
         ir.set(ir.varRef(['x']), '=', ir.literal('number', 1), sampleLoc),
         ir.raw('x', sampleLoc),
-        ir.parent(sampleLoc),
+        ir.parent(undefined, sampleLoc),
         ir.autoescape(true, [], sampleLoc),
         ir.filter('upper', [], undefined, sampleLoc),
         ir.template([], undefined, undefined, sampleLoc)
