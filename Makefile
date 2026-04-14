@@ -58,7 +58,8 @@ dist:
 dist/swig.js:
 	@echo "Building $@..."
 	@cat $^ > $@
-	@${BIN}/browserify browser/index.js >> $@
+	@${BIN}/esbuild browser/index.js --bundle --format=iife \
+		--alias:fs=./browser/stubs/fs.js --alias:path=path-browserify >> $@
 
 dist/swig.min.js:
 	@echo "Building $@..."
@@ -68,7 +69,8 @@ browser/test/tests.js:
 	@echo "Building $@..."
 	@cat $^ > tests/browser.js
 	@perl -pi -e 's/\.\.\/\.\.\/lib/\.\.\/lib/g' tests/browser.js
-	@${BIN}/browserify tests/browser.js > $@
+	@${BIN}/esbuild tests/browser.js --bundle --format=iife \
+		--alias:fs=./browser/stubs/fs.js --alias:path=path-browserify > $@
 	@rm tests/browser.js
 
 tests := $(shell find ./tests -name '*.test.js' ! -path "*node_modules/*")
