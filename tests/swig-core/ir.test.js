@@ -154,6 +154,21 @@ describe('swig-core/lib/ir — node factories', function () {
       expect(node.key).to.be('k');
       expect(node.emptyBody).to.be(emptyBody);
     });
+
+    it('accepts a transitional string iterable (Phase 2)', function () {
+      var node = ir.forStmt('item', '(typeof _ctx.items !== "undefined") ? _ctx.items : []', []);
+      expect(node.iterable).to.be('(typeof _ctx.items !== "undefined") ? _ctx.items : []');
+      expect(node.iterable).to.be.a('string');
+      expect(node.type).to.be('For');
+    });
+
+    it('stores iterable opaquely without inspection (Phase 2 transitional)', function () {
+      var node = ir.forStmt('v', '_ctx.arr', [ir.legacyJS('_output += "x";')], 'k');
+      expect(node.iterable).to.be('_ctx.arr');
+      expect(node.value).to.be('v');
+      expect(node.key).to.be('k');
+      expect(node.body[0].type).to.be('LegacyJS');
+    });
   });
 
   describe('block()', function () {
