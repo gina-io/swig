@@ -94,6 +94,20 @@ exports.compile = function (template, parents, options, blockName) {
       });
       return;
     }
+    if (node.type === 'Filter') {
+      var bodyJS = '';
+      utils.each(node.body, function (b) {
+        if (b.type === 'LegacyJS') { bodyJS += b.js; return; }
+        if (b.type === 'Text' || b.type === 'Raw') {
+          bodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+          return;
+        }
+      });
+      var val = '(function () {\n  var _output = "";\n' + bodyJS + '  return _output;\n})()',
+        argsJS = (node.args && node.args.length) ? ', ' + node.args.join('') : '';
+      out += '_output += _filters["' + node.name + '"](' + val + argsJS + ');\n';
+      return;
+    }
   });
 
   return out;
