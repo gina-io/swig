@@ -94,6 +94,24 @@ exports.compile = function (template, parents, options, blockName) {
       });
       return;
     }
+    if (node.type === 'If') {
+      // Phase 2: single-branch shape. The if tag's content still carries
+      // else/elseif as embedded LegacyJS fragments that close and reopen
+      // the chain inline; multi-branch IR lowering is Session 14+ work
+      // (when TokenParser migrates to IRExpr). The backend emits byte-
+      // identical output to the pre-migration `if (cond) { ... }` form.
+      var ifBranch = node.branches[0],
+        ifBodyJS = '';
+      utils.each(ifBranch.body, function (b) {
+        if (b.type === 'LegacyJS') { ifBodyJS += b.js; return; }
+        if (b.type === 'Text' || b.type === 'Raw') {
+          ifBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+          return;
+        }
+      });
+      out += 'if (' + ifBranch.test + ') { \n' + ifBodyJS + '\n' + '}';
+      return;
+    }
     if (node.type === 'Filter') {
       var bodyJS = '';
       utils.each(node.body, function (b) {
