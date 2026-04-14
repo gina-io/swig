@@ -245,6 +245,20 @@ describe('swig-core/lib/ir — node factories', function () {
       var args = [ir.literal('string', ',')];
       expect(ir.filter('join', [], args).args).to.be(args);
     });
+
+    it('filter: accepts transitional string-fragment args (Phase 2)', function () {
+      var args = ['".", "!", "g"'];
+      var node = ir.filter('replace', [], args);
+      expect(node.args).to.be(args);
+      expect(node.args[0]).to.be.a('string');
+    });
+
+    it('filter: accepts mixed IRExpr + string args during Phase 2', function () {
+      var mixed = [ir.literal('string', ','), '", "arg2"'];
+      var node = ir.filter('join', [], mixed);
+      expect(node.args).to.be(mixed);
+      expect(node.args.length).to.be(2);
+    });
   });
 
   describe('legacyJS()', function () {
