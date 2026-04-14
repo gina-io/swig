@@ -84,6 +84,16 @@ exports.compile = function (template, parents, options, blockName) {
       out += node.js;
       return;
     }
+    if (node.type === 'Autoescape') {
+      utils.each(node.body, function (b) {
+        if (b.type === 'LegacyJS') { out += b.js; return; }
+        if (b.type === 'Text' || b.type === 'Raw') {
+          out += '_output += "' + escapeTextValue(b.value) + '";\n';
+          return;
+        }
+      });
+      return;
+    }
   });
 
   return out;
