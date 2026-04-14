@@ -189,10 +189,34 @@ describe('swig-core/lib/ir — node factories', function () {
     it('include: context + isolated + loc when supplied', function () {
       var path = ir.literal('string', 'footer.html');
       var ctx = ir.objectLiteral([]);
-      var node = ir.include(path, ctx, true, sampleLoc);
+      var node = ir.include(path, ctx, true, undefined, undefined, sampleLoc);
       expect(node.context).to.be(ctx);
       expect(node.isolated).to.be(true);
       expect(node.loc).to.be(sampleLoc);
+    });
+
+    it('include: accepts transitional string path + context (Phase 2)', function () {
+      var node = ir.include('"footer.html"', '_utils.extend({}, _ctx, obj)');
+      expect(node.path).to.be('"footer.html"');
+      expect(node.context).to.be('_utils.extend({}, _ctx, obj)');
+      expect(node.hasOwnProperty('isolated')).to.be(false);
+      expect(node.hasOwnProperty('ignoreMissing')).to.be(false);
+      expect(node.hasOwnProperty('resolveFrom')).to.be(false);
+    });
+
+    it('include: carries ignoreMissing + resolveFrom (Phase 2)', function () {
+      var node = ir.include('"partial.html"', undefined, undefined, true, 'templates/home.html');
+      expect(node.ignoreMissing).to.be(true);
+      expect(node.resolveFrom).to.be('templates/home.html');
+    });
+
+    it('include: stores path and context opaquely without inspection (Phase 2 transitional)', function () {
+      var node = ir.include('someVar', '_ctx', false, false, '');
+      expect(node.path).to.be('someVar');
+      expect(node.context).to.be('_ctx');
+      expect(node.isolated).to.be(false);
+      expect(node.ignoreMissing).to.be(false);
+      expect(node.resolveFrom).to.be('');
     });
 
     it('importStmt: requires path + alias', function () {
@@ -435,7 +459,7 @@ describe('swig-core/lib/ir — node factories', function () {
         ir.ifStmt([], sampleLoc),
         ir.forStmt('v', ir.varRef(['xs']), [], undefined, undefined, sampleLoc),
         ir.block('b', [], sampleLoc),
-        ir.include(ir.literal('string', 'p'), undefined, undefined, sampleLoc),
+        ir.include(ir.literal('string', 'p'), undefined, undefined, undefined, undefined, sampleLoc),
         ir.importStmt(ir.literal('string', 'p'), 'alias', sampleLoc),
         ir.macro('m', [], [], sampleLoc),
         ir.call(ir.varRef(['f']), [], sampleLoc),

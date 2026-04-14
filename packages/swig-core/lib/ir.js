@@ -125,11 +125,26 @@
  */
 
 /**
+ * During the Phase 2 migration, `path` and `context` may transitionally
+ * carry raw JS source fragments (`string`) emitted by the frontend's
+ * TokenParser — parallels the {@link IRSet} `target`/`value` transitional
+ * shapes. The target shape is `IRExpr` and is reached once TokenParser
+ * migrates to IRExpr emission (Session 14+). Backends that consume real
+ * `IRExpr` values must tolerate the transitional string form.
+ *
+ * `ignoreMissing` maps to swig's `ignore missing` modifier (silently swallow
+ * a compile-time load error from the included file). `resolveFrom` carries
+ * the including template's filename so the loader can resolve relative
+ * paths from the right anchor; empty string means "no anchor" (consumers
+ * must treat it as a JS-safe double-quoted-string fragment).
+ *
  * @typedef {Object} IRInclude
  * @property {'Include'} type
- * @property {IRExpr} path                    Usually a string literal, but any expression is allowed.
- * @property {IRExpr} [context]               Explicit locals for the included template.
+ * @property {IRExpr|string} path             Usually a string literal, but any expression is allowed.
+ * @property {IRExpr|string} [context]        Explicit locals for the included template.
  * @property {boolean} [isolated]             Maps to Twig's `only`.
+ * @property {boolean} [ignoreMissing]        Swallow loader errors when the file is missing.
+ * @property {string} [resolveFrom]           Including template's filename (backslash-escaped) for loader-relative resolution.
  * @property {IRLoc} [loc]
  */
 
@@ -508,16 +523,27 @@ exports.block = function (name, body, loc) {
 
 /**
  * Build an {@link IRInclude} node.
- * @param  {IRExpr}   path
- * @param  {IRExpr}   [context]
- * @param  {boolean}  [isolated]
- * @param  {IRLoc}    [loc]
+ *
+ * `path` and `context` are typed `IRExpr | string` for Phase 2 — see the
+ * IRInclude typedef for the transitional shape. The factory stores both
+ * opaquely and does not inspect them. `ignoreMissing` and `resolveFrom`
+ * are swig-native modifiers carried through so the backend can build
+ * the `_swig.compileFile(...)` emission.
+ *
+ * @param  {IRExpr|string} path
+ * @param  {IRExpr|string} [context]
+ * @param  {boolean}       [isolated]
+ * @param  {boolean}       [ignoreMissing]
+ * @param  {string}        [resolveFrom]
+ * @param  {IRLoc}         [loc]
  * @return {IRInclude}
  */
-exports.include = function (path, context, isolated, loc) {
+exports.include = function (path, context, isolated, ignoreMissing, resolveFrom, loc) {
   var node = { type: 'Include', path: path };
   if (context !== undefined) { node.context = context; }
   if (isolated !== undefined) { node.isolated = isolated; }
+  if (ignoreMissing !== undefined) { node.ignoreMissing = ignoreMissing; }
+  if (resolveFrom !== undefined) { node.resolveFrom = resolveFrom; }
   return withLoc(node, loc);
 };
 
