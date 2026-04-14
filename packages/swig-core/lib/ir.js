@@ -313,10 +313,367 @@
  */
 
 /* ------------------------------------------------------------------ *
- * No runtime exports in Phase 1. The module shape is kept consistent
- * with the rest of swig-core so future backend code can
- * `require('@rhinostone/swig-core/lib/ir')` for a shared type-only
- * surface under JSDoc tooling.
+ * Runtime node factories — Phase 2 scaffold (Session 7, 2026-04-14).
+ *
+ * Each factory returns a plain JSON-serialisable object matching one
+ * of the typedefs above. `loc` is always optional; when omitted it is
+ * not set on the returned node (consumers can distinguish via
+ * `'loc' in node`). All other parameters are required unless documented
+ * otherwise on the corresponding typedef.
+ *
+ * No consumers yet — this commit introduces the schema surface only.
+ * Subsequent sessions will migrate the native frontend's token-tree
+ * production over to these shapes. See the Phase 2 layering notes in
+ * .claude/architecture/multi-flavor-ir.md.
  * ------------------------------------------------------------------ */
 
-module.exports = {};
+/*!
+ * Attach `loc` to the node if provided, skipping the assignment otherwise
+ * so consumers can tell "no source location available" from
+ * "source location is the default IRLoc".
+ * @private
+ */
+function withLoc(node, loc) {
+  if (loc !== undefined) {
+    node.loc = loc;
+  }
+  return node;
+}
+
+/* -- Statement factories ------------------------------------------- */
+
+/**
+ * Build a {@link IRTemplate} root node.
+ * @param  {IRStatement[]} body
+ * @param  {string}        [parent]
+ * @param  {Object<string, IRBlock>} [blocks]
+ * @param  {IRLoc}         [loc]
+ * @return {IRTemplate}
+ */
+exports.template = function (body, parent, blocks, loc) {
+  var node = { type: 'Template', body: body };
+  if (parent !== undefined) { node.parent = parent; }
+  if (blocks !== undefined) { node.blocks = blocks; }
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRText} literal-text node.
+ * @param  {string} value
+ * @param  {IRLoc}  [loc]
+ * @return {IRText}
+ */
+exports.text = function (value, loc) {
+  return withLoc({ type: 'Text', value: value }, loc);
+};
+
+/**
+ * Build an {@link IROutput} node.
+ * @param  {IRExpr}          expr
+ * @param  {IRFilterCall[]}  [filters]
+ * @param  {boolean}         [safe]
+ * @param  {IRLoc}           [loc]
+ * @return {IROutput}
+ */
+exports.output = function (expr, filters, safe, loc) {
+  var node = { type: 'Output', expr: expr };
+  if (filters !== undefined) { node.filters = filters; }
+  if (safe !== undefined) { node.safe = safe; }
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRFilterCall}. Used inside `Output.filters` and as
+ * the tag-level filter invocation carried by {@link IRFilter}.
+ * Note: not a statement — helper shape.
+ * @param  {string}    name
+ * @param  {IRExpr[]}  [args]
+ * @return {IRFilterCall}
+ */
+exports.filterCall = function (name, args) {
+  var node = { name: name };
+  if (args !== undefined) { node.args = args; }
+  return node;
+};
+
+/**
+ * Build an {@link IRIf} node from a sequence of branches.
+ * @param  {IRIfBranch[]} branches
+ * @param  {IRLoc}        [loc]
+ * @return {IRIf}
+ */
+exports.ifStmt = function (branches, loc) {
+  return withLoc({ type: 'If', branches: branches }, loc);
+};
+
+/**
+ * Build an {@link IRIfBranch}. `test` is null for the trailing else.
+ * @param  {IRExpr|null}   test
+ * @param  {IRStatement[]} body
+ * @return {IRIfBranch}
+ */
+exports.ifBranch = function (test, body) {
+  return { test: test, body: body };
+};
+
+/**
+ * Build an {@link IRFor} node.
+ * @param  {string}         value       Loop value identifier (first binding).
+ * @param  {IRExpr}         iterable
+ * @param  {IRStatement[]}  body
+ * @param  {string}         [key]       Loop key identifier (second binding).
+ * @param  {IRStatement[]}  [emptyBody]
+ * @param  {IRLoc}          [loc]
+ * @return {IRFor}
+ */
+exports.forStmt = function (value, iterable, body, key, emptyBody, loc) {
+  var node = { type: 'For', value: value, iterable: iterable, body: body };
+  if (key !== undefined) { node.key = key; }
+  if (emptyBody !== undefined) { node.emptyBody = emptyBody; }
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRBlock} override point.
+ * @param  {string}         name
+ * @param  {IRStatement[]}  body
+ * @param  {IRLoc}          [loc]
+ * @return {IRBlock}
+ */
+exports.block = function (name, body, loc) {
+  return withLoc({ type: 'Block', name: name, body: body }, loc);
+};
+
+/**
+ * Build an {@link IRInclude} node.
+ * @param  {IRExpr}   path
+ * @param  {IRExpr}   [context]
+ * @param  {boolean}  [isolated]
+ * @param  {IRLoc}    [loc]
+ * @return {IRInclude}
+ */
+exports.include = function (path, context, isolated, loc) {
+  var node = { type: 'Include', path: path };
+  if (context !== undefined) { node.context = context; }
+  if (isolated !== undefined) { node.isolated = isolated; }
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRImport} node. `alias` MUST pass the dangerousProps
+ * guard at backend emit time.
+ * @param  {IRExpr}  path
+ * @param  {string}  alias
+ * @param  {IRLoc}   [loc]
+ * @return {IRImport}
+ */
+exports.importStmt = function (path, alias, loc) {
+  return withLoc({ type: 'Import', path: path, alias: alias }, loc);
+};
+
+/**
+ * Build an {@link IRMacro} definition. `name` MUST pass the
+ * dangerousProps guard at backend emit time.
+ * @param  {string}         name
+ * @param  {IRMacroParam[]} params
+ * @param  {IRStatement[]}  body
+ * @param  {IRLoc}          [loc]
+ * @return {IRMacro}
+ */
+exports.macro = function (name, params, body, loc) {
+  return withLoc({ type: 'Macro', name: name, params: params, body: body }, loc);
+};
+
+/**
+ * Build an {@link IRMacroParam}.
+ * @param  {string}  name
+ * @param  {IRExpr}  [defaultValue]
+ * @return {IRMacroParam}
+ */
+exports.macroParam = function (name, defaultValue) {
+  var node = { name: name };
+  if (defaultValue !== undefined) { node['default'] = defaultValue; }
+  return node;
+};
+
+/**
+ * Build an {@link IRCall} statement-level invocation.
+ * @param  {IRExpr}   callee
+ * @param  {IRExpr[]} args
+ * @param  {IRLoc}    [loc]
+ * @return {IRCall}
+ */
+exports.call = function (callee, args, loc) {
+  return withLoc({ type: 'Call', callee: callee, args: args }, loc);
+};
+
+/**
+ * Build an {@link IRSet} node. `target` MUST pass the dangerousProps
+ * guard at every path segment at backend emit time.
+ * @param  {IRVarRef} target
+ * @param  {IRExpr}   value
+ * @param  {IRLoc}    [loc]
+ * @return {IRSet}
+ */
+exports.set = function (target, value, loc) {
+  return withLoc({ type: 'Set', target: target, value: value }, loc);
+};
+
+/**
+ * Build an {@link IRRaw} verbatim-text node.
+ * @param  {string} value
+ * @param  {IRLoc}  [loc]
+ * @return {IRRaw}
+ */
+exports.raw = function (value, loc) {
+  return withLoc({ type: 'Raw', value: value }, loc);
+};
+
+/**
+ * Build an {@link IRParent} super()-equivalent node.
+ * @param  {IRLoc} [loc]
+ * @return {IRParent}
+ */
+exports.parent = function (loc) {
+  return withLoc({ type: 'Parent' }, loc);
+};
+
+/**
+ * Build an {@link IRAutoescape} region.
+ * @param  {true|false|'html'|'js'} strategy
+ * @param  {IRStatement[]}          body
+ * @param  {IRLoc}                  [loc]
+ * @return {IRAutoescape}
+ */
+exports.autoescape = function (strategy, body, loc) {
+  return withLoc({ type: 'Autoescape', strategy: strategy, body: body }, loc);
+};
+
+/**
+ * Build an {@link IRFilter} region-level filter pipe.
+ * @param  {string}         name
+ * @param  {IRStatement[]}  body
+ * @param  {IRExpr[]}       [args]
+ * @param  {IRLoc}          [loc]
+ * @return {IRFilter}
+ */
+exports.filter = function (name, body, args, loc) {
+  var node = { type: 'Filter', name: name, body: body };
+  if (args !== undefined) { node.args = args; }
+  return withLoc(node, loc);
+};
+
+/* -- Expression factories ------------------------------------------ */
+
+/**
+ * Build an {@link IRLiteral}.
+ * @param  {'string'|'number'|'bool'|'null'|'undefined'} kind
+ * @param  {string|number|boolean|null|undefined}        value
+ * @param  {IRLoc}                                       [loc]
+ * @return {IRLiteral}
+ */
+exports.literal = function (kind, value, loc) {
+  return withLoc({ type: 'Literal', kind: kind, value: value }, loc);
+};
+
+/**
+ * Build an {@link IRVarRef} dot-path variable reference. Every path
+ * segment MUST pass the dangerousProps guard at backend emit time.
+ * @param  {string[]} path
+ * @param  {IRLoc}    [loc]
+ * @return {IRVarRef}
+ */
+exports.varRef = function (path, loc) {
+  return withLoc({ type: 'VarRef', path: path }, loc);
+};
+
+/**
+ * Build an {@link IRAccess} dynamic-bracket property access.
+ * @param  {IRExpr} object
+ * @param  {IRExpr} key
+ * @param  {IRLoc}  [loc]
+ * @return {IRAccess}
+ */
+exports.access = function (object, key, loc) {
+  return withLoc({ type: 'Access', object: object, key: key }, loc);
+};
+
+/**
+ * Build an {@link IRBinaryOp}.
+ * @param  {string} op
+ * @param  {IRExpr} left
+ * @param  {IRExpr} right
+ * @param  {IRLoc}  [loc]
+ * @return {IRBinaryOp}
+ */
+exports.binaryOp = function (op, left, right, loc) {
+  return withLoc({ type: 'BinaryOp', op: op, left: left, right: right }, loc);
+};
+
+/**
+ * Build an {@link IRUnaryOp}.
+ * @param  {'!'|'-'|'+'} op
+ * @param  {IRExpr}      operand
+ * @param  {IRLoc}       [loc]
+ * @return {IRUnaryOp}
+ */
+exports.unaryOp = function (op, operand, loc) {
+  return withLoc({ type: 'UnaryOp', op: op, operand: operand }, loc);
+};
+
+/**
+ * Build an {@link IRConditional} ternary. The parameter is named
+ * `els` to avoid shadowing the reserved-word `else`; the produced
+ * object uses `else` as a string key per the typedef.
+ * @param  {IRExpr} test
+ * @param  {IRExpr} then
+ * @param  {IRExpr} els
+ * @param  {IRLoc}  [loc]
+ * @return {IRConditional}
+ */
+exports.conditional = function (test, then, els, loc) {
+  var node = { type: 'Conditional', test: test, then: then };
+  node['else'] = els;
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRArrayLiteral}.
+ * @param  {IRExpr[]} elements
+ * @param  {IRLoc}    [loc]
+ * @return {IRArrayLiteral}
+ */
+exports.arrayLiteral = function (elements, loc) {
+  return withLoc({ type: 'ArrayLiteral', elements: elements }, loc);
+};
+
+/**
+ * Build an {@link IRObjectLiteral}.
+ * @param  {IRObjectProperty[]} properties
+ * @param  {IRLoc}              [loc]
+ * @return {IRObjectLiteral}
+ */
+exports.objectLiteral = function (properties, loc) {
+  return withLoc({ type: 'ObjectLiteral', properties: properties }, loc);
+};
+
+/**
+ * Build an {@link IRObjectProperty}.
+ * @param  {IRExpr} key
+ * @param  {IRExpr} value
+ * @return {IRObjectProperty}
+ */
+exports.objectProperty = function (key, value) {
+  return { key: key, value: value };
+};
+
+/**
+ * Build an {@link IRFnCall} expression-position invocation.
+ * @param  {IRExpr}   callee
+ * @param  {IRExpr[]} args
+ * @param  {IRLoc}    [loc]
+ * @return {IRFnCall}
+ */
+exports.fnCall = function (callee, args, loc) {
+  return withLoc({ type: 'FnCall', callee: callee, args: args }, loc);
+};
