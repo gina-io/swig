@@ -7,16 +7,19 @@ var utils = require('./utils'),
  * Phase 2 — the template-level walker dispatches on IR node shape. At
  * entry, each parse-tree token is lifted into an IR node: string tokens
  * become `IRText` (value carried verbatim, escaped at emit time);
- * VarToken / TagToken entries stay wrapped as `IRLegacyJS` carrying the
- * JS fragment the pre-Phase-2 walker would have emitted inline. The
- * walker then iterates the IR array and dispatches on node shape.
- * Subsequent sessions introduce further real IR emitters (`Raw`,
- * `Autoescape`, `If`, `For`, `Set`, etc.) alongside their matching tag
- * migrations, and each new shape gets its own dispatch branch here.
+ * VarToken / TagToken entries call `token.compile(...)` and the return
+ * value is lifted according to its shape: a JS source string becomes
+ * `IRLegacyJS` (userland `setTag` contract), a single IR node is spliced
+ * in directly, and an array of IR nodes is flattened. The walker then
+ * iterates the IR array and dispatches on node shape. Subsequent
+ * sessions introduce further real IR emitters (`Autoescape`, `If`,
+ * `For`, `Set`, etc.) alongside their matching tag migrations, and each
+ * new shape gets its own dispatch branch here.
  *
- * Tag `compile` functions still return JS source strings — the
- * contract passed through `exports.compile` as the recursion callback
- * is unchanged. The `new Function(...)` wrapper stays with the native
+ * Userland tag `compile` functions keep returning JS source strings —
+ * the `(compiler, args, content, parents, options, blockName)` contract
+ * is unchanged. Built-in tags migrate per session by returning IR nodes
+ * directly. The `new Function(...)` wrapper stays with the native
  * frontend (filename-aware error attribution, per the seam rule).
  *
  * See .claude/architecture/multi-flavor-ir.md § Phase 2.
@@ -53,12 +56,27 @@ exports.compile = function (template, parents, options, blockName) {
       nodes.push(ir.text(token));
       return;
     }
-    var js = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName) || '';
-    nodes.push(ir.legacyJS(js));
+    var result = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName);
+    if (result === undefined || result === null || result === '') {
+      return;
+    }
+    if (typeof result === 'string') {
+      nodes.push(ir.legacyJS(result));
+      return;
+    }
+    if (utils.isArray(result)) {
+      utils.each(result, function (n) { nodes.push(n); });
+      return;
+    }
+    if (typeof result === 'object' && typeof result.type === 'string') {
+      nodes.push(result);
+      return;
+    }
+    nodes.push(ir.legacyJS(String(result)));
   });
 
   utils.each(nodes, function (node) {
-    if (node.type === 'Text') {
+    if (node.type === 'Text' || node.type === 'Raw') {
       out += '_output += "' + escapeTextValue(node.value) + '";\n';
       return;
     }
