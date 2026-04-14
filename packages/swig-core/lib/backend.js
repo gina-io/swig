@@ -1,25 +1,31 @@
-var utils = require('./utils');
+var utils = require('./utils'),
+  ir = require('./ir');
 
 /**
  * JS-codegen backend shared across @rhinostone/swig-family frontends.
  *
- * Phase 1 carve — owns the template-level token walker that turns a
- * parsed token tree into the JS body string fed to
- * `new Function('_swig', '_ctx', '_filters', '_utils', '_fn', body)`.
- * Tag `compile` functions still return JS source strings; this walker
- * splices them together and handles the string-literal emission path.
+ * Phase 2 — the template-level walker dispatches on IR node shape. At
+ * entry, every parse-tree token (string, VarToken, TagToken) is wrapped
+ * transparently as an `IRLegacyJS` node carrying the JS fragment the
+ * pre-Phase-2 walker would have emitted inline; the walker then iterates
+ * the IR array and splices each `LegacyJS` node's `js` into the compiled
+ * body. Subsequent sessions introduce real IR emitters (`Text`, `Raw`,
+ * `Autoescape`, `If`, `For`, `Set`, etc.) alongside their matching tag
+ * migrations, and each new shape gets its own dispatch branch here.
  *
- * Expression-level codegen (TokenParser inside `{{ … }}` / `{% … %}`)
- * and the `new Function(...)` wrapper stay with the native frontend in
- * Phase 1 and migrate with the constructor split in a later session.
- * See .claude/architecture/multi-flavor-ir.md.
+ * Tag `compile` functions still return JS source strings — the
+ * contract passed through `exports.compile` as the recursion callback
+ * is unchanged. The `new Function(...)` wrapper stays with the native
+ * frontend (filename-aware error attribution, per the seam rule).
+ *
+ * See .claude/architecture/multi-flavor-ir.md § Phase 2.
  */
 
 /**
  * Walk a parsed token tree and emit the JS source body for the compiled
- * template function. String tokens become escaped `_output += "..."`
- * statements; TagToken / VarToken entries delegate to the token's own
- * `compile` method with this function passed as the recursion callback.
+ * template function. Each token is wrapped as an `IRLegacyJS` node so
+ * the backend sees a uniform IR array; the walker then emits each
+ * node's JS fragment.
  *
  * @param  {object|array} template Parsed token object (with `.tokens`) or a bare token array.
  * @param  {array}  [parents]      Parsed parent templates for extends/block resolution.
@@ -29,17 +35,24 @@ var utils = require('./utils');
  */
 exports.compile = function (template, parents, options, blockName) {
   var out = '',
-    tokens = utils.isArray(template) ? template : template.tokens;
+    tokens = utils.isArray(template) ? template : template.tokens,
+    nodes = [];
 
   utils.each(tokens, function (token) {
-    var o;
+    var js;
     if (typeof token === 'string') {
-      out += '_output += "' + token.replace(/\\/g, '\\\\').replace(/\n|\r/g, '\\n').replace(/"/g, '\\"') + '";\n';
+      js = '_output += "' + token.replace(/\\/g, '\\\\').replace(/\n|\r/g, '\\n').replace(/"/g, '\\"') + '";\n';
+    } else {
+      js = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName) || '';
+    }
+    nodes.push(ir.legacyJS(js));
+  });
+
+  utils.each(nodes, function (node) {
+    if (node.type === 'LegacyJS') {
+      out += node.js;
       return;
     }
-
-    o = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName);
-    out += o || '';
   });
 
   return out;
