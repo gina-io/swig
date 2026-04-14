@@ -159,10 +159,19 @@
 /**
  * Macro definition. Params are bare identifier names.
  *
+ * During Phase 2 (#T15), `params` transitionally accepts `string[]` —
+ * the raw token-string slice that the frontend's macro tag parser
+ * emits (including `, ` separator tokens between identifiers). The
+ * backend emits them verbatim via `.join('')` and `.join('","')`
+ * patterns to preserve byte-identity with the pre-Phase-2 JS-string
+ * compile. Target shape is `IRMacroParam[]` and is reached once
+ * TokenParser migrates to IRExpr (Session 14+), at which point the
+ * frontend can emit structured `{name, default}` objects directly.
+ *
  * @typedef {Object} IRMacro
  * @property {'Macro'} type
- * @property {string} name                    MUST pass the dangerousProps guard.
- * @property {IRMacroParam[]} params
+ * @property {string} name                          MUST pass the dangerousProps guard.
+ * @property {IRMacroParam[]|string[]} params
  * @property {IRStatement[]} body
  * @property {IRLoc} [loc]
  */

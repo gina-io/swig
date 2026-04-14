@@ -56,6 +56,13 @@ exports.compile = function (template, parents, options, blockName) {
       nodes.push(ir.text(token));
       return;
     }
+    if (token && typeof token === 'object' && typeof token.type === 'string' && typeof token.compile !== 'function') {
+      // Pre-built IR node handed in directly (e.g. the import tag
+      // renders an isolated macro IR to JS via this pathway). Splice
+      // in without a second compile pass.
+      nodes.push(token);
+      return;
+    }
     var result = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName);
     if (result === undefined || result === null || result === '') {
       return;
@@ -161,6 +168,37 @@ exports.compile = function (template, parents, options, blockName) {
         '  ' + ctx + forKey + ' = ' + ctxloopcache + '.' + forKey + ';\n' +
         '  ' + ctxloopcache + ' = undefined;\n' +
         '})();\n';
+      return;
+    }
+    if (node.type === 'Macro') {
+      // Phase 2: `params` is a transitional string[] carrying the raw
+      // token slice emitted by the frontend macro parser (including
+      // `, ` separator tokens). Backend joins with `''` for the JS
+      // function param list and with `'","'` for the _utils.each
+      // shadow-delete indexOf check — preserves byte-identity with
+      // the pre-Phase-2 JS-string compile. The frontend's macro parse
+      // handler has already applied the CVE-2023-25345 guard on the
+      // macro name via the FUNCTION/FUNCTIONEMPTY branches.
+      var macroBodyJS = '';
+      utils.each(node.body, function (b) {
+        if (b.type === 'LegacyJS') { macroBodyJS += b.js; return; }
+        if (b.type === 'Text' || b.type === 'Raw') {
+          macroBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+          return;
+        }
+      });
+      var macroParams = node.params || [];
+      out += '_ctx.' + node.name + ' = function (' + macroParams.join('') + ') {\n' +
+        '  var _output = "",\n' +
+        '    __ctx = _utils.extend({}, _ctx);\n' +
+        '  _utils.each(_ctx, function (v, k) {\n' +
+        '    if (["' + macroParams.join('","') + '"].indexOf(k) !== -1) { delete _ctx[k]; }\n' +
+        '  });\n' +
+        macroBodyJS + '\n' +
+        ' _ctx = _utils.extend(_ctx, __ctx);\n' +
+        '  return _output;\n' +
+        '};\n' +
+        '_ctx.' + node.name + '.safe = true;\n';
       return;
     }
     if (node.type === 'Parent') {
