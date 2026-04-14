@@ -231,11 +231,30 @@ describe('swig-core/lib/ir — node factories', function () {
   });
 
   describe('set() / raw() / parent()', function () {
-    it('set: captures target + value', function () {
+    it('set: captures target + op + value', function () {
       var target = ir.varRef(['count']);
       var value = ir.literal('number', 0);
-      var node = ir.set(target, value);
-      expect(node).to.eql({ type: 'Set', target: target, value: value });
+      var node = ir.set(target, '=', value);
+      expect(node).to.eql({ type: 'Set', target: target, op: '=', value: value });
+    });
+
+    it('set: accepts transitional string target + value (Phase 2)', function () {
+      var node = ir.set('_ctx.foo', '=', '"bar"');
+      expect(node.target).to.be('_ctx.foo');
+      expect(node.op).to.be('=');
+      expect(node.value).to.be('"bar"');
+    });
+
+    it('set: carries compound assignment operators (Phase 2)', function () {
+      var node = ir.set('_ctx.count', '+=', '1');
+      expect(node.op).to.be('+=');
+      expect(node.type).to.be('Set');
+    });
+
+    it('set: stores target and value opaquely without inspection (Phase 2 transitional)', function () {
+      var node = ir.set('_ctx.obj["k"]', '=', '"v"');
+      expect(node.target).to.be('_ctx.obj["k"]');
+      expect(node.value).to.be('"v"');
     });
 
     it('raw: captures verbatim value', function () {
@@ -404,7 +423,7 @@ describe('swig-core/lib/ir — node factories', function () {
       expect(ir.text('x').hasOwnProperty('loc')).to.be(false);
       expect(ir.output(ir.varRef(['x'])).hasOwnProperty('loc')).to.be(false);
       expect(ir.block('content', []).hasOwnProperty('loc')).to.be(false);
-      expect(ir.set(ir.varRef(['x']), ir.literal('number', 1)).hasOwnProperty('loc')).to.be(false);
+      expect(ir.set(ir.varRef(['x']), '=', ir.literal('number', 1)).hasOwnProperty('loc')).to.be(false);
       expect(ir.raw('x').hasOwnProperty('loc')).to.be(false);
       expect(ir.parent().hasOwnProperty('loc')).to.be(false);
     });
@@ -420,7 +439,7 @@ describe('swig-core/lib/ir — node factories', function () {
         ir.importStmt(ir.literal('string', 'p'), 'alias', sampleLoc),
         ir.macro('m', [], [], sampleLoc),
         ir.call(ir.varRef(['f']), [], sampleLoc),
-        ir.set(ir.varRef(['x']), ir.literal('number', 1), sampleLoc),
+        ir.set(ir.varRef(['x']), '=', ir.literal('number', 1), sampleLoc),
         ir.raw('x', sampleLoc),
         ir.parent(sampleLoc),
         ir.autoescape(true, [], sampleLoc),
