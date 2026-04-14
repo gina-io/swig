@@ -96,11 +96,19 @@
 /**
  * For-loop. `emptyBody` supports Twig/Django `{% for … %}{% else %}`.
  *
+ * During the Phase 2 migration, `iterable` may transitionally carry a raw
+ * JS source fragment (`string`) emitted by the frontend's TokenParser —
+ * parallels the {@link IRFilter} `args` and {@link IRIfBranch} `test`
+ * transitional shapes. The target shape is `IRExpr` and is reached once
+ * TokenParser migrates to IRExpr emission (Session 14+). Backends that
+ * consume real `IRExpr` values must tolerate the transitional string form
+ * or defer to the emitted frontend JS.
+ *
  * @typedef {Object} IRFor
  * @property {'For'} type
  * @property {string} [key]                   Loop key var (second binding).
  * @property {string} value                   Loop value var (first binding).
- * @property {IRExpr} iterable
+ * @property {IRExpr|string} iterable
  * @property {IRStatement[]} body
  * @property {IRStatement[]} [emptyBody]
  * @property {IRLoc} [loc]
@@ -454,12 +462,17 @@ exports.ifBranch = function (test, body) {
 
 /**
  * Build an {@link IRFor} node.
- * @param  {string}         value       Loop value identifier (first binding).
- * @param  {IRExpr}         iterable
- * @param  {IRStatement[]}  body
- * @param  {string}         [key]       Loop key identifier (second binding).
- * @param  {IRStatement[]}  [emptyBody]
- * @param  {IRLoc}          [loc]
+ *
+ * `iterable` is typed `IRExpr | string` for Phase 2 — see the IRFor typedef
+ * for the transitional shape. The factory stores `iterable` opaquely and
+ * does not inspect it.
+ *
+ * @param  {string}            value       Loop value identifier (first binding).
+ * @param  {IRExpr|string}     iterable
+ * @param  {IRStatement[]}     body
+ * @param  {string}            [key]       Loop key identifier (second binding).
+ * @param  {IRStatement[]}     [emptyBody]
+ * @param  {IRLoc}             [loc]
  * @return {IRFor}
  */
 exports.forStmt = function (value, iterable, body, key, emptyBody, loc) {
