@@ -112,6 +112,49 @@ exports.compile = function (template, parents, options, blockName) {
       out += 'if (' + ifBranch.test + ') { \n' + ifBodyJS + '\n' + '}';
       return;
     }
+    if (node.type === 'For') {
+      // Phase 2: the full loopcache + _utils.each IIFE scaffolding is
+      // emitted here; the frontend tag surfaces only (value, key,
+      // iterable, body) and the backend owns all JS plumbing. `iterable`
+      // is a transitional string fragment (see IRFor typedef) carrying
+      // the TokenParser-emitted checkMatch expression verbatim. The
+      // loopcache identifier uses `Math.random()` per-occurrence to keep
+      // nested loops from clobbering each other's cache (gh-433).
+      var forVal = node.value,
+        forKey = node.key,
+        forIterable = node.iterable,
+        forBodyJS = '',
+        ctxloopcache = ('_ctx.__loopcache' + Math.random()).replace(/\./g, ''),
+        ctx = '_ctx.',
+        ctxloop = '_ctx.loop';
+      utils.each(node.body, function (b) {
+        if (b.type === 'LegacyJS') { forBodyJS += b.js; return; }
+        if (b.type === 'Text' || b.type === 'Raw') {
+          forBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+          return;
+        }
+      });
+      out += '(function () {\n' +
+        '  var __l = ' + forIterable + ', __len = (_utils.isArray(__l) || typeof __l === "string") ? __l.length : _utils.keys(__l).length;\n' +
+        '  if (!__l) { return; }\n' +
+        '    var ' + ctxloopcache + ' = { loop: ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + ', ' + forKey + ': ' + ctx + forKey + ' };\n' +
+        '    ' + ctxloop + ' = { first: false, index: 1, index0: 0, revindex: __len, revindex0: __len - 1, length: __len, last: false };\n' +
+        '  _utils.each(__l, function (' + forVal + ', ' + forKey + ') {\n' +
+        '    ' + ctx + forVal + ' = ' + forVal + ';\n' +
+        '    ' + ctx + forKey + ' = ' + forKey + ';\n' +
+        '    ' + ctxloop + '.key = ' + forKey + ';\n' +
+        '    ' + ctxloop + '.first = (' + ctxloop + '.index0 === 0);\n' +
+        '    ' + ctxloop + '.last = (' + ctxloop + '.revindex0 === 0);\n' +
+        '    ' + forBodyJS +
+        '    ' + ctxloop + '.index += 1; ' + ctxloop + '.index0 += 1; ' + ctxloop + '.revindex -= 1; ' + ctxloop + '.revindex0 -= 1;\n' +
+        '  });\n' +
+        '  ' + ctxloop + ' = ' + ctxloopcache + '.loop;\n' +
+        '  ' + ctx + forVal + ' = ' + ctxloopcache + '.' + forVal + ';\n' +
+        '  ' + ctx + forKey + ' = ' + ctxloopcache + '.' + forKey + ';\n' +
+        '  ' + ctxloopcache + ' = undefined;\n' +
+        '})();\n';
+      return;
+    }
     if (node.type === 'Filter') {
       var bodyJS = '';
       utils.each(node.body, function (b) {
