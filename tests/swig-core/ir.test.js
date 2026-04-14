@@ -247,6 +247,27 @@ describe('swig-core/lib/ir — node factories', function () {
     });
   });
 
+  describe('legacyJS()', function () {
+    it('emits a LegacyJS node carrying the raw JS fragment verbatim', function () {
+      var node = ir.legacyJS('_output += "hi";\n');
+      expect(node).to.eql({ type: 'LegacyJS', js: '_output += "hi";\n' });
+    });
+
+    it('preserves the empty-string js value explicitly', function () {
+      var node = ir.legacyJS('');
+      expect(node.type).to.be('LegacyJS');
+      expect(node.js).to.be('');
+    });
+
+    it('does not attach loc when omitted', function () {
+      expect(ir.legacyJS('x').hasOwnProperty('loc')).to.be(false);
+    });
+
+    it('attaches loc when provided', function () {
+      expect(ir.legacyJS('x', sampleLoc).loc).to.be(sampleLoc);
+    });
+  });
+
   /* -- Expression factories --------------------------------------- */
 
   describe('literal()', function () {
@@ -400,6 +421,7 @@ describe('swig-core/lib/ir — node factories', function () {
             sampleLoc
           ),
           ir.text('</h1>'),
+          ir.legacyJS('_output += _ctx.legacyHelper();\n'),
           ir.ifStmt([
             ir.ifBranch(ir.binaryOp('>', ir.varRef(['count']), ir.literal('number', 0)), [
               ir.forStmt('item', ir.varRef(['items']), [ir.text('row')])

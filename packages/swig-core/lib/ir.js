@@ -199,11 +199,27 @@
  */
 
 /**
+ * Legacy JS-string escape hatch for constructs whose codegen still lives
+ * outside the IR emitters — userland `setTag`-registered tag `compile`
+ * functions, and built-in tags not yet migrated to real IR nodes. The
+ * backend concatenates `js` verbatim into the compiled template body.
+ *
+ * Transitional per the Phase 2 layering decision (hybrid / option iii);
+ * see .claude/architecture/multi-flavor-ir.md.
+ *
+ * @typedef {Object} IRLegacyJS
+ * @property {'LegacyJS'} type
+ * @property {string} js
+ * @property {IRLoc} [loc]
+ */
+
+/**
  * Any body-level IR node.
  *
  * @typedef {(
  *   IRText | IROutput | IRIf | IRFor | IRBlock | IRInclude | IRImport |
- *   IRMacro | IRCall | IRSet | IRRaw | IRParent | IRAutoescape | IRFilter
+ *   IRMacro | IRCall | IRSet | IRRaw | IRParent | IRAutoescape | IRFilter |
+ *   IRLegacyJS
  * )} IRStatement
  */
 
@@ -561,6 +577,21 @@ exports.filter = function (name, body, args, loc) {
   var node = { type: 'Filter', name: name, body: body };
   if (args !== undefined) { node.args = args; }
   return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRLegacyJS} escape-hatch node. Wraps a raw JS-source
+ * fragment so the backend walker can splice it into the compiled body
+ * without a dedicated emitter. The first consumer is `backend.compile`,
+ * which wraps every current parse-tree token (string, VarToken, TagToken)
+ * as an `IRLegacyJS` before emission; further built-in tags migrate to
+ * real IR shapes in subsequent sessions.
+ * @param  {string} js
+ * @param  {IRLoc}  [loc]
+ * @return {IRLegacyJS}
+ */
+exports.legacyJS = function (js, loc) {
+  return withLoc({ type: 'LegacyJS', js: js }, loc);
 };
 
 /* -- Expression factories ------------------------------------------ */
