@@ -163,6 +163,31 @@ exports.compile = function (template, parents, options, blockName) {
         '})();\n';
       return;
     }
+    if (node.type === 'Include') {
+      // Phase 2: `path` and `context` are transitional string fragments
+      // (see IRInclude typedef) carrying the TokenParser-emitted
+      // expressions verbatim. `resolveFrom` is a plain filesystem path
+      // that must be JSON-escaped into a string literal — the frontend's
+      // include-tag parse handler has already applied a `\\` → `\\\\`
+      // backslash escape before handing it off. `ignoreMissing` wraps the
+      // emission in `try { ... } catch (e) {}` so missing-file errors
+      // collapse to the empty string.
+      var incCtx = node.context,
+        incSelector;
+      if (node.isolated && incCtx) {
+        incSelector = incCtx;
+      } else if (!incCtx) {
+        incSelector = '_ctx';
+      } else {
+        incSelector = '_utils.extend({}, _ctx, ' + incCtx + ')';
+      }
+      out += (node.ignoreMissing ? '  try {\n' : '') +
+        '_output += _swig.compileFile(' + node.path + ', {' +
+        'resolveFrom: "' + node.resolveFrom + '"' +
+        '})(' + incSelector + ');\n' +
+        (node.ignoreMissing ? '} catch (e) {}\n' : '');
+      return;
+    }
     if (node.type === 'Filter') {
       var bodyJS = '';
       utils.each(node.body, function (b) {
