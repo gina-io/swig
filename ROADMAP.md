@@ -10,7 +10,7 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 | Status | Item |
 | --- | --- |
-| Planned | Carve `@rhinostone/swig-core` — extract IR, backend (JS codegen), and runtime (cache, loader, filter infra, `_dangerousProps` guards) into a standalone package. `@rhinostone/swig` becomes the native-syntax frontend plus a core re-export. Target: `2.0.0-alpha.1`. |
+| Planned | Port the native Swig frontend to emit IR instead of JS directly. Test gate: byte-identical compiled output for existing suites. Target: `2.0.0-alpha.2`. |
 
 ## Future (post-2.0)
 
@@ -18,7 +18,6 @@ Multi-flavor architecture — a single backend with swappable frontends so Twig 
 
 | Status | Item |
 | --- | --- |
-| Planned | Port the native Swig frontend to emit IR instead of JS directly. Test gate: byte-identical compiled output for existing suites. Target: `2.0.0-alpha.2`. |
 | Planned | Ship `@rhinostone/swig-twig` frontend — expression sugar (`~`, `??`, `?:`, `..`, `is X`, `not in`, `#{}`), Twig tag rewrites (`apply`, `verbatim`, `set/endset`, `with/endwith`, `from import`), ~20 filter parity. |
 | Planned | Ship Jinja2 and Django frontends. On demand — when there's concrete user demand. |
 | Planned | Engine bump + test framework migration. Move to Node ≥ 18, `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. Bundled with `2.0.0`. |
@@ -26,6 +25,11 @@ Multi-flavor architecture — a single backend with swappable frontends so Twig 
 ---
 
 ## Completed
+
+### v2.0.0-alpha.1 (April 2026)
+
+- Carve `@rhinostone/swig-core` — extract IR stubs, backend (JS codegen), runtime (cache, loader, filter infra, `_dangerousProps` guards), lexer token-type enum, and TokenParser into a standalone workspace package. `@rhinostone/swig` becomes the native-syntax frontend plus a core re-export. Phase 1 of the multi-flavor architecture.
+- Replace `browserify@~2` with `esbuild@^0.28` in the browser build. Resolves the long-standing inability of browserify@2 (2013) to resolve scoped packages through `node_modules`, and unblocks the Phase 2 port of the native frontend to IR emission. `lib/**/*.js` shims now require `@rhinostone/swig-core` by scoped name.
 
 ### v1.6.0 (April 2026)
 
