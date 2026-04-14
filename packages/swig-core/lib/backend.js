@@ -163,6 +163,35 @@ exports.compile = function (template, parents, options, blockName) {
         '})();\n';
       return;
     }
+    if (node.type === 'Parent') {
+      // Phase 2: the parent tag walks the parents chain at compile time
+      // and splices the matched block's pre-resolved body into this node.
+      // Emit the body verbatim; no wrapper, no `super()`-style runtime
+      // plumbing is needed (the lookup is fully resolved at parse time).
+      utils.each(node.body || [], function (b) {
+        if (b.type === 'LegacyJS') { out += b.js; return; }
+        if (b.type === 'Text' || b.type === 'Raw') {
+          out += '_output += "' + escapeTextValue(b.value) + '";\n';
+          return;
+        }
+      });
+      return;
+    }
+    if (node.type === 'Block') {
+      // Phase 2: block tokens are resolved at parse time by the engine's
+      // remapBlocks / importNonBlocks — by the time the backend walks a
+      // block, its body carries whichever generation's content is active.
+      // Emit the body verbatim; the block name is carried as metadata for
+      // downstream tooling (parent-chain walks happen in the parent tag).
+      utils.each(node.body, function (b) {
+        if (b.type === 'LegacyJS') { out += b.js; return; }
+        if (b.type === 'Text' || b.type === 'Raw') {
+          out += '_output += "' + escapeTextValue(b.value) + '";\n';
+          return;
+        }
+      });
+      return;
+    }
     if (node.type === 'Include') {
       // Phase 2: `path` and `context` are transitional string fragments
       // (see IRInclude typedef) carrying the TokenParser-emitted
