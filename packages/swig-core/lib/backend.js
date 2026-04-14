@@ -5,11 +5,12 @@ var utils = require('./utils'),
  * JS-codegen backend shared across @rhinostone/swig-family frontends.
  *
  * Phase 2 — the template-level walker dispatches on IR node shape. At
- * entry, every parse-tree token (string, VarToken, TagToken) is wrapped
- * transparently as an `IRLegacyJS` node carrying the JS fragment the
- * pre-Phase-2 walker would have emitted inline; the walker then iterates
- * the IR array and splices each `LegacyJS` node's `js` into the compiled
- * body. Subsequent sessions introduce real IR emitters (`Text`, `Raw`,
+ * entry, each parse-tree token is lifted into an IR node: string tokens
+ * become `IRText` (value carried verbatim, escaped at emit time);
+ * VarToken / TagToken entries stay wrapped as `IRLegacyJS` carrying the
+ * JS fragment the pre-Phase-2 walker would have emitted inline. The
+ * walker then iterates the IR array and dispatches on node shape.
+ * Subsequent sessions introduce further real IR emitters (`Raw`,
  * `Autoescape`, `If`, `For`, `Set`, etc.) alongside their matching tag
  * migrations, and each new shape gets its own dispatch branch here.
  *
@@ -21,11 +22,20 @@ var utils = require('./utils'),
  * See .claude/architecture/multi-flavor-ir.md § Phase 2.
  */
 
+/*!
+ * JSON-escape a literal text chunk for embedding inside a JS
+ * double-quoted string literal in the compiled template body.
+ * @private
+ */
+function escapeTextValue(value) {
+  return value.replace(/\\/g, '\\\\').replace(/\n|\r/g, '\\n').replace(/"/g, '\\"');
+}
+
 /**
  * Walk a parsed token tree and emit the JS source body for the compiled
- * template function. Each token is wrapped as an `IRLegacyJS` node so
- * the backend sees a uniform IR array; the walker then emits each
- * node's JS fragment.
+ * template function. Each token is lifted into an IR node (`IRText` for
+ * string chunks, `IRLegacyJS` for VarToken / TagToken) and the walker
+ * dispatches on node shape to produce JS source.
  *
  * @param  {object|array} template Parsed token object (with `.tokens`) or a bare token array.
  * @param  {array}  [parents]      Parsed parent templates for extends/block resolution.
@@ -39,16 +49,19 @@ exports.compile = function (template, parents, options, blockName) {
     nodes = [];
 
   utils.each(tokens, function (token) {
-    var js;
     if (typeof token === 'string') {
-      js = '_output += "' + token.replace(/\\/g, '\\\\').replace(/\n|\r/g, '\\n').replace(/"/g, '\\"') + '";\n';
-    } else {
-      js = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName) || '';
+      nodes.push(ir.text(token));
+      return;
     }
+    var js = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName) || '';
     nodes.push(ir.legacyJS(js));
   });
 
   utils.each(nodes, function (node) {
+    if (node.type === 'Text') {
+      out += '_output += "' + escapeTextValue(node.value) + '";\n';
+      return;
+    }
     if (node.type === 'LegacyJS') {
       out += node.js;
       return;
