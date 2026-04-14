@@ -80,8 +80,16 @@
  */
 
 /**
+ * During the Phase 2 migration, `test` may transitionally carry a raw JS
+ * source fragment (`string`) emitted by the frontend's TokenParser —
+ * parallels the {@link IRFilter} `args` transitional shape. The target
+ * shape is `IRExpr | null` and is reached once TokenParser migrates to
+ * IRExpr emission (Session 14+). Backends that consume real `IRExpr`
+ * values must tolerate the transitional string form or defer to the
+ * emitted frontend JS. `test` is `null` for the trailing else branch.
+ *
  * @typedef {Object} IRIfBranch
- * @property {IRExpr|null} test
+ * @property {IRExpr|string|null} test
  * @property {IRStatement[]} body
  */
 
@@ -431,8 +439,13 @@ exports.ifStmt = function (branches, loc) {
 
 /**
  * Build an {@link IRIfBranch}. `test` is null for the trailing else.
- * @param  {IRExpr|null}   test
- * @param  {IRStatement[]} body
+ *
+ * `test` is typed `IRExpr | string | null` for Phase 2 — see the
+ * IRIfBranch typedef for the transitional shape. The factory stores
+ * `test` opaquely and does not inspect it.
+ *
+ * @param  {IRExpr|string|null} test
+ * @param  {IRStatement[]}      body
  * @return {IRIfBranch}
  */
 exports.ifBranch = function (test, body) {
