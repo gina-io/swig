@@ -1,0 +1,16 @@
+# Desktop
+.DS_Store
+
+# IDE — local history / editor state
+.lh
+.history
+.idea
+.vscode
+
+# AI / internal development notes (local only — mirror Gina's convention)
+.claude/
+CLAUDE.md
+
+# Test + build artifacts (added as tests/build land)
+tests/**
+coverage/
