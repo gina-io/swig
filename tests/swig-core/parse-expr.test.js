@@ -262,26 +262,39 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
     });
   });
 
-  describe('stop condition — top-level FILTER', function () {
-    it('returns the expression parsed so far when a FILTER appears', function () {
+  describe('trailing FILTER / FILTEREMPTY — consumed via parsePostfix', function () {
+    // Commit 2 of Session 14b lifted the "parseExpr bails on FILTER
+    // tokens" stop-condition — parsePostfix now consumes trailing
+    // FILTER / FILTEREMPTY and wraps the preceding atom in an
+    // IRFilterCallExpr. This is the mechanism that lets deep filters
+    // (inside function args / bracket keys / object values) lower
+    // through the IR path instead of falling back to legacy. Filter
+    // name validation moves into parsePostfix at the same time.
+    it('wraps the preceding atom in IRFilterCallExpr when a FILTEREMPTY trails', function () {
       var tokens = lexer.read('foo|upper');
       var parser = new TokenParser(tokens, filters, false, 1, 'expr.test');
       var node = parser.parseExpr(tokens);
-      expect(node.type).to.be('VarRef');
-      expect(node.path).to.eql(['foo']);
+      expect(node.type).to.be('FilterCall');
+      expect(node.name).to.be('upper');
+      expect(node.input.type).to.be('VarRef');
+      expect(node.input.path).to.eql(['foo']);
     });
 
-    it('returns the expression parsed so far when a FILTEREMPTY appears', function () {
-      var tokens = lexer.read('foo|raw');
+    it('wraps the preceding atom in IRFilterCallExpr when a FILTER with args trails', function () {
+      var tokens = lexer.read('foo|default("x")');
       var parser = new TokenParser(tokens, filters, false, 1, 'expr.test');
       var node = parser.parseExpr(tokens);
-      expect(node.type).to.be('VarRef');
+      expect(node.type).to.be('FilterCall');
+      expect(node.name).to.be('default');
+      expect(node.input.path).to.eql(['foo']);
+      expect(node.args.length).to.be(1);
+      expect(node.args[0].type).to.be('Literal');
     });
 
-    it('does NOT validate the filter name — validation is caller-side', function () {
+    it('throws "Invalid filter" on an unknown filter name', function () {
       var tokens = lexer.read('foo|doesNotExist');
       var parser = new TokenParser(tokens, filters, false, 1, 'expr.test');
-      expect(function () { parser.parseExpr(tokens); }).not.to.throwException();
+      expect(function () { parser.parseExpr(tokens); }).to.throwException(/Invalid filter/);
     });
   });
 
