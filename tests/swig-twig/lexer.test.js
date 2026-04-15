@@ -210,8 +210,148 @@ describe('@rhinostone/swig-twig — lexer (shared token subset)', function () {
     expect(tokens[0].type).to.equal(TYPES.NULLCOALESCE);
   });
 
-  it('throws on a bare `#` outside a string (Session 4+ will introduce `#{ }` re-entry inside double-quoted strings)', function () {
+  it('throws on a bare `#` outside a string', function () {
     expect(function () { lex('# foo'); }).to.throwException(/Unexpected token "#"/);
+  });
+
+  /* ---- Session 4 — `#{}` string interpolation --------------- */
+
+  /*
+   * Double-quoted strings containing unescaped `#{` are lexed into a
+   * multi-token sequence: STRING(pre) + INTERP_OPEN + <inner tokens> +
+   * INTERP_CLOSE + STRING(tail). Single-quoted strings stay literal.
+   * Escape `\#{` suppresses interpolation verbatim. Empty `"#{}"`
+   * throws at lex time.
+   */
+
+  it('lexes `"hello #{name}"` as STRING + INTERP_OPEN + VAR + INTERP_CLOSE + STRING', function () {
+    var tokens = nonWhitespace(lex('"hello #{name}"'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.STRING, TYPES.INTERP_OPEN, TYPES.VAR, TYPES.INTERP_CLOSE, TYPES.STRING
+    ]);
+    expect(tokens[0].match).to.equal('"hello "');
+    expect(tokens[1].match).to.equal('#{');
+    expect(tokens[2].match).to.equal('name');
+    expect(tokens[3].match).to.equal('}');
+    expect(tokens[4].match).to.equal('""');
+  });
+
+  it('lexes multiple interpolations in one string', function () {
+    var tokens = nonWhitespace(lex('"#{a} and #{b}"'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.STRING, TYPES.INTERP_OPEN, TYPES.VAR, TYPES.INTERP_CLOSE,
+      TYPES.STRING, TYPES.INTERP_OPEN, TYPES.VAR, TYPES.INTERP_CLOSE,
+      TYPES.STRING
+    ]);
+    expect(tokens[0].match).to.equal('""');
+    expect(tokens[4].match).to.equal('" and "');
+    expect(tokens[8].match).to.equal('""');
+  });
+
+  it('leaves an empty leading STRING when interpolation is at the start', function () {
+    var tokens = nonWhitespace(lex('"#{name} tail"'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.STRING, TYPES.INTERP_OPEN, TYPES.VAR, TYPES.INTERP_CLOSE, TYPES.STRING
+    ]);
+    expect(tokens[0].match).to.equal('""');
+    expect(tokens[4].match).to.equal('" tail"');
+  });
+
+  it('leaves an empty trailing STRING when interpolation is at the end', function () {
+    var tokens = nonWhitespace(lex('"head #{name}"'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.STRING, TYPES.INTERP_OPEN, TYPES.VAR, TYPES.INTERP_CLOSE, TYPES.STRING
+    ]);
+    expect(tokens[0].match).to.equal('"head "');
+    expect(tokens[4].match).to.equal('""');
+  });
+
+  it('tracks brace depth so nested `{...}` inside `#{}` does not close early', function () {
+    /*
+     * `{a: 1}` is an object literal inside the interpolation. Depth
+     * starts at 1 when `#{` is consumed; inner `{` bumps to 2; inner
+     * `}` drops back to 1; trailing `}` closes at depth 0.
+     */
+    var tokens = nonWhitespace(lex('"#{ {a: 1}.a }"'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.STRING, TYPES.INTERP_OPEN,
+      TYPES.CURLYOPEN, TYPES.VAR, TYPES.COLON, TYPES.NUMBER, TYPES.CURLYCLOSE, TYPES.DOTKEY,
+      TYPES.INTERP_CLOSE, TYPES.STRING
+    ]);
+  });
+
+  it('skips over quoted strings inside the interpolation when scanning for the closing brace', function () {
+    /*
+     * The inner single-quoted `'x'` contains no `{` or `}`, but the
+     * scanner must still treat it as an opaque span so any `}` that
+     * *would* appear inside a longer inner string does not close the
+     * interpolation prematurely. Pins the inner-string skip path.
+     */
+    var tokens = nonWhitespace(lex('"#{ foo(\'x\') }"'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.STRING, TYPES.INTERP_OPEN,
+      TYPES.FUNCTION, TYPES.STRING, TYPES.PARENCLOSE,
+      TYPES.INTERP_CLOSE, TYPES.STRING
+    ]);
+    expect(tokens[3].match).to.equal("'x'");
+  });
+
+  it('treats `\\#{` as an escape — the whole string stays a single STRING token', function () {
+    var tokens = nonWhitespace(lex('"foo \\#{bar}"'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.STRING);
+    expect(tokens[0].match).to.equal('"foo \\#{bar}"');
+  });
+
+  it('does not interpolate inside single-quoted strings', function () {
+    var tokens = nonWhitespace(lex("'hello #{name}'"));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.STRING);
+    expect(tokens[0].match).to.equal("'hello #{name}'");
+  });
+
+  it('throws `Empty interpolation` on `"#{}"`', function () {
+    expect(function () { lex('"#{}"'); }).to.throwException(/Empty interpolation/);
+  });
+
+  it('throws `Empty interpolation` on whitespace-only `"#{ }"`', function () {
+    expect(function () { lex('"#{   }"'); }).to.throwException(/Empty interpolation/);
+  });
+
+  it('leaves a `#` without a following `{` as plain string content', function () {
+    var tokens = nonWhitespace(lex('"hash # sign"'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.STRING);
+    expect(tokens[0].match).to.equal('"hash # sign"');
+  });
+
+  it('leaves a `{` without a preceding `#` as plain string content', function () {
+    var tokens = nonWhitespace(lex('"brace { }"'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.STRING);
+    expect(tokens[0].match).to.equal('"brace { }"');
+  });
+
+  it('recursively lexes nested interpolation inside an inner double-quoted string', function () {
+    /*
+     * Outer scan: `"a #{ ... } e"` — the `...` is an inner double-quoted
+     * string `"b #{c} d"` which itself contains an interpolation. The
+     * inner-string skip walks past the inner `"..."` as an opaque span,
+     * so the outer INTERP_CLOSE matches correctly. The captured inner
+     * expression is then handed back to exports.read, which re-enters
+     * the bypass for the inner string.
+     */
+    var tokens = nonWhitespace(lex('"a #{ "b #{c} d" } e"'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.STRING, TYPES.INTERP_OPEN,
+        TYPES.STRING, TYPES.INTERP_OPEN, TYPES.VAR, TYPES.INTERP_CLOSE, TYPES.STRING,
+      TYPES.INTERP_CLOSE, TYPES.STRING
+    ]);
+    expect(tokens[0].match).to.equal('"a "');
+    expect(tokens[2].match).to.equal('"b "');
+    expect(tokens[4].match).to.equal('c');
+    expect(tokens[6].match).to.equal('" d"');
+    expect(tokens[8].match).to.equal('" e"');
   });
 
   /* ---- IS / ISNOT keyword tests (Session 3 behaviour change) ---- */

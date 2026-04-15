@@ -11,13 +11,12 @@ var TYPES = require('./tokentypes');
  */
 
 /*!
- * Phase 3 Session 2–3 — Twig lexer rule table.
+ * Phase 3 Session 2–4 — Twig lexer rule table.
  *
  * Covers the swig-shared token subset plus all Twig-only operators
- * except string interpolation (`~` concat, `..` range, `??`
- * null-coalescing, `?` ternary, `is` / `is not` test). String
- * interpolation `#{}` is a string sub-mode change and stays deferred
- * to Session 4+.
+ * including string interpolation (`~` concat, `..` range, `??`
+ * null-coalescing, `?` ternary, `is` / `is not` test, `#{}` inside
+ * double-quoted strings).
  *
  * Rule ordering constraints worth the call-out:
  *
@@ -33,6 +32,14 @@ var TYPES = require('./tokentypes');
  * Rules are tried in order; first match wins. Patterns are anchored
  * at start-of-string because the consumer slices `str` before each
  * dispatch.
+ *
+ * String interpolation (`#{...}` inside double-quoted strings) is
+ * handled by a bypass branch at the top of exports.read rather than a
+ * rule-table entry — it's a string sub-mode change, not a single-token
+ * match. See readInterpolatedString() below. Single-quoted strings
+ * stay literal (no interpolation). Escape syntax `\#{` suppresses
+ * interpolation and keeps the two characters verbatim in the STRING
+ * fragment's match.
  *
  * Mirrors lib/lexer.js's shape so a future Twig parser session can
  * adopt either swig-core's TokenParser (with a per-flavor adapter) or
@@ -285,6 +292,152 @@ function reader(str) {
 }
 
 /**
+ * Scan a double-quoted string at str[0] and, if it contains an
+ * unescaped `#{` before its closing quote, emit the interpolated token
+ * sequence: `STRING(pre) INTERP_OPEN <inner tokens> INTERP_CLOSE
+ * STRING(mid) ... STRING(tail)`.
+ *
+ * Returns `null` when the string is not double-quoted, has no
+ * interpolation, or is unterminated — the caller falls through to the
+ * existing STRING rule (which either matches or throws via reader()).
+ *
+ * Brace-depth tracking is used to find the matching `}` for each
+ * `#{`: nested `{`/`}` pairs (object literals, nested interpolation
+ * inside an inner double-quoted string) increment/decrement the
+ * depth. Inner quoted strings are skipped over as opaque spans so
+ * their own braces do not affect the depth. The captured inner
+ * expression is then handed back to exports.read recursively, which
+ * re-enters this bypass if the inner expression contains a further
+ * interpolated string.
+ *
+ * Throws `Empty interpolation in Twig string` on `"#{}"` (or
+ * whitespace-only interpolation, e.g. `"#{ }"`) — caught at lex time
+ * rather than producing a degenerate token pair the Twig parser would
+ * have to re-reject.
+ *
+ * @param  {string} str Input slice starting at `"`.
+ * @return {?object}    `{ tokens: LexerToken[], length: number }` or `null`.
+ * @throws {Error}      On empty interpolation or unterminated `#{`.
+ * @private
+ */
+function readInterpolatedString(str) {
+  var len = str.length,
+    i = 1,
+    pieceStart = 1,
+    pieces = [],
+    sawInterp = false,
+    ch,
+    interpStart,
+    j,
+    depth,
+    cj,
+    quote,
+    cq;
+
+  while (i < len) {
+    ch = str.charAt(i);
+
+    if (ch === '\\') {
+      i += 2;
+      continue;
+    }
+
+    if (ch === '"') {
+      if (!sawInterp) {
+        return null;
+      }
+      pieces.push({ type: 'str', start: pieceStart, end: i });
+      return {
+        tokens: assembleInterpolatedTokens(str, pieces),
+        length: i + 1
+      };
+    }
+
+    if (ch === '#' && str.charAt(i + 1) === '{') {
+      sawInterp = true;
+      pieces.push({ type: 'str', start: pieceStart, end: i });
+
+      interpStart = i + 2;
+      j = interpStart;
+      depth = 1;
+      while (j < len && depth > 0) {
+        cj = str.charAt(j);
+        if (cj === '\\') { j += 2; continue; }
+        if (cj === '{') { depth += 1; j += 1; continue; }
+        if (cj === '}') {
+          depth -= 1;
+          if (depth === 0) { break; }
+          j += 1;
+          continue;
+        }
+        if (cj === '"' || cj === "'") {
+          quote = cj;
+          j += 1;
+          while (j < len) {
+            cq = str.charAt(j);
+            if (cq === '\\') { j += 2; continue; }
+            if (cq === quote) { j += 1; break; }
+            j += 1;
+          }
+          continue;
+        }
+        j += 1;
+      }
+
+      if (depth !== 0) {
+        utils.throwError('Unterminated interpolation in Twig string');
+      }
+      if (/^\s*$/.test(str.substring(interpStart, j))) {
+        utils.throwError('Empty interpolation in Twig string');
+      }
+
+      pieces.push({ type: 'interp', start: interpStart, end: j });
+      i = j + 1;
+      pieceStart = i;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  return null;
+}
+
+/**
+ * @private
+ */
+function assembleInterpolatedTokens(str, pieces) {
+  var tokens = [],
+    i,
+    p,
+    content,
+    match,
+    innerTokens,
+    k;
+
+  for (i = 0; i < pieces.length; i += 1) {
+    p = pieces[i];
+    if (p.type === 'str') {
+      content = str.substring(p.start, p.end);
+      match = '"' + content + '"';
+      tokens.push({
+        type: TYPES.STRING,
+        match: match,
+        length: match.length
+      });
+    } else {
+      tokens.push({ type: TYPES.INTERP_OPEN, match: '#{', length: 2 });
+      innerTokens = exports.read(str.substring(p.start, p.end));
+      for (k = 0; k < innerTokens.length; k += 1) {
+        tokens.push(innerTokens[k]);
+      }
+      tokens.push({ type: TYPES.INTERP_CLOSE, match: '}', length: 1 });
+    }
+  }
+  return tokens;
+}
+
+/**
  * Tokenize a Twig expression string.
  *
  * @param  {string}            str Expression source (the contents of
@@ -297,9 +450,21 @@ exports.read = function (str) {
   var offset = 0,
     tokens = [],
     substr,
-    match;
+    interp,
+    match,
+    t;
   while (offset < str.length) {
     substr = str.substring(offset);
+    if (substr.charAt(0) === '"') {
+      interp = readInterpolatedString(substr);
+      if (interp) {
+        for (t = 0; t < interp.tokens.length; t += 1) {
+          tokens.push(interp.tokens[t]);
+        }
+        offset += interp.length;
+        continue;
+      }
+    }
     match = reader(substr);
     offset += match.length;
     tokens.push(match);
