@@ -193,14 +193,15 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Macro') {
-      // Phase 2: `params` is a transitional string[] carrying the raw
-      // token slice emitted by the frontend macro parser (including
-      // `, ` separator tokens). Backend joins with `''` for the JS
-      // function param list and with `'","'` for the _utils.each
-      // shadow-delete indexOf check — preserves byte-identity with
-      // the pre-Phase-2 JS-string compile. The frontend's macro parse
-      // handler has already applied the CVE-2023-25345 guard on the
-      // macro name via the FUNCTION/FUNCTIONEMPTY branches.
+      // Phase 2: `params` is IRMacroParam[] (Session 14b Commit 8) —
+      // structured `{name, default?}` entries. Backend builds the JS
+      // function param list via `names.join(', ')` and the _utils.each
+      // shadow-delete indexOf list via `names.map(JSON.stringify).join(',')`.
+      // A string[] fallback is preserved for userland setTag tags that
+      // may still hand in the pre-Phase-2 raw-token slice (including
+      // the `, ` separator quirk). The frontend's macro parse handler
+      // has already applied the CVE-2023-25345 guard on the macro name
+      // (FUNCTION/FUNCTIONEMPTY) and every param name (VAR).
       var macroBodyJS = '';
       utils.each(node.body, function (b) {
         if (b.type === 'LegacyJS') { macroBodyJS += b.js; return; }
@@ -209,12 +210,25 @@ exports.compile = function (template, parents, options, blockName) {
           return;
         }
       });
-      var macroParams = node.params || [];
-      out += '_ctx.' + node.name + ' = function (' + macroParams.join('') + ') {\n' +
+      var macroParams = node.params || [],
+        macroSigJS,
+        macroIndexOfJS;
+      if (macroParams.length && typeof macroParams[0] === 'object' && macroParams[0] !== null && typeof macroParams[0].name === 'string') {
+        var macroNames = [];
+        utils.each(macroParams, function (p) { macroNames.push(p.name); });
+        macroSigJS = macroNames.join(', ');
+        var macroJsonNames = [];
+        utils.each(macroNames, function (n) { macroJsonNames.push(JSON.stringify(n)); });
+        macroIndexOfJS = macroJsonNames.join(',');
+      } else {
+        macroSigJS = macroParams.join('');
+        macroIndexOfJS = '"' + macroParams.join('","') + '"';
+      }
+      out += '_ctx.' + node.name + ' = function (' + macroSigJS + ') {\n' +
         '  var _output = "",\n' +
         '    __ctx = _utils.extend({}, _ctx);\n' +
         '  _utils.each(_ctx, function (v, k) {\n' +
-        '    if (["' + macroParams.join('","') + '"].indexOf(k) !== -1) { delete _ctx[k]; }\n' +
+        '    if ([' + macroIndexOfJS + '].indexOf(k) !== -1) { delete _ctx[k]; }\n' +
         '  });\n' +
         macroBodyJS + '\n' +
         ' _ctx = _utils.extend(_ctx, __ctx);\n' +
