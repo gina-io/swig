@@ -467,6 +467,7 @@ function emitExpr(node, d) {
   case 'ArrayLiteral':  return emitArrayLiteral(node, d);
   case 'ObjectLiteral': return emitObjectLiteral(node, d);
   case 'FnCall':        return emitFnCall(node, d);
+  case 'FilterCall':    return emitFilterCall(node, d);
   }
   d.throwError('emitExpr: unknown IR expression type "' + node.type + '"');
 }
@@ -654,4 +655,21 @@ function emitFnCall(node, d) {
   }
 
   return '(' + emitExpr(callee, d) + ')(' + argsJS + ')';
+}
+
+/*!
+ * Emit an expression-position filter invocation —
+ * `_filters["<name>"](<input>[, <args>])`. Mirrors the top-level drain
+ * in the Output emitter, but reads its input from `node.input` (a real
+ * {@link IRExpr}) rather than accumulating positionally. @private
+ */
+function emitFilterCall(node, d) {
+  var inputJS = emitExpr(node.input, d),
+    argsJS = '';
+  if (node.args && node.args.length) {
+    var parts = [];
+    utils.each(node.args, function (a) { parts.push(emitExpr(a, d)); });
+    argsJS = ', ' + parts.join(', ');
+  }
+  return '_filters["' + node.name + '"](' + inputJS + argsJS + ')';
 }

@@ -245,6 +245,38 @@ describe('swig-core/lib/backend — emitExpr', function () {
     });
   });
 
+  describe('IRFilterCallExpr', function () {
+    it('emits _filters["<name>"](<input>) with no args', function () {
+      var js = backend.emitExpr(ir.filterCallExpr('upper', ir.varRef(['name'])));
+      expect(js).to.contain('_filters["upper"](');
+      expect(js).to.contain('_ctx.name');
+      expect(js.indexOf(', ')).to.be(-1);
+    });
+
+    it('emits args after the input expression', function () {
+      var js = backend.emitExpr(ir.filterCallExpr(
+        'default',
+        ir.varRef(['x']),
+        [ir.literal('string', 'fallback')]
+      ));
+      expect(js).to.contain('_filters["default"](');
+      expect(js).to.contain(', "fallback")');
+    });
+
+    it('chains via nested input', function () {
+      var inner = ir.filterCallExpr('upper', ir.varRef(['x']));
+      var outer = ir.filterCallExpr('reverse', inner);
+      var js = backend.emitExpr(outer);
+      expect(js.indexOf('_filters["reverse"](_filters["upper"](')).to.be(0);
+    });
+
+    it('accepts another IRExpr as input (e.g. a BinaryOp)', function () {
+      var bin = ir.binaryOp('+', ir.varRef(['a']), ir.varRef(['b']));
+      var js = backend.emitExpr(ir.filterCallExpr('upper', bin));
+      expect(js.indexOf('_filters["upper"](')).to.be(0);
+    });
+  });
+
   describe('dispatch / validation', function () {
     it('throws on a missing node', function () {
       expect(function () { backend.emitExpr(null); }).to.throwException(/expected an IR expression node/);

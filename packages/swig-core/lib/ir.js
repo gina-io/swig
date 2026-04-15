@@ -366,11 +366,32 @@
  */
 
 /**
+ * Filter invocation at expression position — distinct from the
+ * type-less {@link IRFilterCall} helper that lives inside
+ * `IROutput.filters`. This shape carries its own `input` expression so a
+ * filter can appear anywhere an expression can — inside a binary op
+ * (`a + b|upper`), inside a function call (`foo(bar|upper)`), inside a
+ * bracket access (`foo[bar|upper]`), chained (`a|upper|reverse`).
+ *
+ * The IRFilterCall helper stays the carrier for the top-level filter
+ * pipe on an Output, because that pipe feeds the accumulated output
+ * expression positionally — it doesn't fit a `{ input, ... }` shape.
+ *
+ * @typedef {Object} IRFilterCallExpr
+ * @property {'FilterCall'} type
+ * @property {string} name
+ * @property {IRExpr} input
+ * @property {IRExpr[]} [args]
+ * @property {IRLoc} [loc]
+ */
+
+/**
  * Any expression-position IR node.
  *
  * @typedef {(
  *   IRLiteral | IRVarRef | IRAccess | IRBinaryOp | IRUnaryOp |
- *   IRConditional | IRArrayLiteral | IRObjectLiteral | IRFnCall
+ *   IRConditional | IRArrayLiteral | IRObjectLiteral | IRFnCall |
+ *   IRFilterCallExpr
  * )} IRExpr
  */
 
@@ -796,4 +817,23 @@ exports.objectProperty = function (key, value) {
  */
 exports.fnCall = function (callee, args, loc) {
   return withLoc({ type: 'FnCall', callee: callee, args: args }, loc);
+};
+
+/**
+ * Build an {@link IRFilterCallExpr} expression-position filter
+ * invocation. Distinct from {@link exports.filterCall} — this is a
+ * first-class IRExpr that wraps its own input, so filters can appear
+ * mid-expression (`a + b|upper`, `foo[bar|upper]`) and chain
+ * (`a|upper|reverse`).
+ *
+ * @param  {string}   name
+ * @param  {IRExpr}   input
+ * @param  {IRExpr[]} [args]
+ * @param  {IRLoc}    [loc]
+ * @return {IRFilterCallExpr}
+ */
+exports.filterCallExpr = function (name, input, args, loc) {
+  var node = { type: 'FilterCall', name: name, input: input };
+  if (args !== undefined) { node.args = args; }
+  return withLoc(node, loc);
 };

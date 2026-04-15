@@ -469,6 +469,32 @@ describe('swig-core/lib/ir — node factories', function () {
     });
   });
 
+  describe('filterCallExpr()', function () {
+    it('produces a FilterCall IRExpr with input, no args omitted', function () {
+      var input = ir.varRef(['x']);
+      var node = ir.filterCallExpr('upper', input);
+      expect(node).to.eql({ type: 'FilterCall', name: 'upper', input: input });
+      expect(node.hasOwnProperty('args')).to.be(false);
+    });
+
+    it('carries args when supplied', function () {
+      var input = ir.varRef(['x']);
+      var args = [ir.literal('string', ',')];
+      var node = ir.filterCallExpr('join', input, args);
+      expect(node.args).to.be(args);
+    });
+
+    it('is distinct from filterCall() helper shape', function () {
+      var input = ir.varRef(['x']);
+      var expr = ir.filterCallExpr('upper', input);
+      var helper = ir.filterCall('upper');
+      expect(expr.hasOwnProperty('type')).to.be(true);
+      expect(helper.hasOwnProperty('type')).to.be(false);
+      expect(expr.hasOwnProperty('input')).to.be(true);
+      expect(helper.hasOwnProperty('input')).to.be(false);
+    });
+  });
+
   /* -- Loc attachment rule ---------------------------------------- */
 
   describe('loc attachment rule', function () {
