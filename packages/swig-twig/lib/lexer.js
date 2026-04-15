@@ -13,16 +13,22 @@ var TYPES = require('./tokentypes');
 /*!
  * Phase 3 Session 2–3 — Twig lexer rule table.
  *
- * Covers the swig-shared token subset plus `~` concat, `..` range,
- * `??` null-coalescing, and `?` ternary operators landed in Session 3.
- * The bare QMARK rule lands AFTER NULLCOALESCE so first-match-wins
- * consumes `??` as NULLCOALESCE rather than two QMARKs. Elvis shorthand
- * `?:` lexes as QMARK + COLON (existing token) — the parser decides
- * Elvis-vs-ternary from context. Remaining Twig-only operators
- * (`is`/`is not` test, `#{}` string interpolation) deliberately do not
- * have rules here — they will fall through to the unknown-token throw
- * at the bottom of `reader()`. `#{}` is a string sub-mode change and
- * stays deferred to Session 4+.
+ * Covers the swig-shared token subset plus all Twig-only operators
+ * except string interpolation (`~` concat, `..` range, `??`
+ * null-coalescing, `?` ternary, `is` / `is not` test). String
+ * interpolation `#{}` is a string sub-mode change and stays deferred
+ * to Session 4+.
+ *
+ * Rule ordering constraints worth the call-out:
+ *
+ *   - ISNOT above IS above VAR — the `is` keyword would otherwise be
+ *     gobbled by VAR's `^[a-zA-Z_$]\w*` pattern. ISNOT above IS because
+ *     `is not` must be consumed as a single token, not IS + NOT.
+ *     Precedent: swig-core's `in\s` rule bakes the keyword sequence
+ *     into COMPARATOR rather than emitting a separate identifier;
+ *     similarly, the NOT rule bakes `not\s+`.
+ *   - NULLCOALESCE above QMARK — `??` must win over two bare `?` via
+ *     first-match-wins.
  *
  * Rules are tried in order; first match wins. Patterns are anchored
  * at start-of-string because the consumer slices `str` before each
@@ -136,6 +142,18 @@ var rules = [
       /^(true|false)$/
     ],
     idx: 1
+  },
+  {
+    type: TYPES.ISNOT,
+    regex: [
+      /^is\s+not\b/
+    ]
+  },
+  {
+    type: TYPES.IS,
+    regex: [
+      /^is\b/
+    ]
   },
   {
     type: TYPES.VAR,
