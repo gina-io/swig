@@ -139,17 +139,23 @@ exports.compile = function (template, parents, options, blockName) {
       // Phase 2: the full loopcache + _utils.each IIFE scaffolding is
       // emitted here; the frontend tag surfaces only (value, key,
       // iterable, body) and the backend owns all JS plumbing. `iterable`
-      // is a transitional string fragment (see IRFor typedef) carrying
-      // the TokenParser-emitted checkMatch expression verbatim. The
-      // loopcache identifier uses `Math.random()` per-occurrence to keep
-      // nested loops from clobbering each other's cache (gh-433).
+      // is an IRExpr node (Session 14b) — backward-compat string fallback
+      // preserved for userland setTag tags that may still hand in a raw
+      // JS fragment. The loopcache identifier uses `Math.random()`
+      // per-occurrence to keep nested loops from clobbering each other's
+      // cache (gh-433).
       var forVal = node.value,
         forKey = node.key,
-        forIterable = node.iterable,
+        forIterable,
         forBodyJS = '',
         ctxloopcache = ('_ctx.__loopcache' + Math.random()).replace(/\./g, ''),
         ctx = '_ctx.',
         ctxloop = '_ctx.loop';
+      if (node.iterable && typeof node.iterable === 'object' && typeof node.iterable.type === 'string') {
+        forIterable = exports.emitExpr(node.iterable);
+      } else {
+        forIterable = node.iterable;
+      }
       utils.each(node.body, function (b) {
         if (b.type === 'LegacyJS') { forBodyJS += b.js; return; }
         if (b.type === 'Text' || b.type === 'Raw') {
