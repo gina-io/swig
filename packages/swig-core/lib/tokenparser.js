@@ -561,6 +561,17 @@ TokenParser.prototype = {
         } else if (tok.type === _t.PARENOPEN) {
           consume();
           expr = ir.fnCall(expr, parseArgList(_t.PARENCLOSE));
+        } else if (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY) {
+          consume();
+          var fname = tok.match;
+          if (!self.filters.hasOwnProperty(fname) || typeof self.filters[fname] !== 'function') {
+            bail('Invalid filter "' + fname + '"');
+          }
+          var fargs;
+          if (tok.type === _t.FILTER) {
+            fargs = parseArgList(_t.PARENCLOSE);
+          }
+          expr = ir.filterCallExpr(fname, expr, fargs);
         } else {
           break;
         }
@@ -669,9 +680,6 @@ TokenParser.prototype = {
    *     (per-operand filter precedence — `{{ a + b|upper }}` binds the
    *     filter to `b` only, an IROutput-flat-filters shape can't
    *     represent this).
-   *   - Filter at any nested depth (e.g. `{{ foo[bar|upper] }}`,
-   *     `{{ foo(a|upper) }}`) — parseExpr bails on FILTER tokens, can't
-   *     produce a valid IRExpr.
    *   - Partial consumption of the prefix by parseExpr (stray trailing
    *     tokens mean the stream doesn't match any known grammar).
    *   - String-valued autoescape (e.g. `{% autoescape 'js' %}`) — legacy
@@ -707,7 +715,6 @@ TokenParser.prototype = {
     var depth = 0,
       hasTopOp = false,
       hasTopFilter = false,
-      hasDeepFilter = false,
       firstTopFilterIdx = -1;
     for (i = 0; i < tokens.length; i += 1) {
       t = tokens[i];
@@ -720,10 +727,6 @@ TokenParser.prototype = {
           hasTopFilter = true;
           if (firstTopFilterIdx < 0) { firstTopFilterIdx = i; }
         }
-      } else {
-        if (t.type === _t.FILTER || t.type === _t.FILTEREMPTY) {
-          hasDeepFilter = true;
-        }
       }
       if (t.type === _t.PARENOPEN || t.type === _t.FUNCTION ||
           t.type === _t.BRACKETOPEN || t.type === _t.CURLYOPEN ||
@@ -735,7 +738,7 @@ TokenParser.prototype = {
       }
     }
 
-    if (hasDeepFilter || (hasTopOp && hasTopFilter) || firstTopFilterIdx === 0) {
+    if ((hasTopOp && hasTopFilter) || firstTopFilterIdx === 0) {
       return legacyFallback();
     }
 
@@ -760,13 +763,23 @@ TokenParser.prototype = {
       // Autoescape analysis over full token stream. Mirrors the
       // mutations self.parse() performs on self.escape: FUNCTION /
       // FUNCTIONEMPTY → false, VAR-immediately-before-PARENOPEN
-      // (METHODOPEN) → false. Filter `.safe` is folded in during the
-      // drain below.
+      // (METHODOPEN) → false. Filter `.safe` is folded in here over
+      // the full stream so that both top-level FILTER/FILTEREMPTY
+      // tokens (drained below as IRFilterCall positional chain) and
+      // deep FILTER/FILTEREMPTY tokens (consumed by parseExpr and
+      // embedded as IRFilterCallExpr subtrees) flip escape off.
       var escape = self.escape;
       for (i = 0; i < tokens.length; i += 1) {
         t = tokens[i];
         if (t.type === _t.FUNCTION || t.type === _t.FUNCTIONEMPTY) {
           escape = false;
+        }
+        if (t.type === _t.FILTER || t.type === _t.FILTEREMPTY) {
+          if (self.filters.hasOwnProperty(t.match) &&
+              typeof self.filters[t.match] === 'function' &&
+              self.filters[t.match].safe) {
+            escape = false;
+          }
         }
         if (t.type === _t.PARENOPEN) {
           var m = i - 1;
