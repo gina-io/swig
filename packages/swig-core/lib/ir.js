@@ -113,13 +113,6 @@
  */
 
 /**
- * During the Phase 2 migration, `path` and `context` may transitionally
- * carry raw JS source fragments (`string`) emitted by the frontend's
- * TokenParser — parallels the {@link IRSet} `target`/`value` transitional
- * shapes. The target shape is `IRExpr` and is reached once TokenParser
- * migrates to IRExpr emission (Session 14+). Backends that consume real
- * `IRExpr` values must tolerate the transitional string form.
- *
  * `ignoreMissing` maps to swig's `ignore missing` modifier (silently swallow
  * a compile-time load error from the included file). `resolveFrom` carries
  * the including template's filename so the loader can resolve relative
@@ -128,8 +121,8 @@
  *
  * @typedef {Object} IRInclude
  * @property {'Include'} type
- * @property {IRExpr|string} path             Usually a string literal, but any expression is allowed.
- * @property {IRExpr|string} [context]        Explicit locals for the included template.
+ * @property {IRExpr} path                    Usually a string literal, but any expression is allowed.
+ * @property {IRExpr} [context]               Explicit locals for the included template.
  * @property {boolean} [isolated]             Maps to Twig's `only`.
  * @property {boolean} [ignoreMissing]        Swallow loader errors when the file is missing.
  * @property {string} [resolveFrom]           Including template's filename (backslash-escaped) for loader-relative resolution.
@@ -520,18 +513,19 @@ exports.block = function (name, body, loc) {
 /**
  * Build an {@link IRInclude} node.
  *
- * `path` and `context` are typed `IRExpr | string` for Phase 2 — see the
- * IRInclude typedef for the transitional shape. The factory stores both
- * opaquely and does not inspect them. `ignoreMissing` and `resolveFrom`
- * are swig-native modifiers carried through so the backend can build
- * the `_swig.compileFile(...)` emission.
+ * `path` and `context` are {@link IRExpr} nodes (Session 14b Commit 7).
+ * The factory stores both opaquely and does not inspect them — backward-
+ * compat string fallback is handled at backend emit time for userland
+ * setTag tags that may still hand in raw JS-source fragments.
+ * `ignoreMissing` and `resolveFrom` are swig-native modifiers carried
+ * through so the backend can build the `_swig.compileFile(...)` emission.
  *
- * @param  {IRExpr|string} path
- * @param  {IRExpr|string} [context]
- * @param  {boolean}       [isolated]
- * @param  {boolean}       [ignoreMissing]
- * @param  {string}        [resolveFrom]
- * @param  {IRLoc}         [loc]
+ * @param  {IRExpr}  path
+ * @param  {IRExpr}  [context]
+ * @param  {boolean} [isolated]
+ * @param  {boolean} [ignoreMissing]
+ * @param  {string}  [resolveFrom]
+ * @param  {IRLoc}   [loc]
  * @return {IRInclude}
  */
 exports.include = function (path, context, isolated, ignoreMissing, resolveFrom, loc) {
