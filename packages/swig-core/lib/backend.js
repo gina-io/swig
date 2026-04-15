@@ -253,25 +253,39 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Include') {
-      // Phase 2: `path` and `context` are transitional string fragments
-      // (see IRInclude typedef) carrying the TokenParser-emitted
-      // expressions verbatim. `resolveFrom` is a plain filesystem path
-      // that must be JSON-escaped into a string literal — the frontend's
+      // Phase 2: `path` and `context` are IRExpr nodes (Session 14b
+      // Commit 7) — per-slot dispatch on object-with-.type → emitExpr,
+      // else verbatim string fallback preserves the userland setTag
+      // path (compile functions that still hand in raw JS-source
+      // fragments). `resolveFrom` is a plain filesystem path that must
+      // be JSON-escaped into a string literal — the frontend's
       // include-tag parse handler has already applied a `\\` → `\\\\`
-      // backslash escape before handing it off. `ignoreMissing` wraps the
-      // emission in `try { ... } catch (e) {}` so missing-file errors
-      // collapse to the empty string.
-      var incCtx = node.context,
-        incSelector;
-      if (node.isolated && incCtx) {
-        incSelector = incCtx;
-      } else if (!incCtx) {
+      // backslash escape before handing it off. `ignoreMissing` wraps
+      // the emission in `try { ... } catch (e) {}` so missing-file
+      // errors collapse to the empty string.
+      var incPathJS, incCtxJS;
+      if (node.path && typeof node.path === 'object' && typeof node.path.type === 'string') {
+        incPathJS = exports.emitExpr(node.path);
+      } else {
+        incPathJS = node.path;
+      }
+      if (node.context !== undefined) {
+        if (typeof node.context === 'object' && typeof node.context.type === 'string') {
+          incCtxJS = exports.emitExpr(node.context);
+        } else {
+          incCtxJS = node.context;
+        }
+      }
+      var incSelector;
+      if (node.isolated && incCtxJS) {
+        incSelector = incCtxJS;
+      } else if (!incCtxJS) {
         incSelector = '_ctx';
       } else {
-        incSelector = '_utils.extend({}, _ctx, ' + incCtx + ')';
+        incSelector = '_utils.extend({}, _ctx, ' + incCtxJS + ')';
       }
       out += (node.ignoreMissing ? '  try {\n' : '') +
-        '_output += _swig.compileFile(' + node.path + ', {' +
+        '_output += _swig.compileFile(' + incPathJS + ', {' +
         'resolveFrom: "' + node.resolveFrom + '"' +
         '})(' + incSelector + ');\n' +
         (node.ignoreMissing ? '} catch (e) {}\n' : '');
