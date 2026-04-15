@@ -52,9 +52,18 @@
  * Output an expression with optional filter chain.
  * `safe: true` bypasses autoescape.
  *
+ * `expr` is typed `IRExpr | IRLegacyJS` for Phase 2 — see Session 14b
+ * Commit 9. The IR shape can't represent legacy Swig's per-operand
+ * filter precedence (filter binds to the last operand across binary
+ * ops, e.g. `{{ a + b|upper }}` → `a + _filters["upper"](b)`); for
+ * those outputs the frontend falls back to the legacy JS-string
+ * emission and wraps it in {@link IRLegacyJS}. The narrow back to
+ * strict `IRExpr` is gated on lifting filter chains to expression-level
+ * ({@link IRExpr}-position filters) — a follow-up commit.
+ *
  * @typedef {Object} IROutput
  * @property {'Output'} type
- * @property {IRExpr} expr
+ * @property {IRExpr|IRLegacyJS} expr
  * @property {IRFilterCall[]} [filters]
  * @property {boolean} [safe]
  * @property {IRLoc} [loc]

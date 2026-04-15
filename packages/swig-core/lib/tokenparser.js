@@ -423,9 +423,12 @@ TokenParser.prototype = {
    * Output-site property (`IROutput.safe`), so callers decide.
    *
    * @param  {object[]} tokens  LexerToken[] — same shape TokenParser.parse walks.
+   * @param  {object}   [_posOut]  Optional out-param; if provided, final cursor
+   *                               position is stored on `_posOut.pos`. Lets
+   *                               callers detect partial consumption.
    * @return {object}           IRExpr tree (see `./ir.js`).
    */
-  parseExpr: function (tokens) {
+  parseExpr: function (tokens, _posOut) {
     var self = this;
     var pos = 0;
 
@@ -511,6 +514,9 @@ TokenParser.prototype = {
         if (keyTok.type === _t.STRING) {
           keyExpr = ir.literal('string', unquoteString(keyTok.match));
         } else if (keyTok.type === _t.VAR) {
+          if (keyTok.match.indexOf('.') !== -1) {
+            bail('Unexpected dot');
+          }
           keyExpr = ir.literal('string', keyTok.match);
         } else if (keyTok.type === _t.NUMBER) {
           keyExpr = ir.literal('number', parseFloat(keyTok.match));
@@ -637,7 +643,219 @@ TokenParser.prototype = {
       return left;
     }
 
-    return parseExpression(0);
+    var result = parseExpression(0);
+    if (_posOut) { _posOut.pos = pos; }
+    return result;
+  },
+
+  /**
+   * Lower a `{{ … }}` expression token stream to an {@link IROutput} IR
+   * node. Single entry-point for variable outputs — called by the
+   * frontend's `parseVariable` in place of `self.parse().join('')`.
+   *
+   * IR path (clean case) — emits `ir.output(expr, filters)` where `expr`
+   * is a real {@link IRExpr} from {@link TokenParser#parseExpr} and
+   * `filters` is an {@link IRFilterCall}[] drained from the top-level
+   * filter pipe. Autoescape is folded in as a trailing synthetic
+   * `filterCall('e')` when {@link TokenParser#escape} is still truthy
+   * after filter-`.safe` / FUNCTION-callee / VAR-method-call detection.
+   *
+   * Legacy fallback (IR can't preserve semantics) — emits
+   * `ir.output(ir.legacyJS(...))` wrapping the raw JS-source string
+   * produced by {@link TokenParser#parse}. Triggers:
+   *   - Empty / whitespace-only token list (degenerate `{{ }}`).
+   *   - Filter at start of stream (degenerate `{{ |upper }}`).
+   *   - Top-level binary op AND top-level filter in the same expression
+   *     (per-operand filter precedence — `{{ a + b|upper }}` binds the
+   *     filter to `b` only, an IROutput-flat-filters shape can't
+   *     represent this).
+   *   - Filter at any nested depth (e.g. `{{ foo[bar|upper] }}`,
+   *     `{{ foo(a|upper) }}`) — parseExpr bails on FILTER tokens, can't
+   *     produce a valid IRExpr.
+   *   - Partial consumption of the prefix by parseExpr (stray trailing
+   *     tokens mean the stream doesn't match any known grammar).
+   *   - String-valued autoescape (e.g. `{% autoescape 'js' %}`) — legacy
+   *     preserves the original quote style verbatim, IR re-emits via
+   *     JSON.stringify which can differ. Narrow fallback keeps byte
+   *     identity on tag-syntax autoescape.
+   *
+   * CVE-2023-25345 guards (FILTER / FILTEREMPTY `.safe` off, VAR
+   * segments, STRING-in-BRACKETOPEN, DOTKEY) stay live in {@link
+   * TokenParser#parseToken} and {@link TokenParser#parseExpr}. Fallback
+   * path re-runs through them via `self.parse()`; IR path hits the
+   * parseExpr copies. See `.claude/security.md § _dangerousProps is
+   * duplicated across layers — DO NOT dedup`.
+   *
+   * @param  {object[]} tokens  LexerToken[] — the full {{ … }} token stream.
+   * @return {object}           IROutput IR node.
+   */
+  parseOutput: function (tokens) {
+    var self = this;
+
+    function legacyFallback() {
+      var legOut = self.parse().join('');
+      return ir.output(ir.legacyJS('_output += ' + legOut + ';\n'));
+    }
+
+    var hasContent = false, i, t;
+    for (i = 0; i < tokens.length; i += 1) {
+      if (tokens[i].type !== _t.WHITESPACE) { hasContent = true; break; }
+    }
+    if (!hasContent) { return legacyFallback(); }
+    if (typeof self.escape === 'string') { return legacyFallback(); }
+
+    var depth = 0,
+      hasTopOp = false,
+      hasTopFilter = false,
+      hasDeepFilter = false,
+      firstTopFilterIdx = -1;
+    for (i = 0; i < tokens.length; i += 1) {
+      t = tokens[i];
+      if (depth === 0) {
+        if (t.type === _t.OPERATOR || t.type === _t.LOGIC ||
+            t.type === _t.COMPARATOR || t.type === _t.NOT) {
+          hasTopOp = true;
+        }
+        if (t.type === _t.FILTER || t.type === _t.FILTEREMPTY) {
+          hasTopFilter = true;
+          if (firstTopFilterIdx < 0) { firstTopFilterIdx = i; }
+        }
+      } else {
+        if (t.type === _t.FILTER || t.type === _t.FILTEREMPTY) {
+          hasDeepFilter = true;
+        }
+      }
+      if (t.type === _t.PARENOPEN || t.type === _t.FUNCTION ||
+          t.type === _t.BRACKETOPEN || t.type === _t.CURLYOPEN ||
+          t.type === _t.FILTER) {
+        depth += 1;
+      } else if (t.type === _t.PARENCLOSE || t.type === _t.BRACKETCLOSE ||
+                 t.type === _t.CURLYCLOSE) {
+        depth -= 1;
+      }
+    }
+
+    if (hasDeepFilter || (hasTopOp && hasTopFilter) || firstTopFilterIdx === 0) {
+      return legacyFallback();
+    }
+
+    // Wrap the IR attempt in a try/catch. Malformed-input throws from
+    // parseExpr (e.g. "Unexpected token", "Unexpected end of expression")
+    // have different wording than the legacy parseToken / parseVar
+    // paths, so fall through to legacyFallback() — the legacy error
+    // shape is the one the test suite + userland error handlers expect.
+    // CVE-2023-25345 guards still fire either way (legacy's parseVar /
+    // parseToken have the same guards), so this doesn't weaken security.
+    try {
+      var prefixEnd = firstTopFilterIdx >= 0 ? firstTopFilterIdx : tokens.length,
+        prefixTokens = tokens.slice(0, prefixEnd),
+        posOut = { pos: 0 },
+        expr = self.parseExpr(prefixTokens, posOut),
+        trailing = false;
+      for (i = posOut.pos; i < prefixTokens.length; i += 1) {
+        if (prefixTokens[i].type !== _t.WHITESPACE) { trailing = true; break; }
+      }
+      if (trailing) { return legacyFallback(); }
+
+      // Autoescape analysis over full token stream. Mirrors the
+      // mutations self.parse() performs on self.escape: FUNCTION /
+      // FUNCTIONEMPTY → false, VAR-immediately-before-PARENOPEN
+      // (METHODOPEN) → false. Filter `.safe` is folded in during the
+      // drain below.
+      var escape = self.escape;
+      for (i = 0; i < tokens.length; i += 1) {
+        t = tokens[i];
+        if (t.type === _t.FUNCTION || t.type === _t.FUNCTIONEMPTY) {
+          escape = false;
+        }
+        if (t.type === _t.PARENOPEN) {
+          var m = i - 1;
+          while (m >= 0 && tokens[m].type === _t.WHITESPACE) { m -= 1; }
+          if (m >= 0 && tokens[m].type === _t.VAR) { escape = false; }
+        }
+      }
+
+      // Drain the top-level filter chain. Each FILTER's arg list is
+      // paren-depth-tracked and split at top-level commas; each slice
+      // is parsed via parseExpr. FILTER args containing nested filters
+      // would have forced hasDeepFilter above, so all slices are clean
+      // IRExpr-producing streams by the time we reach here.
+      var filterCalls = [];
+      if (firstTopFilterIdx >= 0) {
+        var fi = firstTopFilterIdx;
+        while (fi < tokens.length) {
+          var ftok = tokens[fi];
+          if (ftok.type === _t.WHITESPACE) { fi += 1; continue; }
+          if (ftok.type === _t.FILTEREMPTY) {
+            if (!self.filters.hasOwnProperty(ftok.match) || typeof self.filters[ftok.match] !== 'function') {
+              utils.throwError('Invalid filter "' + ftok.match + '"', self.line, self.filename);
+            }
+            if (self.filters[ftok.match].safe) { escape = false; }
+            filterCalls.push(ir.filterCall(ftok.match));
+            fi += 1;
+            continue;
+          }
+          if (ftok.type === _t.FILTER) {
+            if (!self.filters.hasOwnProperty(ftok.match) || typeof self.filters[ftok.match] !== 'function') {
+              utils.throwError('Invalid filter "' + ftok.match + '"', self.line, self.filename);
+            }
+            if (self.filters[ftok.match].safe) { escape = false; }
+            var argDepth = 1, argStart = fi + 1, argEnd = fi + 1;
+            while (argEnd < tokens.length && argDepth > 0) {
+              var at = tokens[argEnd];
+              if (at.type === _t.PARENOPEN || at.type === _t.FUNCTION ||
+                  at.type === _t.BRACKETOPEN || at.type === _t.CURLYOPEN ||
+                  at.type === _t.FILTER) {
+                argDepth += 1;
+              } else if (at.type === _t.PARENCLOSE || at.type === _t.BRACKETCLOSE ||
+                         at.type === _t.CURLYCLOSE) {
+                argDepth -= 1;
+                if (argDepth === 0) { break; }
+              }
+              argEnd += 1;
+            }
+            if (argDepth !== 0) {
+              utils.throwError('Unable to parse filter "' + ftok.match + '"', self.line, self.filename);
+            }
+            var argSlices = [], sliceStart = argStart, cd = 1, ai;
+            for (ai = argStart; ai < argEnd; ai += 1) {
+              var a2 = tokens[ai];
+              if (a2.type === _t.PARENOPEN || a2.type === _t.FUNCTION ||
+                  a2.type === _t.BRACKETOPEN || a2.type === _t.CURLYOPEN ||
+                  a2.type === _t.FILTER) {
+                cd += 1;
+              } else if (a2.type === _t.PARENCLOSE || a2.type === _t.BRACKETCLOSE ||
+                         a2.type === _t.CURLYCLOSE) {
+                cd -= 1;
+              } else if (a2.type === _t.COMMA && cd === 1) {
+                argSlices.push(tokens.slice(sliceStart, ai));
+                sliceStart = ai + 1;
+              }
+            }
+            if (sliceStart < argEnd) { argSlices.push(tokens.slice(sliceStart, argEnd)); }
+            var parsedArgs = [], si;
+            for (si = 0; si < argSlices.length; si += 1) {
+              var slice = argSlices[si], nonWs = false, sj;
+              for (sj = 0; sj < slice.length; sj += 1) {
+                if (slice[sj].type !== _t.WHITESPACE) { nonWs = true; break; }
+              }
+              if (!nonWs) { continue; }
+              parsedArgs.push(self.parseExpr(slice));
+            }
+            filterCalls.push(ir.filterCall(ftok.match, parsedArgs));
+            fi = argEnd + 1;
+            continue;
+          }
+          utils.throwError('Unexpected token "' + ftok.match + '"', self.line, self.filename);
+        }
+      }
+
+      if (escape) { filterCalls.push(ir.filterCall('e')); }
+
+      return ir.output(expr, filterCalls.length > 0 ? filterCalls : undefined);
+    } catch (e) {
+      return legacyFallback();
+    }
   },
 
   /**
