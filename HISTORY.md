@@ -1,3 +1,8 @@
+[2.0.0-alpha.2](https://github.com/gina-io/swig/tree/v2.0.0-alpha.2) / 2026-04-15
+---------------------------------------------------------------------------------
+
+* **Changed** Phase 2 of the multi-flavor architecture: native frontend now compiles source → IR → backend. All built-in tags (`autoescape`, `filter`, `if`/`elseif`/`else`, `for`, `set`, `block`/`extends`/`parent`, `include`, `import`, `macro`) emit structured IR nodes; `IRLegacyJS` preserves the JS-string `compile` path for userland `setTag` consumers. TokenParser expression-level codegen migrated to IRExpr — every `{{ … }}` output site lowers through `parseOutput` + `parseExpr` (Pratt parser), with a structured fallback to `IRLegacyJS` for shapes the flat IR cannot represent. Filter chains, deep-filter compositions (`{{ a|f(b|g) }}`), and per-operand filter precedence (`{{ a|upper + b|lower }}`) all route through IR via the new `IRFilterCallExpr`. Internal-only carve; no user-visible API changes vs `2.0.0-alpha.1` — same entry points, same compiled-output semantics, all 7 CVE-2023-25345 + 1 CVE-2021-44906 regressions remain green. 526 → 673 Node tests (added IR + parseExpr + parseOutput acceptance suites).
+
 [2.0.0-alpha.1](https://github.com/gina-io/swig/tree/v2.0.0-alpha.1) / 2026-04-14
 ---------------------------------------------------------------------------------
 
