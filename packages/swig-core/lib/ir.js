@@ -89,12 +89,17 @@
  */
 
 /**
- * `test` is `null` for the trailing else branch. The factory is opaque —
- * it accepts any value and stores it — but consumers (backends) expect
- * either a real `IRExpr` node or `null`.
+ * `test` is `null` for the trailing else branch. For regular `if` /
+ * `elseif` branches it is an {@link IRExpr} when the test expression
+ * lowers cleanly, or an {@link IRLegacyJS} escape-hatch when the test
+ * contains a top-level filter chain mixed with a binary op (e.g.
+ * `{% if a === b|upper %}`) — per-operand filter precedence cannot be
+ * represented in a flat IR, same widening as {@link IROutput.expr} in
+ * Session 14b Commit 9. The factory is opaque — it accepts any value
+ * and stores it — but consumers (backends) dispatch on the shape.
  *
  * @typedef {Object} IRIfBranch
- * @property {IRExpr|null} test
+ * @property {IRExpr|IRLegacyJS|null} test
  * @property {IRStatement[]} body
  */
 

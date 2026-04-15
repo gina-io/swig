@@ -105,11 +105,14 @@ exports.compile = function (template, parents, options, blockName) {
     if (node.type === 'If') {
       // Phase 2 Session 14c: multi-branch shape. The native if tag owns
       // content scanning and splits at else/elseif marker tokens so each
-      // IRIfBranch carries its own test + body. `test` is IRExpr for
-      // clean expressions, `null` for the trailing else, and a raw JS
-      // string for the filter-in-test fallback (if.lowerExpr bails on
-      // FILTER/FILTEREMPTY) plus userland setTag compile functions that
-      // may still hand in a string.
+      // IRIfBranch carries its own test + body. Session 14b Commit 11
+      // widened `test` to `IRExpr | IRLegacyJS | null`: `IRExpr` for
+      // clean expressions, `null` for the trailing else, `IRLegacyJS`
+      // for the filter-in-test fallback (`if.lowerExpr` bails on
+      // FILTER/FILTEREMPTY because per-operand filter precedence can't
+      // be represented in flat IR — same pattern as `IROutput.expr`).
+      // Raw JS strings stay supported for userland `setTag` compile
+      // functions that may still hand in a string.
       //
       // Emission shape matches the pre-carve `} else if (...) {` /
       // `} else {` fragments that else.js and elseif.js used to return
@@ -130,7 +133,9 @@ exports.compile = function (template, parents, options, blockName) {
           ifOut += '} else {\n' + bodyJS;
           return;
         }
-        if (typeof br.test === 'object' && typeof br.test.type === 'string') {
+        if (br.test && typeof br.test === 'object' && br.test.type === 'LegacyJS') {
+          testJS = br.test.js;
+        } else if (typeof br.test === 'object' && typeof br.test.type === 'string') {
           testJS = exports.emitExpr(br.test);
         } else {
           testJS = br.test;
