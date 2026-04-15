@@ -676,10 +676,6 @@ TokenParser.prototype = {
    * produced by {@link TokenParser#parse}. Triggers:
    *   - Empty / whitespace-only token list (degenerate `{{ }}`).
    *   - Filter at start of stream (degenerate `{{ |upper }}`).
-   *   - Top-level binary op AND top-level filter in the same expression
-   *     (per-operand filter precedence — `{{ a + b|upper }}` binds the
-   *     filter to `b` only, an IROutput-flat-filters shape can't
-   *     represent this).
    *   - Partial consumption of the prefix by parseExpr (stray trailing
    *     tokens mean the stream doesn't match any known grammar).
    *   - String-valued autoescape (e.g. `{% autoescape 'js' %}`) — legacy
@@ -738,7 +734,7 @@ TokenParser.prototype = {
       }
     }
 
-    if ((hasTopOp && hasTopFilter) || firstTopFilterIdx === 0) {
+    if (firstTopFilterIdx === 0) {
       return legacyFallback();
     }
 
@@ -750,24 +746,15 @@ TokenParser.prototype = {
     // CVE-2023-25345 guards still fire either way (legacy's parseVar /
     // parseToken have the same guards), so this doesn't weaken security.
     try {
-      var prefixEnd = firstTopFilterIdx >= 0 ? firstTopFilterIdx : tokens.length,
-        prefixTokens = tokens.slice(0, prefixEnd),
-        posOut = { pos: 0 },
-        expr = self.parseExpr(prefixTokens, posOut),
-        trailing = false;
-      for (i = posOut.pos; i < prefixTokens.length; i += 1) {
-        if (prefixTokens[i].type !== _t.WHITESPACE) { trailing = true; break; }
-      }
-      if (trailing) { return legacyFallback(); }
-
       // Autoescape analysis over full token stream. Mirrors the
       // mutations self.parse() performs on self.escape: FUNCTION /
       // FUNCTIONEMPTY → false, VAR-immediately-before-PARENOPEN
       // (METHODOPEN) → false. Filter `.safe` is folded in here over
       // the full stream so that both top-level FILTER/FILTEREMPTY
-      // tokens (drained below as IRFilterCall positional chain) and
-      // deep FILTER/FILTEREMPTY tokens (consumed by parseExpr and
-      // embedded as IRFilterCallExpr subtrees) flip escape off.
+      // tokens (drained below as IRFilterCall positional chain when
+      // taken) and deep FILTER/FILTEREMPTY tokens (consumed by
+      // parseExpr and embedded as IRFilterCallExpr subtrees) flip
+      // escape off.
       var escape = self.escape;
       for (i = 0; i < tokens.length; i += 1) {
         t = tokens[i];
@@ -787,6 +774,31 @@ TokenParser.prototype = {
           if (m >= 0 && tokens[m].type === _t.VAR) { escape = false; }
         }
       }
+
+      // Per-operand filter precedence: when a top-level binary op
+      // coexists with a top-level filter (e.g. `{{ a + b|upper }}`),
+      // the filter binds to the immediately-preceding atom, NOT the
+      // full expression. The positional IROutput.filters chain is a
+      // flat wrap — it can't represent per-operand. Route through
+      // full-stream parseExpr instead: parsePostfix consumes each
+      // trailing FILTER / FILTEREMPTY and wraps the atom in an
+      // IRFilterCallExpr at the right tree depth. Autoescape remains
+      // a top-level wrap (single `e` filterCall appended).
+      if (hasTopOp && hasTopFilter) {
+        var exprPO = self.parseExpr(tokens);
+        var fcallsPO = escape ? [ir.filterCall('e')] : [];
+        return ir.output(exprPO, fcallsPO.length > 0 ? fcallsPO : undefined);
+      }
+
+      var prefixEnd = firstTopFilterIdx >= 0 ? firstTopFilterIdx : tokens.length,
+        prefixTokens = tokens.slice(0, prefixEnd),
+        posOut = { pos: 0 },
+        expr = self.parseExpr(prefixTokens, posOut),
+        trailing = false;
+      for (i = posOut.pos; i < prefixTokens.length; i += 1) {
+        if (prefixTokens[i].type !== _t.WHITESPACE) { trailing = true; break; }
+      }
+      if (trailing) { return legacyFallback(); }
 
       // Drain the top-level filter chain. Each FILTER's arg list is
       // paren-depth-tracked and split at top-level commas; each slice
