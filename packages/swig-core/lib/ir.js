@@ -238,17 +238,10 @@
 /**
  * Region-level filter pipe (Swig's `{% filter %}`, Twig's `{% apply %}`).
  *
- * During the Phase 2 migration, `args` may transitionally carry raw JS
- * source fragments (`string[]`) emitted by the frontend's TokenParser —
- * parallels the {@link IRLegacyJS} escape-hatch shape. The target shape is
- * `IRExpr[]` and is reached once TokenParser migrates to IRExpr emission
- * (Session 14+). Backends that consume real `IRExpr` values must tolerate
- * the transitional string form or defer to the emitted frontend JS.
- *
  * @typedef {Object} IRFilter
  * @property {'Filter'} type
  * @property {string} name
- * @property {(IRExpr|string)[]} [args]
+ * @property {IRExpr[]} [args]
  * @property {IRStatement[]} body
  * @property {IRLoc} [loc]
  */
@@ -660,14 +653,12 @@ exports.autoescape = function (strategy, body, loc) {
 /**
  * Build an {@link IRFilter} region-level filter pipe.
  *
- * `args` is typed `(IRExpr|string)[]` for Phase 2 — see the IRFilter
- * typedef for the transitional shape. The factory stores `args` opaquely
- * and does not inspect its elements.
+ * The factory stores `args` opaquely and does not inspect its elements.
  *
- * @param  {string}              name
- * @param  {IRStatement[]}       body
- * @param  {(IRExpr|string)[]}   [args]
- * @param  {IRLoc}               [loc]
+ * @param  {string}         name
+ * @param  {IRStatement[]}  body
+ * @param  {IRExpr[]}       [args]
+ * @param  {IRLoc}          [loc]
  * @return {IRFilter}
  */
 exports.filter = function (name, body, args, loc) {

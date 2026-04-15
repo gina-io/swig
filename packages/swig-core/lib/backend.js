@@ -278,6 +278,10 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Filter') {
+      // Phase 2: `args` is IRExpr[] (Session 14b Commit 6) — per-arg
+      // dispatch on object-with-.type → emitExpr, else verbatim string
+      // fallback preserves the userland setTag path (compile functions
+      // that still hand in raw JS-source fragments).
       var bodyJS = '';
       utils.each(node.body, function (b) {
         if (b.type === 'LegacyJS') { bodyJS += b.js; return; }
@@ -287,7 +291,18 @@ exports.compile = function (template, parents, options, blockName) {
         }
       });
       var val = '(function () {\n  var _output = "";\n' + bodyJS + '  return _output;\n})()',
-        argsJS = (node.args && node.args.length) ? ', ' + node.args.join('') : '';
+        argsJS = '';
+      if (node.args && node.args.length) {
+        var parts = [];
+        utils.each(node.args, function (a) {
+          if (a && typeof a === 'object' && typeof a.type === 'string') {
+            parts.push(exports.emitExpr(a));
+          } else {
+            parts.push(a);
+          }
+        });
+        argsJS = ', ' + parts.join(', ');
+      }
       out += '_output += _filters["' + node.name + '"](' + val + argsJS + ');\n';
       return;
     }
