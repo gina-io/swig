@@ -121,13 +121,13 @@ describe('swig-core/lib/ir — node factories', function () {
       expect(node.loc).to.be(sampleLoc);
     });
 
-    it('ifBranch accepts transitional string test fragments (Phase 2)', function () {
+    it('ifBranch stores test opaquely (factory does not inspect)', function () {
       var branch = ir.ifBranch('(_ctx.x !== null) ? _ctx.x : ""', []);
       expect(branch.test).to.be('(_ctx.x !== null) ? _ctx.x : ""');
       expect(branch.test).to.be.a('string');
     });
 
-    it('ifStmt carries branches whose test is a raw string (Phase 2 transitional)', function () {
+    it('ifStmt preserves whatever test value the factory received', function () {
       var branches = [ir.ifBranch('_ctx.x', [ir.legacyJS('_output += "A";\n')])];
       var node = ir.ifStmt(branches);
       expect(node.type).to.be('If');

@@ -64,7 +64,7 @@ exports.compile = function (template, parents, options, blockName) {
       nodes.push(token);
       return;
     }
-    var result = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName);
+    var result = token.compile(exports.compile, token.args ? token.args.slice(0) : [], token.content ? token.content.slice(0) : [], parents, options, blockName, token);
     if (result === undefined || result === null || result === '') {
       return;
     }
@@ -105,11 +105,13 @@ exports.compile = function (template, parents, options, blockName) {
     if (node.type === 'If') {
       // Phase 2: single-branch shape. The if tag's content still carries
       // else/elseif as embedded LegacyJS fragments that close and reopen
-      // the chain inline; multi-branch IR lowering is Session 14+ work
-      // (when TokenParser migrates to IRExpr). The backend emits byte-
-      // identical output to the pre-migration `if (cond) { ... }` form.
+      // the chain inline; multi-branch IR lowering is Session 14+ work.
+      // `test` is an IRExpr node (Session 14b) — backward-compat string
+      // fallback preserved for userland setTag tags that may still hand
+      // in a raw JS fragment.
       var ifBranch = node.branches[0],
-        ifBodyJS = '';
+        ifBodyJS = '',
+        ifTestJS;
       utils.each(ifBranch.body, function (b) {
         if (b.type === 'LegacyJS') { ifBodyJS += b.js; return; }
         if (b.type === 'Text' || b.type === 'Raw') {
@@ -117,7 +119,12 @@ exports.compile = function (template, parents, options, blockName) {
           return;
         }
       });
-      out += 'if (' + ifBranch.test + ') { \n' + ifBodyJS + '\n' + '}';
+      if (ifBranch.test && typeof ifBranch.test === 'object' && typeof ifBranch.test.type === 'string') {
+        ifTestJS = exports.emitExpr(ifBranch.test);
+      } else {
+        ifTestJS = ifBranch.test;
+      }
+      out += 'if (' + ifTestJS + ') { \n' + ifBodyJS + '\n' + '}';
       return;
     }
     if (node.type === 'Set') {
@@ -452,7 +459,11 @@ function emitBinaryOp(node, d) {
 }
 
 function emitUnaryOp(node, d) {
-  return node.op + emitExpr(node.operand, d);
+  var operandJS = emitExpr(node.operand, d);
+  if (node.operand && node.operand.type === 'BinaryOp') {
+    operandJS = '(' + operandJS + ')';
+  }
+  return node.op + operandJS;
 }
 
 function emitConditional(node, d) {
