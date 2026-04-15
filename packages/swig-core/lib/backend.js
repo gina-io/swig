@@ -128,11 +128,19 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Set') {
-      // Phase 2: target and value are transitional string fragments
-      // (see IRSet typedef); the frontend's set-tag parse handler has
-      // already applied the CVE-2023-25345 guards on the target path
-      // segments. Emits `<target> <op> <value>;` verbatim.
-      out += node.target + ' ' + node.op + ' ' + node.value + ';\n';
+      // Phase 2: target is a transitional string fragment (see IRSet
+      // typedef); the frontend's set-tag parse handler has already
+      // applied the CVE-2023-25345 guards on the target path segments.
+      // `value` is an IRExpr node (Session 14b) — backward-compat string
+      // fallback preserved for userland setTag tags that may still hand
+      // in a raw JS fragment. Emits `<target> <op> <value>;`.
+      var setValueJS;
+      if (node.value && typeof node.value === 'object' && typeof node.value.type === 'string') {
+        setValueJS = exports.emitExpr(node.value);
+      } else {
+        setValueJS = node.value;
+      }
+      out += node.target + ' ' + node.op + ' ' + setValueJS + ';\n';
       return;
     }
     if (node.type === 'For') {

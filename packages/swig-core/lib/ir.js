@@ -181,14 +181,13 @@
  */
 
 /**
- * During the Phase 2 migration, `target` and `value` may transitionally
- * carry raw JS source fragments (`string`) emitted by the frontend's
- * TokenParser — parallels the {@link IRFilter} `args`, {@link IRIfBranch}
- * `test`, and {@link IRFor} `iterable` transitional shapes. The target
- * shapes are `IRVarRef` and `IRExpr` respectively, reached once
- * TokenParser migrates to IRExpr emission (Session 14+). Backends that
- * consume real `IRVarRef` / `IRExpr` values must tolerate the transitional
- * string form or defer to the emitted frontend JS.
+ * During the Phase 2 migration, `target` may transitionally carry a raw
+ * JS source fragment (`string`) emitted by the frontend's TokenParser —
+ * parallels the {@link IRLegacyJS} escape-hatch shape. The target shape
+ * is `IRVarRef`, reached once TokenParser migrates to IRVarRef emission
+ * alongside the bracket-write lowering. Backends that consume real
+ * `IRVarRef` values must tolerate the transitional string form or defer
+ * to the emitted frontend JS.
  *
  * `op` carries the assignment operator (`=`, `+=`, `-=`, `*=`, `/=`) so
  * the backend can emit `<target> <op> <value>;` without re-parsing.
@@ -197,7 +196,7 @@
  * @property {'Set'} type
  * @property {IRVarRef|string} target         MUST pass the dangerousProps guard at every path segment.
  * @property {string} op                      Assignment operator.
- * @property {IRExpr|string} value
+ * @property {IRExpr} value
  * @property {IRLoc} [loc]
  */
 
@@ -603,14 +602,14 @@ exports.call = function (callee, args, loc) {
  * Build an {@link IRSet} node. `target` MUST pass the dangerousProps
  * guard at every path segment at backend emit time.
  *
- * `target` and `value` are typed `IRVarRef | string` and `IRExpr | string`
- * for Phase 2 — see the IRSet typedef for the transitional shape. The
- * factory stores both opaquely and does not inspect them. `op` is the
- * JS assignment operator (`=`, `+=`, etc.).
+ * `target` is typed `IRVarRef | string` for Phase 2 — see the IRSet
+ * typedef for the transitional shape. The factory stores `target` and
+ * `value` opaquely and does not inspect them. `op` is the JS assignment
+ * operator (`=`, `+=`, etc.).
  *
  * @param  {IRVarRef|string} target
  * @param  {string}          op
- * @param  {IRExpr|string}   value
+ * @param  {IRExpr}          value
  * @param  {IRLoc}           [loc]
  * @return {IRSet}
  */
