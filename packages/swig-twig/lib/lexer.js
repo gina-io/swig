@@ -13,9 +13,9 @@ var TYPES = require('./tokentypes');
 /*!
  * Phase 3 Session 2–3 — Twig lexer rule table.
  *
- * Covers the swig-shared token subset plus the `~` concat operator
- * landed in Session 3. Remaining Twig-only operators (`..` range,
- * `is`/`is not` test, `?` ternary, `??` null-coalescing, `#{}` string
+ * Covers the swig-shared token subset plus `~` concat and `..` range
+ * operators landed in Session 3. Remaining Twig-only operators
+ * (`is`/`is not` test, `?` ternary, `??` null-coalescing, `#{}` string
  * interpolation) deliberately do not have rules here — they will fall
  * through to the unknown-token throw at the bottom of `reader()`.
  * Session 3 lands them across separate commits; `#{}` is a string
@@ -169,6 +169,12 @@ var rules = [
     type: TYPES.CURLYCLOSE,
     regex: [
       /^\}/
+    ]
+  },
+  {
+    type: TYPES.RANGE,
+    regex: [
+      /^\.\./
     ]
   },
   {

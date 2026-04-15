@@ -163,14 +163,19 @@ describe('@rhinostone/swig-twig — lexer (shared token subset)', function () {
     expect(tokens[1].match).to.equal('~');
   });
 
-  it('throws on the Twig range operator `..` (Session 3 gap)', function () {
-    /*
-     * `1..3` lexes the leading `1` as NUMBER, leaving `..3` for the
-     * next dispatch. None of the shared rules match a leading `.` that
-     * isn't followed by a word character (DOTKEY's pattern requires
-     * `\w+` after the dot), so the throw fires on the first `.`.
-     */
-    expect(function () { lex('1..3'); }).to.throwException(/Unexpected token "\."/);
+  it('lexes the Twig range operator `..` as RANGE', function () {
+    var tokens = nonWhitespace(lex('1..3'));
+    expect(typesOf(tokens)).to.eql([TYPES.NUMBER, TYPES.RANGE, TYPES.NUMBER]);
+    expect(tokens[0].match).to.equal('1');
+    expect(tokens[1].match).to.equal('..');
+    expect(tokens[2].match).to.equal('3');
+  });
+
+  it('keeps DOTKEY working after RANGE — `foo.bar` still lexes as a single VAR', function () {
+    var tokens = nonWhitespace(lex('foo.bar'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.VAR);
+    expect(tokens[0].match).to.equal('foo.bar');
   });
 
   it('throws on the Twig null-coalescing operator `??` (Session 3 gap)', function () {
