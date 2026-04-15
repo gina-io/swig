@@ -184,6 +184,32 @@ describe('@rhinostone/swig-twig — lexer (shared token subset)', function () {
     expect(tokens[1].match).to.equal('??');
   });
 
+  it('lexes the bare Twig ternary `?` as QMARK', function () {
+    var tokens = nonWhitespace(lex('a ? b : c'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.VAR, TYPES.QMARK, TYPES.VAR, TYPES.COLON, TYPES.VAR
+    ]);
+    expect(tokens[1].match).to.equal('?');
+  });
+
+  it('lexes Twig Elvis shorthand `?:` as QMARK + COLON', function () {
+    /*
+     * No dedicated Elvis token. Parser disambiguates ternary (QMARK
+     * followed by expression before COLON) from Elvis (QMARK
+     * immediately followed by COLON) at grammar time.
+     */
+    var tokens = nonWhitespace(lex('a ?: b'));
+    expect(typesOf(tokens)).to.eql([
+      TYPES.VAR, TYPES.QMARK, TYPES.COLON, TYPES.VAR
+    ]);
+  });
+
+  it('prefers NULLCOALESCE over QMARK+QMARK on `??`', function () {
+    var tokens = nonWhitespace(lex('??'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.NULLCOALESCE);
+  });
+
   it('throws on a bare `#` outside a string (Session 3 will introduce `#{ }` re-entry inside double-quoted strings)', function () {
     expect(function () { lex('# foo'); }).to.throwException(/Unexpected token "#"/);
   });
