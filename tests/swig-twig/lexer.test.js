@@ -210,16 +210,68 @@ describe('@rhinostone/swig-twig — lexer (shared token subset)', function () {
     expect(tokens[0].type).to.equal(TYPES.NULLCOALESCE);
   });
 
-  it('throws on a bare `#` outside a string (Session 3 will introduce `#{ }` re-entry inside double-quoted strings)', function () {
+  it('throws on a bare `#` outside a string (Session 4+ will introduce `#{ }` re-entry inside double-quoted strings)', function () {
     expect(function () { lex('# foo'); }).to.throwException(/Unexpected token "#"/);
   });
 
+  /* ---- IS / ISNOT keyword tests (Session 3 behaviour change) ---- */
+
   /*
-   * NOTE: `is` / `is not` and other Twig-only keywords currently lex as
-   * a sequence of VAR tokens — the shared VAR rule matches them as
-   * plain identifiers. Session 3 hoists the rules above VAR. Not pinned
-   * here as a throw test because nothing throws today; flipping the
-   * assertion at Session 3 would be a behaviour change, not a gap-fix.
+   * BEHAVIOUR CHANGE: before Session 3, `is` lexed as VAR because the
+   * shared VAR rule (`^[a-zA-Z_$]\w*`) matched it as a plain
+   * identifier. After Session 3, `is` and `is not` are reserved Twig
+   * keywords and hoist above VAR. Variables named `is`, `isnot`, or
+   * starting with `is.` in template source become parse-level errors
+   * downstream — but in Twig, `is` is already a reserved keyword, so
+   * templates would not use it as a variable name anyway.
    */
+
+  it('lexes `a is b` as VAR IS VAR', function () {
+    var tokens = nonWhitespace(lex('a is b'));
+    expect(typesOf(tokens)).to.eql([TYPES.VAR, TYPES.IS, TYPES.VAR]);
+    expect(tokens[1].match).to.equal('is');
+  });
+
+  it('lexes `a is not b` as VAR ISNOT VAR (single ISNOT token)', function () {
+    /*
+     * `is not` is baked into a single ISNOT token rather than emitted
+     * as IS + NOT. Precedent: swig-core's COMPARATOR bakes `in\s`, and
+     * NOT bakes `not\s+`. Single-token shape keeps the parser grammar
+     * simpler — no need to reassemble `IS + NOT` at parse time.
+     */
+    var tokens = nonWhitespace(lex('a is not b'));
+    expect(typesOf(tokens)).to.eql([TYPES.VAR, TYPES.ISNOT, TYPES.VAR]);
+  });
+
+  it('prefers ISNOT over IS on `is not`', function () {
+    var tokens = nonWhitespace(lex('is not'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.ISNOT);
+  });
+
+  it('does not match IS inside identifiers — `isabel` stays VAR', function () {
+    var tokens = nonWhitespace(lex('isabel'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.VAR);
+    expect(tokens[0].match).to.equal('isabel');
+  });
+
+  it('does not match ISNOT inside identifiers — `isnothing` stays VAR', function () {
+    var tokens = nonWhitespace(lex('isnothing'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.VAR);
+    expect(tokens[0].match).to.equal('isnothing');
+  });
+
+  it('does not reassemble `is` + whitespace + word-starting-with-not-but-not-not`', function () {
+    /*
+     * `is nothing` must NOT match ISNOT — the `\b` boundary after `not`
+     * is the gate: `nothing` continues with `\w`, so no boundary, no
+     * ISNOT. Falls through to IS + WS + VAR.
+     */
+    var tokens = nonWhitespace(lex('is nothing'));
+    expect(typesOf(tokens)).to.eql([TYPES.IS, TYPES.VAR]);
+    expect(tokens[1].match).to.equal('nothing');
+  });
 
 });
