@@ -134,6 +134,17 @@ describe('swig-core/lib/ir — node factories', function () {
       expect(node.branches[0].test).to.be('_ctx.x');
       expect(node.branches[0].body[0].type).to.be('LegacyJS');
     });
+
+    it('ifBranch accepts IRLegacyJS as the test (filter-in-test fallback)', function () {
+      // Phase 2 Session 14b Commit 11: per-operand filter precedence in
+      // the test expression can't be represented in flat IR, so the
+      // native if tag wraps the legacy JS-source fragment in IRLegacyJS
+      // instead of handing the backend a raw string.
+      var branch = ir.ifBranch(ir.legacyJS('"0+3+1" === _filters.reverse(_filters.join(_ctx.getFoo("f"), "+"))'), []);
+      expect(branch.test).to.be.an('object');
+      expect(branch.test.type).to.be('LegacyJS');
+      expect(branch.test.js).to.contain('_filters.reverse');
+    });
   });
 
   describe('forStmt()', function () {
