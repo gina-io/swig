@@ -1,5 +1,6 @@
 var utils = require('./utils'),
-  _t = require('./tokentypes');
+  _t = require('./tokentypes'),
+  ir = require('./ir');
 
 /**
  * Expression-level codegen shared across @rhinostone/swig-family
@@ -393,6 +394,250 @@ TokenParser.prototype = {
     }
 
     self.out.push(self.checkMatch(match));
+  },
+
+  /**
+   * Walk a flat LexerToken[] and produce an {@link IRExpr} tree.
+   *
+   * Parallel path to {@link TokenParser#parse}: `parse()` emits a
+   * JS-source fragment (array of strings to be joined), whereas
+   * `parseExpr` emits structured IR that {@link backend.emitExpr}
+   * later lowers into an equivalent JS-source fragment. `.parse()` is
+   * unchanged and remains the production path; `parseExpr` is the
+   * incoming target shape for Phase 2 (#T15), introduced additively in
+   * Session 14b so the IR grammar can be proven against real lexer
+   * output before consumers are flipped in Commits 3-8.
+   *
+   * The CVE-2023-25345 prototype-chain guards (`_dangerousProps` on
+   * VAR segments, DOTKEY matches, STRING-inside-BRACKETOPEN values,
+   * FUNCTION / FUNCTIONEMPTY callee names) are mirrored verbatim from
+   * {@link TokenParser#parseToken}. Both layers stay live during the
+   * migration per `.claude/security.md § _dangerousProps is duplicated
+   * across layers — DO NOT dedup`.
+   *
+   * Parses until end of tokens or an un-nested top-level FILTER /
+   * FILTEREMPTY token (filter pipes are an Output-site concern —
+   * `IROutput.filters` — not part of the expression grammar). The
+   * caller resumes from there to drain the filter chain. Autoescape
+   * tail-injection is likewise NOT synthesised here: autoescape is an
+   * Output-site property (`IROutput.safe`), so callers decide.
+   *
+   * @param  {object[]} tokens  LexerToken[] — same shape TokenParser.parse walks.
+   * @return {object}           IRExpr tree (see `./ir.js`).
+   */
+  parseExpr: function (tokens) {
+    var self = this;
+    var pos = 0;
+
+    function skipWS() {
+      while (pos < tokens.length && tokens[pos].type === _t.WHITESPACE) { pos += 1; }
+    }
+    function peek() {
+      skipWS();
+      return pos < tokens.length ? tokens[pos] : null;
+    }
+    function consume() {
+      var t = peek();
+      if (t) { pos += 1; }
+      return t;
+    }
+    function bail(msg) {
+      utils.throwError(msg, self.line, self.filename);
+    }
+    function guardSegment(segment) {
+      if (_dangerousProps.indexOf(segment) !== -1) {
+        bail('Unsafe access to "' + segment + '" is not allowed in templates (CVE-2023-25345)');
+      }
+    }
+    function guardBracketString(value) {
+      if (_dangerousProps.indexOf(value) !== -1) {
+        bail('Unsafe access to "' + value + '" via bracket notation is not allowed in templates (CVE-2023-25345)');
+      }
+    }
+
+    function getBinaryOpInfo(tok) {
+      var m;
+      if (tok.type === _t.LOGIC) {
+        if (tok.match === '||') { return { op: '||', prec: 1 }; }
+        if (tok.match === '&&') { return { op: '&&', prec: 2 }; }
+      }
+      if (tok.type === _t.COMPARATOR) {
+        m = tok.match;
+        if (m === '===' || m === '!==' || m === '==' || m === '!=') {
+          return { op: m, prec: 3 };
+        }
+        return { op: m, prec: 4 };
+      }
+      if (tok.type === _t.OPERATOR) {
+        m = tok.match;
+        if (m === '+' || m === '-') { return { op: m, prec: 5 }; }
+        if (m === '*' || m === '/' || m === '%') { return { op: m, prec: 6 }; }
+      }
+      return null;
+    }
+
+    function unquoteString(match) {
+      return match.replace(/^['"]|['"]$/g, '');
+    }
+
+    function parseArgList(closeType) {
+      var args = [];
+      var first = peek();
+      if (first && first.type === closeType) {
+        consume();
+        return args;
+      }
+      while (true) {
+        args.push(parseExpression(0));
+        var next = consume();
+        if (!next) { bail('Unexpected end of expression'); }
+        if (next.type === closeType) { break; }
+        if (next.type !== _t.COMMA) { bail('Expected comma or closing delimiter'); }
+      }
+      return args;
+    }
+
+    function parseObjectLiteral() {
+      var props = [];
+      var first = peek();
+      if (first && first.type === _t.CURLYCLOSE) {
+        consume();
+        return ir.objectLiteral([]);
+      }
+      while (true) {
+        var keyTok = consume();
+        if (!keyTok) { bail('Unclosed object literal'); }
+        var keyExpr;
+        if (keyTok.type === _t.STRING) {
+          keyExpr = ir.literal('string', unquoteString(keyTok.match));
+        } else if (keyTok.type === _t.VAR) {
+          keyExpr = ir.literal('string', keyTok.match);
+        } else if (keyTok.type === _t.NUMBER) {
+          keyExpr = ir.literal('number', parseFloat(keyTok.match));
+        } else {
+          bail('Unexpected object key');
+        }
+        var colon = consume();
+        if (!colon || colon.type !== _t.COLON) { bail('Unexpected colon'); }
+        var value = parseExpression(0);
+        props.push(ir.objectProperty(keyExpr, value));
+        var next = consume();
+        if (!next) { bail('Unclosed object literal'); }
+        if (next.type === _t.CURLYCLOSE) { break; }
+        if (next.type !== _t.COMMA) { bail('Expected comma or closing curly brace'); }
+      }
+      return ir.objectLiteral(props);
+    }
+
+    function parsePostfix(expr) {
+      while (true) {
+        var tok = peek();
+        if (!tok) { break; }
+        if (tok.type === _t.DOTKEY) {
+          consume();
+          guardSegment(tok.match);
+          if (expr.type === 'VarRef') {
+            expr = ir.varRef(expr.path.concat([tok.match]));
+          } else {
+            expr = ir.access(expr, ir.literal('string', tok.match));
+          }
+        } else if (tok.type === _t.BRACKETOPEN) {
+          consume();
+          var keyExpr = parseExpression(0);
+          if (keyExpr.type === 'Literal' && keyExpr.kind === 'string') {
+            guardBracketString(keyExpr.value);
+          }
+          var close = consume();
+          if (!close || close.type !== _t.BRACKETCLOSE) {
+            bail('Unexpected closing square bracket');
+          }
+          expr = ir.access(expr, keyExpr);
+        } else if (tok.type === _t.PARENOPEN) {
+          consume();
+          expr = ir.fnCall(expr, parseArgList(_t.PARENCLOSE));
+        } else {
+          break;
+        }
+      }
+      return expr;
+    }
+
+    function parsePrimary() {
+      var tok = consume();
+      if (!tok) { bail('Unexpected end of expression'); }
+      var m;
+      switch (tok.type) {
+      case _t.STRING:
+        return ir.literal('string', unquoteString(tok.match));
+      case _t.NUMBER:
+        return ir.literal('number', parseFloat(tok.match));
+      case _t.BOOL:
+        return ir.literal('bool', tok.match === 'true');
+      case _t.NOT:
+        return ir.unaryOp('!', parseUnary());
+      case _t.OPERATOR:
+        m = tok.match;
+        if (m === '+' || m === '-') {
+          return ir.unaryOp(m, parseUnary());
+        }
+        bail('Unexpected operator "' + m + '"');
+        break;
+      case _t.PARENOPEN:
+        var grouped = parseExpression(0);
+        var close = consume();
+        if (!close || close.type !== _t.PARENCLOSE) {
+          bail('Mismatched nesting state');
+        }
+        return parsePostfix(grouped);
+      case _t.BRACKETOPEN:
+        return parsePostfix(ir.arrayLiteral(parseArgList(_t.BRACKETCLOSE)));
+      case _t.CURLYOPEN:
+        return parsePostfix(parseObjectLiteral());
+      case _t.VAR:
+        var path = tok.match.split('.');
+        if (_reserved.indexOf(path[0]) !== -1) {
+          bail('Reserved keyword "' + path[0] + '" attempted to be used as a variable');
+        }
+        utils.each(path, function (segment) {
+          guardSegment(segment);
+        });
+        return parsePostfix(ir.varRef(path));
+      case _t.FUNCTION:
+      case _t.FUNCTIONEMPTY:
+        m = tok.match;
+        if (_reserved.indexOf(m) !== -1) {
+          bail('Reserved keyword "' + m + '" attempted to be used as a variable');
+        }
+        guardSegment(m);
+        if (tok.type === _t.FUNCTIONEMPTY) {
+          return parsePostfix(ir.fnCall(ir.varRef([m]), []));
+        }
+        return parsePostfix(ir.fnCall(ir.varRef([m]), parseArgList(_t.PARENCLOSE)));
+      }
+      bail('Unexpected token "' + tok.match + '"');
+      return null;
+    }
+
+    function parseUnary() {
+      return parsePrimary();
+    }
+
+    function parseExpression(minPrec) {
+      var left = parseUnary();
+      while (true) {
+        var tok = peek();
+        if (!tok) { break; }
+        if (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY) { break; }
+        var info = getBinaryOpInfo(tok);
+        if (!info || info.prec < minPrec) { break; }
+        consume();
+        var right = parseExpression(info.prec + 1);
+        left = ir.binaryOp(info.op, left, right);
+      }
+      return left;
+    }
+
+    return parseExpression(0);
   },
 
   /**
