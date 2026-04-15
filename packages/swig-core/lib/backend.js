@@ -103,28 +103,45 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'If') {
-      // Phase 2: single-branch shape. The if tag's content still carries
-      // else/elseif as embedded LegacyJS fragments that close and reopen
-      // the chain inline; multi-branch IR lowering is Session 14+ work.
-      // `test` is an IRExpr node (Session 14b) — backward-compat string
-      // fallback preserved for userland setTag tags that may still hand
-      // in a raw JS fragment.
-      var ifBranch = node.branches[0],
-        ifBodyJS = '',
-        ifTestJS;
-      utils.each(ifBranch.body, function (b) {
-        if (b.type === 'LegacyJS') { ifBodyJS += b.js; return; }
-        if (b.type === 'Text' || b.type === 'Raw') {
-          ifBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+      // Phase 2 Session 14c: multi-branch shape. The native if tag owns
+      // content scanning and splits at else/elseif marker tokens so each
+      // IRIfBranch carries its own test + body. `test` is IRExpr for
+      // clean expressions, `null` for the trailing else, and a raw JS
+      // string for the filter-in-test fallback (if.lowerExpr bails on
+      // FILTER/FILTEREMPTY) plus userland setTag compile functions that
+      // may still hand in a string.
+      //
+      // Emission shape matches the pre-carve `} else if (...) {` /
+      // `} else {` fragments that else.js and elseif.js used to return
+      // inline — byte-identity held on the session baseline (see
+      // Session 14c notes in roadmap).
+      var ifOut = '';
+      utils.each(node.branches, function (br, bi) {
+        var bodyJS = '',
+          testJS;
+        utils.each(br.body, function (b) {
+          if (b.type === 'LegacyJS') { bodyJS += b.js; return; }
+          if (b.type === 'Text' || b.type === 'Raw') {
+            bodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+            return;
+          }
+        });
+        if (br.test === null) {
+          ifOut += '} else {\n' + bodyJS;
           return;
         }
+        if (typeof br.test === 'object' && typeof br.test.type === 'string') {
+          testJS = exports.emitExpr(br.test);
+        } else {
+          testJS = br.test;
+        }
+        if (bi === 0) {
+          ifOut += 'if (' + testJS + ') { \n' + bodyJS;
+        } else {
+          ifOut += '} else if (' + testJS + ') {\n' + bodyJS;
+        }
       });
-      if (ifBranch.test && typeof ifBranch.test === 'object' && typeof ifBranch.test.type === 'string') {
-        ifTestJS = exports.emitExpr(ifBranch.test);
-      } else {
-        ifTestJS = ifBranch.test;
-      }
-      out += 'if (' + ifTestJS + ') { \n' + ifBodyJS + '\n' + '}';
+      out += ifOut + '\n' + '}';
       return;
     }
     if (node.type === 'Set') {
