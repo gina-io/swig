@@ -174,13 +174,13 @@
  */
 
 /**
- * During the Phase 2 migration, `target` may transitionally carry a raw
- * JS source fragment (`string`) emitted by the frontend's TokenParser —
- * parallels the {@link IRLegacyJS} escape-hatch shape. The target shape
- * is `IRVarRef`, reached once TokenParser migrates to IRVarRef emission
- * alongside the bracket-write lowering. Backends that consume real
- * `IRVarRef` values must tolerate the transitional string form or defer
- * to the emitted frontend JS.
+ * Phase 2 Session 14b Commit 10: pure-dot LHS shapes (`foo`, `foo.bar`,
+ * `foo.bar.baz`) are now structured {@link IRVarRef} nodes. The
+ * bracket-touched path (`foo[bar]`, `foo["bar"]`, mixed dot+bracket)
+ * stays on the transitional `string` form — bracket-lvalue semantics
+ * (notably the runtime-variable-key case `foo[bar]`) is a cross-flavor
+ * design call deferred to a dedicated session. Backends MUST tolerate
+ * both shapes for now.
  *
  * `op` carries the assignment operator (`=`, `+=`, `-=`, `*=`, `/=`) so
  * the backend can emit `<target> <op> <value>;` without re-parsing.
@@ -589,8 +589,10 @@ exports.call = function (callee, args, loc) {
  * Build an {@link IRSet} node. `target` MUST pass the dangerousProps
  * guard at every path segment at backend emit time.
  *
- * `target` is typed `IRVarRef | string` for Phase 2 — see the IRSet
- * typedef for the transitional shape. The factory stores `target` and
+ * `target` is typed `IRVarRef | string` for Phase 2 — pure-dot LHS
+ * shapes are structured {@link IRVarRef} (Session 14b Commit 10);
+ * bracket-touched LHS stays a string fragment until the cross-flavor
+ * bracket-lvalue contract lands. The factory stores `target` and
  * `value` opaquely and does not inspect them. `op` is the JS assignment
  * operator (`=`, `+=`, etc.).
  *
