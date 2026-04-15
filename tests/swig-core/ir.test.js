@@ -281,6 +281,18 @@ describe('swig-core/lib/ir — node factories', function () {
       expect(node.value).to.be('"v"');
     });
 
+    it('set: accepts structured IRVarRef target for pure-dot LHS (Session 14b Commit 10)', function () {
+      var target = ir.varRef(['foo', 'bar', 'baz']);
+      var value = ir.literal('string', 'x');
+      var node = ir.set(target, '=', value);
+      expect(node.type).to.be('Set');
+      expect(node.target).to.be(target);
+      expect(node.target.type).to.be('VarRef');
+      expect(node.target.path).to.eql(['foo', 'bar', 'baz']);
+      expect(node.op).to.be('=');
+      expect(node.value).to.be(value);
+    });
+
     it('raw: captures verbatim value', function () {
       expect(ir.raw('{{ not a var }}').value).to.be('{{ not a var }}');
     });

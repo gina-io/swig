@@ -145,19 +145,38 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Set') {
-      // Phase 2: target is a transitional string fragment (see IRSet
-      // typedef); the frontend's set-tag parse handler has already
-      // applied the CVE-2023-25345 guards on the target path segments.
+      // Phase 2 Session 14b Commit 10: target is structured IRVarRef
+      // for pure-dot LHS shapes (`foo`, `foo.bar.baz`), emitted as a
+      // bare `_ctx.<dot.path>` lvalue with a per-segment _dangerousProps
+      // guard. Bracket-touched targets (`foo[bar]`, `foo["bar"]`, mixed
+      // dot+bracket) stay on the transitional string fragment — the
+      // bracket-lvalue contract is a cross-flavor design call and is
+      // deferred. The frontend's set-tag parse handler retains its own
+      // _dangerousProps guards on every LHS path segment per the
+      // duplication invariant in .claude/security.md.
       // `value` is an IRExpr node (Session 14b) — backward-compat string
       // fallback preserved for userland setTag tags that may still hand
       // in a raw JS fragment. Emits `<target> <op> <value>;`.
+      var setTargetJS;
+      if (node.target && typeof node.target === 'object' && node.target.type === 'VarRef') {
+        var setDeps = resolveDeps();
+        if (!utils.isArray(node.target.path) || node.target.path.length === 0) {
+          setDeps.throwError('Set: target VarRef must have a non-empty path');
+        }
+        utils.each(node.target.path, function (segment) {
+          checkDangerousSegment(segment, setDeps, node.target);
+        });
+        setTargetJS = '_ctx.' + node.target.path.join('.');
+      } else {
+        setTargetJS = node.target;
+      }
       var setValueJS;
       if (node.value && typeof node.value === 'object' && typeof node.value.type === 'string') {
         setValueJS = exports.emitExpr(node.value);
       } else {
         setValueJS = node.value;
       }
-      out += node.target + ' ' + node.op + ' ' + setValueJS + ';\n';
+      out += setTargetJS + ' ' + node.op + ' ' + setValueJS + ';\n';
       return;
     }
     if (node.type === 'For') {
