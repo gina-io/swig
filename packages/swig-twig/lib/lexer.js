@@ -11,13 +11,15 @@ var TYPES = require('./tokentypes');
  */
 
 /*!
- * Phase 3 Session 2 — Twig lexer rule table.
+ * Phase 3 Session 2–3 — Twig lexer rule table.
  *
- * Covers only the swig-shared token subset. Twig-only operators
- * (`~` concat, `..` range, `is`/`is not` test, `?:` shorthand,
- * `??` null-coalescing, `#{}` string interpolation) deliberately do
- * not have rules here — they will fall through to the unknown-token
- * throw at the bottom of `reader()`. Session 3+ adds the rules.
+ * Covers the swig-shared token subset plus the `~` concat operator
+ * landed in Session 3. Remaining Twig-only operators (`..` range,
+ * `is`/`is not` test, `?` ternary, `??` null-coalescing, `#{}` string
+ * interpolation) deliberately do not have rules here — they will fall
+ * through to the unknown-token throw at the bottom of `reader()`.
+ * Session 3 lands them across separate commits; `#{}` is a string
+ * sub-mode change and stays deferred to Session 4+.
  *
  * Rules are tried in order; first match wins. Patterns are anchored
  * at start-of-string because the consumer slices `str` before each
@@ -180,6 +182,12 @@ var rules = [
     type: TYPES.NUMBER,
     regex: [
       /^[+\-]?\d+(\.\d+)?/
+    ]
+  },
+  {
+    type: TYPES.TILDE,
+    regex: [
+      /^~/
     ]
   },
   {
