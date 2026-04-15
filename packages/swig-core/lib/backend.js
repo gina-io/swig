@@ -1,4 +1,5 @@
 var utils = require('./utils'),
+  _security = require('./security'),
   ir = require('./ir');
 
 /**
@@ -273,3 +274,247 @@ exports.compile = function (template, parents, options, blockName) {
 
   return out;
 };
+
+/**
+ * Emit a JS-source fragment for a single IR expression node. Round-trip
+ * target for the TokenParser → IRExpr migration (#T15 Session 14+): once
+ * the frontend produces real {@link IRExpr} values, every transitional
+ * `IRExpr | string` slot in the statement IR (IRFilter.args,
+ * IRIfBranch.test, IRFor.iterable, IRSet.target/value, IRInclude.path/
+ * context, IRMacro.params) is lowered to a plain string via this
+ * function before the statement emitter splices it into the body.
+ *
+ * The emitter enforces the CVE-2023-25345 blocklist on every {@link
+ * IRVarRef} path segment and every string-literal {@link IRAccess} key,
+ * mirroring the guards on the frontend's TokenParser + tag-parse paths.
+ * The frontend-side guards stay live per `.claude/security.md`; the
+ * duplicate is intentional defense-in-depth during the migration.
+ *
+ * `deps` is an optional injection hook:
+ *   - `deps.dangerousProps` — override the security blocklist. Defaults
+ *     to `require('./security').dangerousProps`.
+ *   - `deps.throwError(msg, line, filename)` — override the throw shape.
+ *     Defaults to `utils.throwError`, matching the seam rule for
+ *     filename-opaque attribution (see
+ *     .claude/architecture/multi-flavor-ir.md § Filename-awareness seam).
+ *
+ * @param  {object} node    IR expression node (any IRExpr shape).
+ * @param  {object} [deps]  Optional dependency overrides.
+ * @return {string}         JS-source fragment.
+ */
+exports.emitExpr = function (node, deps) {
+  return emitExpr(node, resolveDeps(deps));
+};
+
+/*!
+ * Resolve an optional `deps` bag into a fully populated one. @private
+ */
+function resolveDeps(deps) {
+  deps = deps || {};
+  return {
+    dangerousProps: deps.dangerousProps || _security.dangerousProps,
+    throwError: deps.throwError || utils.throwError
+  };
+}
+
+/*!
+ * Central dispatch — pick the emitter for this IR node's `type`. @private
+ */
+function emitExpr(node, d) {
+  if (!node || typeof node.type !== 'string') {
+    d.throwError('emitExpr: expected an IR expression node');
+  }
+  switch (node.type) {
+  case 'Literal':       return emitLiteral(node, d);
+  case 'VarRef':        return emitVarRef(node, d);
+  case 'Access':        return emitAccess(node, d);
+  case 'BinaryOp':      return emitBinaryOp(node, d);
+  case 'UnaryOp':       return emitUnaryOp(node, d);
+  case 'Conditional':   return emitConditional(node, d);
+  case 'ArrayLiteral':  return emitArrayLiteral(node, d);
+  case 'ObjectLiteral': return emitObjectLiteral(node, d);
+  case 'FnCall':        return emitFnCall(node, d);
+  }
+  d.throwError('emitExpr: unknown IR expression type "' + node.type + '"');
+}
+
+/*!
+ * Fire a CVE-2023-25345 guard if `segment` resolves to a prototype-chain
+ * property. Attaches loc-derived line/filename when the source node
+ * carries them. @private
+ */
+function checkDangerousSegment(segment, d, node) {
+  if (d.dangerousProps.indexOf(segment) !== -1) {
+    var line = (node && node.loc && node.loc.line) || undefined;
+    var filename = (node && node.loc && node.loc.filename) || undefined;
+    d.throwError('Unsafe access to "' + segment + '" is not allowed in templates (CVE-2023-25345)', line, filename);
+  }
+}
+
+/*!
+ * Emit a literal value. Strings go through JSON.stringify so embedded
+ * quotes / backslashes / newlines land correctly inside the compiled
+ * function body. @private
+ */
+function emitLiteral(node, d) {
+  switch (node.kind) {
+  case 'string':    return JSON.stringify(node.value);
+  case 'number':    return String(node.value);
+  case 'bool':      return node.value ? 'true' : 'false';
+  case 'null':      return 'null';
+  case 'undefined': return 'undefined';
+  }
+  d.throwError('emitLiteral: unknown literal kind "' + node.kind + '"');
+}
+
+/*!
+ * Emit a dot-path variable reference. Byte-identical to
+ * TokenParser.prototype.checkMatch — any divergence breaks the
+ * Commit 3+ migration gates. @private
+ */
+function emitVarRef(node, d) {
+  if (!utils.isArray(node.path) || node.path.length === 0) {
+    d.throwError('emitVarRef: path must be a non-empty array');
+  }
+  utils.each(node.path, function (segment) {
+    checkDangerousSegment(segment, d, node);
+  });
+  return checkMatchExpr(node.path);
+}
+
+/*!
+ * Replica of `TokenParser.prototype.checkMatch`. Kept as a local private
+ * helper rather than imported from tokenparser.js because (a) it is a
+ * pure function of its argument and (b) the backend must not acquire a
+ * runtime dependency on the TokenParser module (which is a specific
+ * frontend concern, not a shared-backend one). @private
+ */
+function checkMatchExpr(match) {
+  var temp = match[0], result;
+
+  function checkDot(ctx) {
+    var c = ctx + temp,
+      m = match,
+      build = '';
+
+    build = '(typeof ' + c + ' !== "undefined" && ' + c + ' !== null';
+    utils.each(m, function (v, i) {
+      if (i === 0) {
+        return;
+      }
+      build += ' && ' + c + '.' + v + ' !== undefined && ' + c + '.' + v + ' !== null';
+      c += '.' + v;
+    });
+    build += ')';
+
+    return build;
+  }
+
+  function buildDot(ctx) {
+    return '(' + checkDot(ctx) + ' ? ' + ctx + match.join('.') + ' : "")';
+  }
+  result = '(' + checkDot('_ctx.') + ' ? ' + buildDot('_ctx.') + ' : ' + buildDot('') + ')';
+  return '(' + result + ' !== null ? ' + result + ' : ' + '"" )';
+}
+
+/*!
+ * Emit a dynamic bracket access. When the key is a string literal, guard
+ * it against prototype-chain pollution — mirrors the STRING-in-
+ * BRACKETOPEN check in TokenParser. @private
+ */
+function emitAccess(node, d) {
+  if (node.key && node.key.type === 'Literal' && node.key.kind === 'string') {
+    checkDangerousSegment(node.key.value, d, node);
+  }
+  return emitExpr(node.object, d) + '[' + emitExpr(node.key, d) + ']';
+}
+
+/*!
+ * Arithmetic ops get surrounding spaces (`a + b`); logic / comparator
+ * ops are emitted bare (`a&&b`) to match TokenParser's LOGIC /
+ * COMPARATOR output shape. `in` needs trailing space so the keyword
+ * detokenises — `(a)in(b)` parses but `ain(b)` does not. @private
+ */
+function isArithmeticOp(op) {
+  return op === '+' || op === '-' || op === '*' || op === '/' || op === '%';
+}
+
+function emitBinaryOp(node, d) {
+  var left = emitExpr(node.left, d),
+    right = emitExpr(node.right, d);
+  if (isArithmeticOp(node.op)) {
+    return left + ' ' + node.op + ' ' + right;
+  }
+  if (node.op === 'in') {
+    return left + ' in ' + right;
+  }
+  return left + node.op + right;
+}
+
+function emitUnaryOp(node, d) {
+  return node.op + emitExpr(node.operand, d);
+}
+
+function emitConditional(node, d) {
+  return '(' + emitExpr(node.test, d) + ' ? ' + emitExpr(node.then, d) + ' : ' + emitExpr(node['else'], d) + ')';
+}
+
+function emitArrayLiteral(node, d) {
+  var elements = [];
+  utils.each(node.elements, function (el) {
+    elements.push(emitExpr(el, d));
+  });
+  return '[' + elements.join(', ') + ']';
+}
+
+function emitObjectLiteral(node, d) {
+  var props = [];
+  utils.each(node.properties, function (p) {
+    props.push(emitExpr(p.key, d) + ':' + emitExpr(p.value, d));
+  });
+  return '{' + props.join(', ') + '}';
+}
+
+/*!
+ * Emit a function / method invocation. Three callee shapes:
+ *   1. Single-segment VarRef (`foo(...)`) — FUNCTION-token pattern with
+ *      the `_ctx.foo || foo || _fn` fallback ladder.
+ *   2. Multi-segment VarRef (`foo.bar(...)`) — method-call pattern with
+ *      `.call(<receiver>, ...)` so `this` binds to the receiver object,
+ *      matching TokenParser's PARENOPEN-after-VAR METHODOPEN branch.
+ *   3. Any other callee expression — plain `(<callee>)(args)`.
+ * @private
+ */
+function emitFnCall(node, d) {
+  var args = [],
+    callee = node.callee,
+    name,
+    receiver,
+    argsJS;
+
+  utils.each(node.args, function (a) {
+    args.push(emitExpr(a, d));
+  });
+  argsJS = args.join(', ');
+
+  if (callee && callee.type === 'VarRef' && utils.isArray(callee.path)) {
+    utils.each(callee.path, function (segment) {
+      checkDangerousSegment(segment, d, callee);
+    });
+
+    if (callee.path.length === 1) {
+      name = callee.path[0];
+      return '((typeof _ctx.' + name + ' !== "undefined") ? _ctx.' + name +
+        ' : ((typeof ' + name + ' !== "undefined") ? ' + name +
+        ' : _fn))(' + argsJS + ')';
+    }
+
+    receiver = callee.path.slice(0, -1);
+    return '(' + checkMatchExpr(callee.path) + ' || _fn).call(' +
+      checkMatchExpr(receiver) +
+      (argsJS ? ', ' + argsJS : '') +
+      ')';
+  }
+
+  return '(' + emitExpr(callee, d) + ')(' + argsJS + ')';
+}
