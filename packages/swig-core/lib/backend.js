@@ -305,6 +305,34 @@ exports.compile = function (template, parents, options, blockName) {
         (node.ignoreMissing ? '} catch (e) {}\n' : '');
       return;
     }
+    if (node.type === 'Output') {
+      // Phase 2: `expr` is typed IRExpr | IRLegacyJS (Session 14b
+      // Commit 9). The frontend's parseVariable falls back to LegacyJS
+      // for shapes the flat IROutput.filters chain can't represent
+      // (per-operand filter precedence, deep filters, partial consumes,
+      // string-valued autoescape). LegacyJS carries the complete
+      // `_output += …;` envelope already wrapped by the legacy
+      // TokenParser pass — emit verbatim. IR path emits
+      // `_output += <filters wrapping emitted expr>;`.
+      if (node.expr && node.expr.type === 'LegacyJS') {
+        out += node.expr.js;
+        return;
+      }
+      var outExprJS = exports.emitExpr(node.expr);
+      if (node.filters && node.filters.length) {
+        utils.each(node.filters, function (fc) {
+          var fcArgsJS = '';
+          if (fc.args && fc.args.length) {
+            var fcParts = [];
+            utils.each(fc.args, function (a) { fcParts.push(exports.emitExpr(a)); });
+            fcArgsJS = ', ' + fcParts.join(', ');
+          }
+          outExprJS = '_filters["' + fc.name + '"](' + outExprJS + fcArgsJS + ')';
+        });
+      }
+      out += '_output += ' + outExprJS + ';\n';
+      return;
+    }
     if (node.type === 'Filter') {
       // Phase 2: `args` is IRExpr[] (Session 14b Commit 6) — per-arg
       // dispatch on object-with-.type → emitExpr, else verbatim string
