@@ -157,8 +157,10 @@ describe('@rhinostone/swig-twig — lexer (shared token subset)', function () {
 
   /* ---- Twig-only tokens deferred to Session 3 ----------------- */
 
-  it('throws on the Twig concat operator `~` (Session 3 gap)', function () {
-    expect(function () { lex('a ~ b'); }).to.throwException(/Unexpected token "~"/);
+  it('lexes the Twig concat operator `~` as TILDE', function () {
+    var tokens = nonWhitespace(lex('a ~ b'));
+    expect(typesOf(tokens)).to.eql([TYPES.VAR, TYPES.TILDE, TYPES.VAR]);
+    expect(tokens[1].match).to.equal('~');
   });
 
   it('throws on the Twig range operator `..` (Session 3 gap)', function () {
