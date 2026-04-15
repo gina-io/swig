@@ -178,8 +178,10 @@ describe('@rhinostone/swig-twig — lexer (shared token subset)', function () {
     expect(tokens[0].match).to.equal('foo.bar');
   });
 
-  it('throws on the Twig null-coalescing operator `??` (Session 3 gap)', function () {
-    expect(function () { lex('a ?? b'); }).to.throwException(/Unexpected token "\?"/);
+  it('lexes the Twig null-coalescing operator `??` as NULLCOALESCE', function () {
+    var tokens = nonWhitespace(lex('a ?? b'));
+    expect(typesOf(tokens)).to.eql([TYPES.VAR, TYPES.NULLCOALESCE, TYPES.VAR]);
+    expect(tokens[1].match).to.equal('??');
   });
 
   it('throws on a bare `#` outside a string (Session 3 will introduce `#{ }` re-entry inside double-quoted strings)', function () {
