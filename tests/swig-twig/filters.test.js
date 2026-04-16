@@ -245,6 +245,42 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('trim', function () {
+    it('strips leading and trailing whitespace by default', function () {
+      expect(filters.trim('  hi  ')).to.equal('hi');
+    });
+    it('strips only the left side when side="left"', function () {
+      expect(filters.trim('  hi  ', null, 'left')).to.equal('hi  ');
+    });
+    it('strips only the right side when side="right"', function () {
+      expect(filters.trim('  hi  ', null, 'right')).to.equal('  hi');
+    });
+    it('strips a custom character set', function () {
+      expect(filters.trim('--hi--', '-')).to.equal('hi');
+    });
+    it('strips a custom set on one side', function () {
+      expect(filters.trim('--hi--', '-', 'right')).to.equal('--hi');
+    });
+    it('strips any character in a multi-char set', function () {
+      expect(filters.trim('xyhixy', 'xy')).to.equal('hi');
+    });
+    it('handles regex-special characters in the set', function () {
+      expect(filters.trim('^hi^', '^')).to.equal('hi');
+    });
+    it('returns the input unchanged when nothing matches', function () {
+      expect(filters.trim('hi', ',')).to.equal('hi');
+    });
+    it('strips tabs and newlines as whitespace', function () {
+      expect(filters.trim('\t\n hi \n\t')).to.equal('hi');
+    });
+    it('returns non-string input unchanged', function () {
+      expect(filters.trim(42)).to.equal(42);
+    });
+    it('is NOT marked safe', function () {
+      expect(filters.trim.safe).to.be(undefined);
+    });
+  });
+
   describe('number_format', function () {
     it('formats with defaults (0 decimals, "." decimal, "," thousand)', function () {
       expect(filters.number_format(1234567)).to.equal('1,234,567');

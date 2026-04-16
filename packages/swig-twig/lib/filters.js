@@ -455,6 +455,45 @@ exports.split = function (input, delimiter, limit) {
 };
 
 /**
+ * Strip whitespace (or a custom character set) from both ends of a
+ * string. Mirrors Twig's `trim` filter and PHP's `trim` / `ltrim` /
+ * `rtrim`: passing `side` as `"left"` or `"right"` strips only the
+ * leading or trailing end; the default `"both"` strips both sides.
+ *
+ * @example
+ * {{ "  hi  "|trim }}
+ * // => "hi"
+ *
+ * @example
+ * {{ "--hi--"|trim("-", "right") }}
+ * // => "--hi"
+ *
+ * @param  {string} input
+ * @param  {string} [chars]          Characters to strip (default: whitespace).
+ * @param  {string} [side='both']    `"left"`, `"right"`, or `"both"`.
+ * @return {string}
+ */
+exports.trim = function (input, chars, side) {
+  if (typeof input !== 'string') {
+    return input;
+  }
+  var pattern;
+  if (chars === undefined || chars === null || chars === '') {
+    pattern = '\\s';
+  } else {
+    pattern = '[' + chars.replace(/[\\\[\]\^\-]/g, '\\$&') + ']';
+  }
+  var out = input;
+  if (side !== 'right') {
+    out = out.replace(new RegExp('^' + pattern + '+'), '');
+  }
+  if (side !== 'left') {
+    out = out.replace(new RegExp(pattern + '+$'), '');
+  }
+  return out;
+};
+
+/**
  * Format a number with grouped thousands and a fixed number of decimals.
  *
  * Mirrors Twig's `number_format` filter and PHP's `number_format`:
