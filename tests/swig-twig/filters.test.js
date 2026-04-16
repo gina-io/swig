@@ -281,6 +281,40 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('batch', function () {
+    it('groups an array into chunks of the given size', function () {
+      expect(filters.batch(['a', 'b', 'c', 'd', 'e'], 2)).to.eql([['a', 'b'], ['c', 'd'], ['e']]);
+    });
+    it('pads the last chunk with the fill value when provided', function () {
+      expect(filters.batch(['a', 'b', 'c', 'd', 'e'], 2, '*')).to.eql([['a', 'b'], ['c', 'd'], ['e', '*']]);
+    });
+    it('returns a single chunk when size exceeds the input length', function () {
+      expect(filters.batch([1, 2, 3], 10)).to.eql([[1, 2, 3]]);
+    });
+    it('does not pad a chunk that is already full', function () {
+      expect(filters.batch([1, 2, 3, 4], 2, '*')).to.eql([[1, 2], [3, 4]]);
+    });
+    it('iterates object values', function () {
+      expect(filters.batch({ a: 1, b: 2, c: 3 }, 2)).to.eql([[1, 2], [3]]);
+    });
+    it('rounds a non-integer size up', function () {
+      expect(filters.batch([1, 2, 3, 4, 5], 2.3)).to.eql([[1, 2, 3], [4, 5]]);
+    });
+    it('returns empty array for a zero or negative size', function () {
+      expect(filters.batch([1, 2, 3], 0)).to.eql([]);
+      expect(filters.batch([1, 2, 3], -1)).to.eql([]);
+    });
+    it('returns empty array for non-array non-object input', function () {
+      expect(filters.batch(42, 2)).to.eql([]);
+    });
+    it('returns empty array for empty input', function () {
+      expect(filters.batch([], 2)).to.eql([]);
+    });
+    it('is NOT marked safe', function () {
+      expect(filters.batch.safe).to.be(undefined);
+    });
+  });
+
   describe('number_format', function () {
     it('formats with defaults (0 decimals, "." decimal, "," thousand)', function () {
       expect(filters.number_format(1234567)).to.equal('1,234,567');

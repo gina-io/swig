@@ -455,6 +455,54 @@ exports.split = function (input, delimiter, limit) {
 };
 
 /**
+ * Group an array (or object values) into chunks of `size` items. When
+ * a `fill` value is provided, the last chunk is padded to `size` with
+ * it; otherwise the tail runs shorter.
+ *
+ * @example
+ * {{ ['a','b','c','d','e']|batch(2) }}
+ * // => [['a','b'],['c','d'],['e']]
+ *
+ * @example
+ * {{ ['a','b','c','d','e']|batch(2, '*') }}
+ * // => [['a','b'],['c','d'],['e','*']]
+ *
+ * @param  {array|object} input
+ * @param  {number} size
+ * @param  {*} [fill]
+ * @return {array}
+ */
+exports.batch = function (input, size, fill) {
+  var items;
+  if (utils.isArray(input)) {
+    items = input;
+  } else if (input && typeof input === 'object') {
+    items = [];
+    utils.each(input, function (v) { items.push(v); });
+  } else {
+    return [];
+  }
+  var n = Number(size);
+  if (!isFinite(n) || n <= 0) {
+    return [];
+  }
+  n = Math.ceil(n);
+  var out = [];
+  var i = 0;
+  while (i < items.length) {
+    out.push(items.slice(i, i + n));
+    i += n;
+  }
+  if (fill !== undefined && out.length > 0) {
+    var last = out[out.length - 1];
+    while (last.length < n) {
+      last.push(fill);
+    }
+  }
+  return out;
+};
+
+/**
  * Strip whitespace (or a custom character set) from both ends of a
  * string. Mirrors Twig's `trim` filter and PHP's `trim` / `ltrim` /
  * `rtrim`: passing `side` as `"left"` or `"right"` strips only the
