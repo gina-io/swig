@@ -24,5 +24,6 @@ module.exports = {
   'if': require('./if'),
   'for': require('./for'),
   'block': require('./block'),
-  'extends': require('./extends')
+  'extends': require('./extends'),
+  'include': require('./include')
 };
