@@ -80,6 +80,17 @@ describe('Regressions', function () {
     expect(function () { swig.render('{% for __proto__, val in items %}{{ val }}{% endfor %}', { locals: { items: [1] } }); }).to.throwError(/Unsafe loop variable/);
   });
 
+  it('CVE-2023-25345: dotted-path loop variables are rejected in for tag', function () {
+    // The lexer folds dotted paths into a single VAR token, so a loop
+    // variable like `foo.__proto__` slips past the _dangerousProps indexOf
+    // check against the whole match. Loop variables bind to `_ctx.<name>` —
+    // bare identifiers only.
+    expect(function () { swig.render('{% for foo.__proto__ in items %}x{% endfor %}', { locals: { items: [1] } }); }).to.throwError(/must be a bare identifier/);
+    expect(function () { swig.render('{% for foo.constructor in items %}x{% endfor %}', { locals: { items: [1] } }); }).to.throwError(/must be a bare identifier/);
+    expect(function () { swig.render('{% for a.b, c in items %}x{% endfor %}', { locals: { items: [1] } }); }).to.throwError(/must be a bare identifier/);
+    expect(function () { swig.render('{% for k, v.x in items %}x{% endfor %}', { locals: { items: [1] } }); }).to.throwError(/must be a bare identifier/);
+  });
+
   it('CVE-2023-25345: dangerous macro names are blocked', function () {
     expect(function () { swig.render('{% macro __proto__() %}test{% endmacro %}'); }).to.throwError(/Unsafe macro name/);
     expect(function () { swig.render('{% macro constructor() %}test{% endmacro %}'); }).to.throwError(/Unsafe macro name/);
