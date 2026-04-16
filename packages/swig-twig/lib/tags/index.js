@@ -29,5 +29,6 @@ module.exports = {
   'macro': require('./macro'),
   'import': require('./import'),
   'verbatim': require('./verbatim'),
-  'apply': require('./apply')
+  'apply': require('./apply'),
+  'from': require('./from')
 };
