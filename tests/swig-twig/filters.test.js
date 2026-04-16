@@ -442,6 +442,42 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('format', function () {
+    it('substitutes %s with a string argument', function () {
+      expect(filters.format('Hello, %s!', 'Twig')).to.equal('Hello, Twig!');
+    });
+    it('substitutes %d with an integer argument', function () {
+      expect(filters.format('%d items', 42)).to.equal('42 items');
+    });
+    it('truncates a float passed to %d', function () {
+      expect(filters.format('%d', 3.7)).to.equal('3');
+    });
+    it('substitutes %f with a float argument', function () {
+      expect(filters.format('%f', 3.14)).to.equal('3.14');
+    });
+    it('substitutes %x with a lowercase hex string', function () {
+      expect(filters.format('%x', 255)).to.equal('ff');
+    });
+    it('emits a literal % for %%', function () {
+      expect(filters.format('100%% done')).to.equal('100% done');
+    });
+    it('handles multiple directives in order', function () {
+      expect(filters.format('%s is %d years old', 'Ada', 36)).to.equal('Ada is 36 years old');
+    });
+    it('emits NaN for non-numeric %d argument', function () {
+      expect(filters.format('%d', 'not-a-number')).to.equal('NaN');
+    });
+    it('emits undefined for missing argument', function () {
+      expect(filters.format('%s!', undefined)).to.equal('undefined!');
+    });
+    it('passes through input when not a string', function () {
+      expect(filters.format(42)).to.equal(42);
+    });
+    it('is NOT marked safe', function () {
+      expect(filters.format.safe).to.be(undefined);
+    });
+  });
+
   describe('escape / e', function () {
     it('HTML-escapes by default', function () {
       expect(filters.escape('<b>')).to.equal('&lt;b&gt;');
