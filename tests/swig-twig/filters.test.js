@@ -176,6 +176,31 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('number_format', function () {
+    it('formats with defaults (0 decimals, "." decimal, "," thousand)', function () {
+      expect(filters.number_format(1234567)).to.equal('1,234,567');
+    });
+    it('rounds to the requested decimals', function () {
+      expect(filters.number_format(9800.333, 2)).to.equal('9,800.33');
+    });
+    it('accepts custom decimal point and thousand separator', function () {
+      expect(filters.number_format(1234.5, 2, ',', '.')).to.equal('1.234,50');
+    });
+    it('handles negatives', function () {
+      expect(filters.number_format(-1234.5, 2)).to.equal('-1,234.50');
+    });
+    it('handles small numbers without a thousand separator', function () {
+      expect(filters.number_format(42, 0)).to.equal('42');
+    });
+    it('returns non-finite input unchanged', function () {
+      expect(isNaN(filters.number_format(NaN))).to.equal(true);
+      expect(filters.number_format(Infinity)).to.equal(Infinity);
+    });
+    it('is NOT marked safe', function () {
+      expect(filters.number_format.safe).to.be(undefined);
+    });
+  });
+
   describe('default', function () {
     it('returns fallback for undefined', function () {
       expect(filters['default'](undefined, 'x')).to.equal('x');

@@ -356,6 +356,46 @@ exports.e = exports.escape;
  * @param  {*} fallback
  * @return {*}
  */
+/**
+ * Format a number with grouped thousands and a fixed number of decimals.
+ *
+ * Mirrors Twig's `number_format` filter and PHP's `number_format`:
+ * rounds to `decimals` places, inserts `thousand_sep` every three
+ * integer digits, and joins the fractional part with `decimal_point`.
+ * Defaults: 0 decimals, `"."` decimal point, `","` thousand separator.
+ *
+ * Non-finite input (NaN, Infinity) passes through unchanged; non-numeric
+ * input is coerced via `Number(input)` — callers expecting string
+ * passthrough should pre-check.
+ *
+ * @example
+ * {{ 9800.333|number_format(2, ".", ",") }}
+ * // => 9,800.33
+ *
+ * @example
+ * {{ 1234567|number_format }}
+ * // => 1,234,567
+ *
+ * @param  {number} input
+ * @param  {number} [decimals=0]
+ * @param  {string} [decimalPoint="."]
+ * @param  {string} [thousandSep=","]
+ * @return {string}
+ */
+exports.number_format = function (input, decimals, decimalPoint, thousandSep) {
+  var num = Number(input);
+  if (!isFinite(num)) {
+    return input;
+  }
+  var d = (decimals === undefined) ? 0 : decimals;
+  var dp = (decimalPoint === undefined) ? '.' : decimalPoint;
+  var ts = (thousandSep === undefined) ? ',' : thousandSep;
+  var fixed = num.toFixed(d);
+  var parts = fixed.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ts);
+  return parts.join(dp);
+};
+
 exports['default'] = function (input, fallback) {
   if (input === undefined || input === null || input === false) {
     return fallback;
