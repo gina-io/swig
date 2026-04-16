@@ -444,6 +444,94 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
     });
   });
 
+  /* ---- is / is not tests ----------------------------------------- */
+
+  describe('is / is not tests', function () {
+    it('lowers "foo is defined" to _test_defined(foo)', function () {
+      var node = parse('foo is defined');
+      expect(node.type).to.equal('FnCall');
+      expect(node.callee.type).to.equal('VarRef');
+      expect(node.callee.path).to.eql(['_test_defined']);
+      expect(node.args).to.have.length(1);
+      expect(node.args[0].type).to.equal('VarRef');
+      expect(node.args[0].path).to.eql(['foo']);
+    });
+
+    it('lowers "foo is not defined" to UnaryOp(!, _test_defined(foo))', function () {
+      var node = parse('foo is not defined');
+      expect(node.type).to.equal('UnaryOp');
+      expect(node.op).to.equal('!');
+      expect(node.operand.type).to.equal('FnCall');
+      expect(node.operand.callee.path).to.eql(['_test_defined']);
+      expect(node.operand.args[0].path).to.eql(['foo']);
+    });
+
+    it('accepts FUNCTIONEMPTY test name (foo is defined())', function () {
+      var node = parse('foo is defined()');
+      expect(node.type).to.equal('FnCall');
+      expect(node.callee.path).to.eql(['_test_defined']);
+      expect(node.args[0].path).to.eql(['foo']);
+    });
+
+    it('accepts FUNCTION test name with args (n is divisibleby(3))', function () {
+      var node = parse('n is divisibleby(3)');
+      expect(node.type).to.equal('FnCall');
+      expect(node.callee.path).to.eql(['_test_divisibleby']);
+      expect(node.args).to.have.length(2);
+      expect(node.args[0].path).to.eql(['n']);
+      expect(node.args[1].type).to.equal('Literal');
+      expect(node.args[1].value).to.equal(3);
+    });
+
+    it('binds tighter than && (foo is defined && bar is null)', function () {
+      var node = parse('foo is defined && bar is null');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('&&');
+      expect(node.left.type).to.equal('FnCall');
+      expect(node.left.callee.path).to.eql(['_test_defined']);
+      expect(node.right.type).to.equal('FnCall');
+      expect(node.right.callee.path).to.eql(['_test_null']);
+    });
+
+    it('binds looser than + ((a + 1) is defined)', function () {
+      var node = parse('a + 1 is defined');
+      expect(node.type).to.equal('FnCall');
+      expect(node.callee.path).to.eql(['_test_defined']);
+      expect(node.args[0].type).to.equal('BinaryOp');
+      expect(node.args[0].op).to.equal('+');
+    });
+
+    it('composes with is not and other operators', function () {
+      var node = parse('foo is not empty && bar');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('&&');
+      expect(node.left.type).to.equal('UnaryOp');
+      expect(node.left.op).to.equal('!');
+      expect(node.left.operand.callee.path).to.eql(['_test_empty']);
+      expect(node.right.path).to.eql(['bar']);
+    });
+
+    it('throws on dotted test names (foo is bar.baz)', function () {
+      expect(function () { parse('foo is bar.baz'); }).to.throwException(/Dotted names are not valid Twig test names/);
+    });
+
+    it('CVE-2023-25345: blocks dangerous test names (is __proto__)', function () {
+      expect(function () { parse('foo is __proto__'); }).to.throwException(/Unsafe access to "__proto__"/);
+    });
+
+    it('CVE-2023-25345: blocks dangerous test names (is constructor)', function () {
+      expect(function () { parse('foo is constructor'); }).to.throwException(/Unsafe access to "constructor"/);
+    });
+
+    it('throws on reserved keyword as test name (is return)', function () {
+      expect(function () { parse('foo is return'); }).to.throwException(/Reserved keyword "return"/);
+    });
+
+    it('throws when test name is missing', function () {
+      expect(function () { parse('foo is'); }).to.throwException(/Expected test name/);
+    });
+  });
+
   /* ---- Unary operators ------------------------------------------- */
 
   describe('unary operators', function () {

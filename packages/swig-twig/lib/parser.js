@@ -32,6 +32,9 @@ var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'd
  *     1   | || / or  (LOGIC)                   | left
  *     2   | && / and (LOGIC)                   | left
  *     3   | == != === !== (COMPARATOR)          | left
+ *         | is / is not (IS / ISNOT — lowers to | left
+ *         |   _test_<name> call; ISNOT wraps   |
+ *         |   in unary !)                      |
  *     4   | < > <= >= in  (COMPARATOR)          | left
  *     5   | .. (RANGE — lowers to _range call) | left
  *     6   | + - (OPERATOR)                     | left
@@ -96,6 +99,12 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         return { op: m, prec: 3 };
       }
       return { op: m, prec: 4 };
+    }
+    if (tok.type === _t.IS) {
+      return { op: 'is', prec: 3 };
+    }
+    if (tok.type === _t.ISNOT) {
+      return { op: 'is not', prec: 3 };
     }
     if (tok.type === _t.RANGE) {
       return { op: '..', prec: 5 };
@@ -165,6 +174,31 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       if (next.type !== _t.COMMA) { bail('Expected comma or closing curly brace'); }
     }
     return ir.objectLiteral(props);
+  }
+
+  function parseTest() {
+    var nameTok = consume();
+    if (!nameTok) { bail('Expected test name after "is" / "is not"'); }
+    var testName;
+    var testArgs = [];
+    if (nameTok.type === _t.VAR) {
+      if (nameTok.match.indexOf('.') !== -1) {
+        bail('Dotted names are not valid Twig test names');
+      }
+      testName = nameTok.match;
+    } else if (nameTok.type === _t.FUNCTIONEMPTY) {
+      testName = nameTok.match;
+    } else if (nameTok.type === _t.FUNCTION) {
+      testName = nameTok.match;
+      testArgs = parseArgList(_t.PARENCLOSE);
+    } else {
+      bail('Unexpected token "' + nameTok.match + '" after "is" / "is not"');
+    }
+    if (_reserved.indexOf(testName) !== -1) {
+      bail('Reserved keyword "' + testName + '" attempted to be used as a test name');
+    }
+    guardSegment(testName);
+    return { name: testName, args: testArgs };
   }
 
   function parsePostfix(expr) {
@@ -319,6 +353,17 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       var info = getBinaryOpInfo(tok);
       if (!info || info.prec < minPrec) { break; }
       consume();
+      // is / is not — RHS is a constrained test-name + optional arg list,
+      // not a full expression. Lower to _test_<name>(subject, ...args);
+      // ISNOT wraps the call in a unary `!`. Keeps them in the binary-op
+      // table at comparator precedence (3) so `foo is defined and bar`
+      // parses as `(foo is defined) and bar`.
+      if (info.op === 'is' || info.op === 'is not') {
+        var test = parseTest();
+        var testCall = ir.fnCall(ir.varRef(['_test_' + test.name]), [left].concat(test.args));
+        left = info.op === 'is not' ? ir.unaryOp('!', testCall) : testCall;
+        continue;
+      }
       var right = parseExpression(info.prec + 1);
       if (info.op === '..') {
         left = ir.fnCall(ir.varRef(['_range']), [left, right]);
