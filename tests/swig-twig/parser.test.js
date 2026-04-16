@@ -1416,3 +1416,125 @@ describe('@rhinostone/swig-twig — parser.parse — {% extends %} tag', functio
     });
   });
 });
+
+describe('@rhinostone/swig-twig — parser.parse — {% include %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  it('emits IRInclude with a STRING literal path', function () {
+    var tree = parser.parse(undefined, '{% include "partial.twig" %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('include');
+    expect(tok.ends).to.equal(false);
+    expect(tok.block).to.equal(false);
+    expect(tok.irExpr.type).to.equal('Include');
+    expect(tok.irExpr.path.type).to.equal('Literal');
+    expect(tok.irExpr.path.kind).to.equal('string');
+    expect(tok.irExpr.path.value).to.equal('partial.twig');
+    expect(tok.irExpr.resolveFrom).to.equal('tpl.twig');
+    expect(tok.irExpr.isolated).to.equal(false);
+    expect(tok.irExpr.ignoreMissing).to.equal(false);
+    expect(tok.irExpr.context).to.equal(undefined);
+  });
+
+  it('accepts a VAR path expression (dynamic include)', function () {
+    var tree = parser.parse(undefined, '{% include myPath %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.path.type).to.equal('VarRef');
+    expect(tok.irExpr.path.path).to.eql(['myPath']);
+  });
+
+  it('accepts a member-access path expression', function () {
+    var tree = parser.parse(undefined, '{% include paths.partial %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.path.type).to.equal('VarRef');
+    expect(tok.irExpr.path.path).to.eql(['paths', 'partial']);
+  });
+
+  it('accepts a conditional path expression', function () {
+    var tree = parser.parse(undefined, '{% include cond ? "a.twig" : "b.twig" %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.path.type).to.equal('Conditional');
+  });
+
+  it('parses "with <ctx>" context expression', function () {
+    var tree = parser.parse(undefined, '{% include "p.twig" with myCtx %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.path.value).to.equal('p.twig');
+    expect(tok.irExpr.context.type).to.equal('VarRef');
+    expect(tok.irExpr.context.path).to.eql(['myCtx']);
+    expect(tok.irExpr.isolated).to.equal(false);
+  });
+
+  it('parses "with <object literal>" context expression', function () {
+    var tree = parser.parse(undefined, '{% include "p.twig" with {a: 1, b: 2} %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.context.type).to.equal('ObjectLiteral');
+    expect(tok.irExpr.context.properties.length).to.equal(2);
+  });
+
+  it('parses "with <ctx> only" and sets isolated', function () {
+    var tree = parser.parse(undefined, '{% include "p.twig" with myCtx only %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.context.type).to.equal('VarRef');
+    expect(tok.irExpr.isolated).to.equal(true);
+    expect(tok.irExpr.ignoreMissing).to.equal(false);
+  });
+
+  it('parses "ignore missing"', function () {
+    var tree = parser.parse(undefined, '{% include "p.twig" ignore missing %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.ignoreMissing).to.equal(true);
+    expect(tok.irExpr.isolated).to.equal(false);
+    expect(tok.irExpr.context).to.equal(undefined);
+  });
+
+  it('parses "with <ctx> only ignore missing" (all modifiers)', function () {
+    var tree = parser.parse(undefined, '{% include "p.twig" with myCtx only ignore missing %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.context.type).to.equal('VarRef');
+    expect(tok.irExpr.isolated).to.equal(true);
+    expect(tok.irExpr.ignoreMissing).to.equal(true);
+  });
+
+  it('escapes backslashes in resolveFrom for Windows paths', function () {
+    var tree = parser.parse(undefined, '{% include "p.twig" %}', { filename: 'C:\\templates\\tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.resolveFrom).to.equal('C:\\\\templates\\\\tpl.twig');
+  });
+
+  it('throws on missing path', function () {
+    expect(function () {
+      parser.parse(undefined, '{% include %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected template path in "include" tag/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on "with" without a context expression', function () {
+    expect(function () {
+      parser.parse(undefined, '{% include "p.twig" with %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected context expression after "with"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on "only" without a preceding "with"', function () {
+    expect(function () {
+      parser.parse(undefined, '{% include "p.twig" only %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/"only" keyword in "include" tag requires a preceding "with"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on "ignore" not followed by "missing"', function () {
+    expect(function () {
+      parser.parse(undefined, '{% include "p.twig" ignore %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/"ignore" keyword in "include" tag must be followed by "missing"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+});
