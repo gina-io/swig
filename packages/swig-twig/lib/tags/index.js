@@ -28,5 +28,6 @@ module.exports = {
   'include': require('./include'),
   'macro': require('./macro'),
   'import': require('./import'),
-  'verbatim': require('./verbatim')
+  'verbatim': require('./verbatim'),
+  'apply': require('./apply')
 };

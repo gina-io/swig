@@ -2067,3 +2067,126 @@ describe('@rhinostone/swig-twig — parser.parse — {% verbatim %} tag', functi
     });
   });
 });
+
+describe('@rhinostone/swig-twig — parser.parse — {% apply %} tag', function () {
+  var parser = require('@rhinostone/swig-twig/lib/parser');
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+  var backend = require('@rhinostone/swig-core/lib/backend');
+
+  it('parses a single bare-name filter', function () {
+    var tree = parser.parse(undefined, '{% apply upper %}hello{% endapply %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('apply');
+    expect(tok.args).to.eql([{ name: 'upper', args: [] }]);
+    expect(tok.content).to.have.length(1);
+    expect(tok.content[0].type).to.equal('Text');
+    expect(tok.content[0].value).to.equal('hello');
+  });
+
+  it('parses a filter with no-arg parens form (FUNCTIONEMPTY)', function () {
+    var tree = parser.parse(undefined, '{% apply upper() %}hi{% endapply %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.eql([{ name: 'upper', args: [] }]);
+  });
+
+  it('parses a filter with string literal arguments', function () {
+    var tree = parser.parse(undefined, '{% apply replace("a", "b") %}banana{% endapply %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.have.length(1);
+    expect(tok.args[0].name).to.equal('replace');
+    expect(tok.args[0].args).to.have.length(2);
+    expect(tok.args[0].args[0].type).to.equal('Literal');
+    expect(tok.args[0].args[0].value).to.equal('a');
+    expect(tok.args[0].args[1].type).to.equal('Literal');
+    expect(tok.args[0].args[1].value).to.equal('b');
+  });
+
+  it('parses a chain of two bare-name filters', function () {
+    var tree = parser.parse(undefined, '{% apply upper|trim %}  hello  {% endapply %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.have.length(2);
+    expect(tok.args[0]).to.eql({ name: 'upper', args: [] });
+    expect(tok.args[1]).to.eql({ name: 'trim', args: [] });
+  });
+
+  it('parses a chain of three filters', function () {
+    var tree = parser.parse(undefined, '{% apply upper|trim|reverse %}  hi  {% endapply %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.have.length(3);
+    expect(tok.args[0].name).to.equal('upper');
+    expect(tok.args[1].name).to.equal('trim');
+    expect(tok.args[2].name).to.equal('reverse');
+  });
+
+  it('parses a mixed chain with args on the head and a trailing bare filter', function () {
+    var tree = parser.parse(undefined, '{% apply replace("x", "y")|upper %}foo{% endapply %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.have.length(2);
+    expect(tok.args[0].name).to.equal('replace');
+    expect(tok.args[0].args).to.have.length(2);
+    expect(tok.args[1]).to.eql({ name: 'upper', args: [] });
+  });
+
+  it('parses a chain where the middle filter carries args', function () {
+    var tree = parser.parse(undefined, '{% apply upper|replace("a", "b")|trim %}x{% endapply %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.have.length(3);
+    expect(tok.args[0]).to.eql({ name: 'upper', args: [] });
+    expect(tok.args[1].name).to.equal('replace');
+    expect(tok.args[1].args).to.have.length(2);
+    expect(tok.args[2]).to.eql({ name: 'trim', args: [] });
+  });
+
+  it('rejects __proto__ as the head filter name (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% apply __proto__ %}x{% endapply %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe filter name "__proto__"/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('rejects constructor as a chained filter name (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% apply upper|constructor %}x{% endapply %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe filter name "constructor"/);
+    });
+  });
+
+  it('throws on empty apply body', function () {
+    expect(function () {
+      parser.parse(undefined, '{% apply %}x{% endapply %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected filter name in "apply" tag/);
+    });
+  });
+
+  it('throws on unclosed apply', function () {
+    expect(function () {
+      parser.parse(undefined, '{% apply upper %}body', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Missing end tag for "apply"/);
+    });
+  });
+
+  it('compile emits a left-to-right nested _filters chain around the captured IIFE', function () {
+    var tree = parser.parse(undefined, '{% apply upper|trim %}hello{% endapply %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    var node = tok.compile(backend.compile, tok.args, tok.content, [], {}, null, tok);
+    expect(node).to.be.an('object');
+    expect(node.type).to.equal('LegacyJS');
+    expect(node.js).to.match(/_output\s*\+=\s*_filters\["trim"\]\(_filters\["upper"\]\(/);
+    expect(node.js).to.match(/\(function\s*\(\)\s*\{\s*\n\s*var\s+_output\s*=\s*""/);
+    expect(node.js).to.match(/return\s+_output;/);
+  });
+
+  it('compile emits filter arguments via backend.emitExpr', function () {
+    var tree = parser.parse(undefined, '{% apply replace("a", "b") %}banana{% endapply %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    var node = tok.compile(backend.compile, tok.args, tok.content, [], {}, null, tok);
+    expect(node.js).to.match(/_filters\["replace"\]\([\s\S]*,\s*"a",\s*"b"\)/);
+  });
+});
