@@ -961,3 +961,89 @@ describe('@rhinostone/swig-twig — parser.parse — {% set %} tag', function ()
     expect(tree.tokens[1].value).to.equal('text');
   });
 });
+
+
+/*!
+ * Phase 3 Session 7 — `{% if %}` tag.
+ *
+ * Single-branch shape — `{% else %}` / `{% elseif %}` are deferred.
+ * Covers: simple test, complex test expression, body content
+ * collection (text + nested tags), nested if, mismatched end tag,
+ * unclosed if, missing test expression.
+ */
+describe('@rhinostone/swig-twig — parser.parse — {% if %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  it('emits a single-branch IRIf for a bare-identifier test', function () {
+    var tree = parser.parse(undefined, '{% if foo %}yes{% endif %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('if');
+    expect(tok.ends).to.equal(true);
+    expect(tok.irExpr).to.be.an('object');
+    expect(tok.irExpr.type).to.equal('VarRef');
+    expect(tok.irExpr.path).to.eql(['foo']);
+    expect(tok.content).to.have.length(1);
+    expect(tok.content[0].type).to.equal('Text');
+    expect(tok.content[0].value).to.equal('yes');
+  });
+
+  it('lowers a complex test expression via parseExpr (BinaryOp)', function () {
+    var tree = parser.parse(undefined, '{% if foo and bar %}body{% endif %}', {}, tags, {});
+    var test = tree.tokens[0].irExpr;
+    expect(test.type).to.equal('BinaryOp');
+    expect(test.op).to.equal('&&');
+    expect(test.left.type).to.equal('VarRef');
+    expect(test.right.type).to.equal('VarRef');
+  });
+
+  it('captures mixed text + output content inside the body', function () {
+    var tree = parser.parse(undefined, '{% if foo %}Hi {{ name }}!{% endif %}', {}, tags, {});
+    var content = tree.tokens[0].content;
+    expect(content).to.have.length(3);
+    expect(content[0].type).to.equal('Text');
+    expect(content[0].value).to.equal('Hi ');
+    expect(content[1].type).to.equal('Output');
+    expect(content[2].type).to.equal('Text');
+    expect(content[2].value).to.equal('!');
+  });
+
+  it('supports nested if tags (stack-based body capture)', function () {
+    var tree = parser.parse(undefined, '{% if a %}{% if b %}deep{% endif %}{% endif %}', {}, tags, {});
+    var outer = tree.tokens[0];
+    expect(outer.name).to.equal('if');
+    expect(outer.content).to.have.length(1);
+    var inner = outer.content[0];
+    expect(inner.name).to.equal('if');
+    expect(inner.content).to.have.length(1);
+    expect(inner.content[0].type).to.equal('Text');
+    expect(inner.content[0].value).to.equal('deep');
+  });
+
+  it('throws on missing test expression', function () {
+    expect(function () {
+      parser.parse(undefined, '{% if %}body{% endif %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected conditional expression/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on unclosed if (missing endif)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% if foo %}body', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Missing end tag for "if"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on mismatched end tag', function () {
+    expect(function () {
+      parser.parse(undefined, '{% if foo %}body{% endset %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected end of tag "set"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+});

@@ -20,5 +20,6 @@
  */
 
 module.exports = {
-  'set': require('./set')
+  'set': require('./set'),
+  'if': require('./if')
 };
