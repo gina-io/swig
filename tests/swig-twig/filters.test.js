@@ -176,6 +176,42 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('slice', function () {
+    it('slices a string by start and length', function () {
+      expect(filters.slice('Hello, World', 7, 5)).to.equal('World');
+    });
+    it('slices an array by start and length', function () {
+      expect(filters.slice([1, 2, 3, 4, 5], 1, 2)).to.eql([2, 3]);
+    });
+    it('slices a string to the end when length is omitted', function () {
+      expect(filters.slice('Hello, World', 7)).to.equal('World');
+    });
+    it('slices an array to the end when length is null', function () {
+      expect(filters.slice([1, 2, 3, 4, 5], 2, null)).to.eql([3, 4, 5]);
+    });
+    it('handles negative start (string)', function () {
+      expect(filters.slice('Hello', -3)).to.equal('llo');
+    });
+    it('handles negative start (array)', function () {
+      expect(filters.slice([1, 2, 3, 4, 5], -2)).to.eql([4, 5]);
+    });
+    it('handles negative length (array — stop N from end)', function () {
+      expect(filters.slice([1, 2, 3, 4, 5], 1, -1)).to.eql([2, 3, 4]);
+    });
+    it('handles negative length (string)', function () {
+      expect(filters.slice('Hello', 1, -1)).to.equal('ell');
+    });
+    it('clamps start past the end to empty', function () {
+      expect(filters.slice('abc', 100, 2)).to.equal('');
+    });
+    it('returns input unchanged for non-string non-array', function () {
+      expect(filters.slice(42, 0, 1)).to.equal(42);
+    });
+    it('is NOT marked safe', function () {
+      expect(filters.slice.safe).to.be(undefined);
+    });
+  });
+
   describe('number_format', function () {
     it('formats with defaults (0 decimals, "." decimal, "," thousand)', function () {
       expect(filters.number_format(1234567)).to.equal('1,234,567');
