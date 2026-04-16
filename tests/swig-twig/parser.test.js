@@ -747,3 +747,110 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
   });
 
 });
+
+/*!
+ * Phase 3 Session 7 — Twig top-level source splitter (`parser.parse`).
+ *
+ * Covers text → IRText, `{{ … }}` → IROutput (with autoescape tail and
+ * `.safe` filter suppression), `{# … #}` → dropped, and `{% … %}` →
+ * tag dispatch (unknown tag throws via utils.throwError).
+ *
+ * Tag-content tests for `{% set %}` / `{% if %}` land in their own
+ * describe blocks once those tags are wired into `tags/index.js`.
+ */
+describe('@rhinostone/swig-twig — parser.parse (top-level splitter)', function () {
+
+  it('returns the canonical parse-tree shape', function () {
+    var tree = parser.parse(undefined, '', {}, {}, {});
+    expect(tree).to.have.property('name');
+    expect(tree).to.have.property('parent');
+    expect(tree).to.have.property('tokens');
+    expect(tree).to.have.property('blocks');
+    expect(tree.tokens).to.eql([]);
+    expect(tree.blocks).to.eql({});
+    expect(tree.parent).to.equal(null);
+  });
+
+  it('emits IRText for plain text', function () {
+    var tree = parser.parse(undefined, 'hello world', {}, {}, {});
+    expect(tree.tokens).to.have.length(1);
+    expect(tree.tokens[0].type).to.equal('Text');
+    expect(tree.tokens[0].value).to.equal('hello world');
+  });
+
+  it('emits IROutput with autoescape tail for {{ name }}', function () {
+    var tree = parser.parse(undefined, '{{ name }}', {}, {}, {});
+    expect(tree.tokens).to.have.length(1);
+    var out = tree.tokens[0];
+    expect(out.type).to.equal('Output');
+    expect(out.expr.type).to.equal('VarRef');
+    expect(out.expr.path).to.eql(['name']);
+    expect(out.filters).to.have.length(1);
+    expect(out.filters[0].name).to.equal('e');
+  });
+
+  it('omits autoescape tail when autoescape: false', function () {
+    var tree = parser.parse(undefined, '{{ name }}', { autoescape: false }, {}, {});
+    var out = tree.tokens[0];
+    expect(out.type).to.equal('Output');
+    expect(out.filters).to.equal(undefined);
+  });
+
+  it('omits autoescape tail when a .safe filter is in the chain', function () {
+    var safeFilter = function (input) { return input; };
+    safeFilter.safe = true;
+    var tree = parser.parse(undefined, '{{ html|safeFilter }}', {}, {}, { safeFilter: safeFilter });
+    var out = tree.tokens[0];
+    expect(out.type).to.equal('Output');
+    expect(out.expr.type).to.equal('FilterCall');
+    expect(out.expr.name).to.equal('safeFilter');
+    expect(out.filters).to.equal(undefined);
+  });
+
+  it('passes string-typed autoescape as a literal arg to the e filter', function () {
+    var tree = parser.parse(undefined, '{{ name }}', { autoescape: 'js' }, {}, {});
+    var out = tree.tokens[0];
+    expect(out.filters).to.have.length(1);
+    expect(out.filters[0].name).to.equal('e');
+    expect(out.filters[0].args).to.have.length(1);
+    expect(out.filters[0].args[0].type).to.equal('Literal');
+    expect(out.filters[0].args[0].kind).to.equal('string');
+    expect(out.filters[0].args[0].value).to.equal('js');
+  });
+
+  it('drops {# comments #} entirely', function () {
+    var tree = parser.parse(undefined, 'a{# this is a note #}b', {}, {}, {});
+    expect(tree.tokens).to.have.length(2);
+    expect(tree.tokens[0].value).to.equal('a');
+    expect(tree.tokens[1].value).to.equal('b');
+  });
+
+  it('throws on an unknown tag with filename and line attached', function () {
+    expect(function () {
+      parser.parse(undefined, 'x\n{% unknowntag %}', { filename: 'tpl.twig' }, {}, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected tag "unknowntag"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('honors custom varControls / tagControls / cmtControls', function () {
+    var tree = parser.parse(undefined, '<%= name %><# c #><# c #>', {
+      varControls: ['<%=', '%>'],
+      tagControls: ['<%', '%>'],
+      cmtControls: ['<#', '#>']
+    }, {}, {});
+    expect(tree.tokens).to.have.length(1);
+    expect(tree.tokens[0].type).to.equal('Output');
+  });
+
+  it('interleaves text + variable + text correctly', function () {
+    var tree = parser.parse(undefined, 'Hello {{ name }}!', {}, {}, {});
+    expect(tree.tokens).to.have.length(3);
+    expect(tree.tokens[0].type).to.equal('Text');
+    expect(tree.tokens[0].value).to.equal('Hello ');
+    expect(tree.tokens[1].type).to.equal('Output');
+    expect(tree.tokens[2].type).to.equal('Text');
+    expect(tree.tokens[2].value).to.equal('!');
+  });
+});
