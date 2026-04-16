@@ -328,3 +328,46 @@ exports.escape = function (input, type) {
   }
 };
 exports.e = exports.escape;
+
+/**
+ * Return the input if it is not "empty"; otherwise return the fallback.
+ *
+ * Twig's empty-value semantics match the `empty` test: returns the
+ * fallback when the input is `undefined`, `null`, `false`, the empty
+ * string `""`, an empty array, or an empty plain object. Numeric `0`
+ * and the string `"0"` are NOT considered empty and pass through
+ * unchanged. Non-empty values pass through as-is.
+ *
+ * Divergent from native swig, which has no `default` filter.
+ *
+ * @example
+ * {{ missing|default("fallback") }}
+ * // => fallback
+ *
+ * @example
+ * {{ ""|default("fallback") }}
+ * // => fallback
+ *
+ * @example
+ * {{ 0|default("fallback") }}
+ * // => 0
+ *
+ * @param  {*} input
+ * @param  {*} fallback
+ * @return {*}
+ */
+exports['default'] = function (input, fallback) {
+  if (input === undefined || input === null || input === false) {
+    return fallback;
+  }
+  if (input === '') {
+    return fallback;
+  }
+  if (utils.isArray(input) && input.length === 0) {
+    return fallback;
+  }
+  if (typeof input === 'object' && utils.keys(input).length === 0) {
+    return fallback;
+  }
+  return input;
+};
