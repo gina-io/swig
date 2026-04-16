@@ -1047,3 +1047,170 @@ describe('@rhinostone/swig-twig — parser.parse — {% if %} tag', function () 
     });
   });
 });
+
+
+/*!
+ * Phase 3 Session 8 — `{% for %}` tag.
+ *
+ * Covers: single-val iteration, key/val destructuring, complex iterable
+ * (BinaryOp + filter chain), mixed text/output body capture, nested for,
+ * empty body, all parse-time throws (empty tag, missing `in`, missing
+ * iterable, unclosed, mismatched end), CVE-2023-25345 `_dangerousProps`
+ * guards on val + key, dotted-identifier rejection.
+ */
+describe('@rhinostone/swig-twig — parser.parse — {% for %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  it('emits args=[val] + IRExpr iterable for single-val iteration', function () {
+    var tree = parser.parse(undefined, '{% for item in items %}x{% endfor %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('for');
+    expect(tok.ends).to.equal(true);
+    expect(tok.args).to.eql(['item']);
+    expect(tok.irExpr).to.be.an('object');
+    expect(tok.irExpr.type).to.equal('VarRef');
+    expect(tok.irExpr.path).to.eql(['items']);
+    expect(tok.content).to.have.length(1);
+    expect(tok.content[0].type).to.equal('Text');
+    expect(tok.content[0].value).to.equal('x');
+  });
+
+  it('emits args=[key, val] for key/val destructuring', function () {
+    var tree = parser.parse(undefined, '{% for k, v in map %}x{% endfor %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.eql(['k', 'v']);
+    expect(tok.irExpr.type).to.equal('VarRef');
+    expect(tok.irExpr.path).to.eql(['map']);
+  });
+
+  it('lowers a BinaryOp iterable via parseExpr', function () {
+    var tree = parser.parse(undefined, '{% for x in a + b %}x{% endfor %}', {}, tags, {});
+    var iter = tree.tokens[0].irExpr;
+    expect(iter.type).to.equal('BinaryOp');
+    expect(iter.op).to.equal('+');
+    expect(iter.left.type).to.equal('VarRef');
+    expect(iter.right.type).to.equal('VarRef');
+  });
+
+  it('lowers a filter-chain iterable via parseExpr (IRFilterCallExpr)', function () {
+    var tree = parser.parse(undefined, '{% for x in list|sort %}x{% endfor %}', {}, tags, { 'sort': function () {} });
+    var iter = tree.tokens[0].irExpr;
+    expect(iter.type).to.equal('FilterCall');
+    expect(iter.name).to.equal('sort');
+    expect(iter.input.type).to.equal('VarRef');
+    expect(iter.input.path).to.eql(['list']);
+  });
+
+  it('captures mixed text + output content inside the body', function () {
+    var tree = parser.parse(undefined, '{% for x in xs %}Hi {{ x }}!{% endfor %}', {}, tags, {});
+    var content = tree.tokens[0].content;
+    expect(content).to.have.length(3);
+    expect(content[0].type).to.equal('Text');
+    expect(content[0].value).to.equal('Hi ');
+    expect(content[1].type).to.equal('Output');
+    expect(content[2].type).to.equal('Text');
+    expect(content[2].value).to.equal('!');
+  });
+
+  it('supports nested for tags (stack-based body capture)', function () {
+    var tree = parser.parse(undefined, '{% for a in as %}{% for b in bs %}deep{% endfor %}{% endfor %}', {}, tags, {});
+    var outer = tree.tokens[0];
+    expect(outer.name).to.equal('for');
+    expect(outer.content).to.have.length(1);
+    var inner = outer.content[0];
+    expect(inner.name).to.equal('for');
+    expect(inner.args).to.eql(['b']);
+    expect(inner.content).to.have.length(1);
+    expect(inner.content[0].type).to.equal('Text');
+    expect(inner.content[0].value).to.equal('deep');
+  });
+
+  it('accepts an empty body', function () {
+    var tree = parser.parse(undefined, '{% for x in xs %}{% endfor %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.content).to.have.length(0);
+  });
+
+  it('throws on empty tag (missing loop variable)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected loop variable/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on missing "in" keyword', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for x xs %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected "in"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on missing iterable', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for x in %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected iterable/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on unclosed for (missing endfor)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for x in xs %}body', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Missing end tag for "for"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on mismatched end tag', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for x in xs %}body{% endif %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected end of tag "if"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws when val is a dangerous prop (__proto__)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for __proto__ in xs %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe loop variable "__proto__"/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws when key is a dangerous prop (constructor)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for constructor, v in xs %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe loop variable "constructor"/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('throws when val is a dangerous prop after key (prototype)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for k, prototype in xs %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe loop variable "prototype"/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('throws on dotted loop variable (bare identifier required)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% for foo.bar in xs %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/must be a bare identifier/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+});
