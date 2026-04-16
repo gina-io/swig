@@ -245,6 +245,24 @@
  */
 
 /**
+ * Scoped-context region (Twig's `{% with %}`, Jinja2's `{% with %}`).
+ *
+ * `context` is an optional {@link IRExpr} evaluated once at entry. When
+ * `isolated` is true, the body sees only `context` (or an empty object
+ * when `context` is absent). When `isolated` is false, the body sees
+ * `_utils.extend({}, _ctx, context)` — or a shallow copy of `_ctx` when
+ * `context` is absent. The backend emits the region as an IIFE that
+ * shadows `_ctx` for the body's lexical scope.
+ *
+ * @typedef {Object} IRWith
+ * @property {'With'} type
+ * @property {IRExpr} [context]
+ * @property {boolean} [isolated]
+ * @property {IRStatement[]} body
+ * @property {IRLoc} [loc]
+ */
+
+/**
  * Legacy JS-string escape hatch for constructs whose codegen still lives
  * outside the IR emitters — userland `setTag`-registered tag `compile`
  * functions, and built-in tags not yet migrated to real IR nodes. The
@@ -265,7 +283,7 @@
  * @typedef {(
  *   IRText | IROutput | IRIf | IRFor | IRBlock | IRInclude | IRImport |
  *   IRMacro | IRCall | IRSet | IRRaw | IRParent | IRAutoescape | IRFilter |
- *   IRLegacyJS
+ *   IRWith | IRLegacyJS
  * )} IRStatement
  */
 
@@ -686,6 +704,22 @@ exports.autoescape = function (strategy, body, loc) {
 exports.filter = function (name, body, args, loc) {
   var node = { type: 'Filter', name: name, body: body };
   if (args !== undefined) { node.args = args; }
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRWith} scoped-context region.
+ *
+ * @param  {IRExpr}        [context]   Optional context expression.
+ * @param  {boolean}       [isolated]  `true` drops `_ctx` from the body.
+ * @param  {IRStatement[]} body
+ * @param  {IRLoc}         [loc]
+ * @return {IRWith}
+ */
+exports.withStmt = function (context, isolated, body, loc) {
+  var node = { type: 'With', body: body };
+  if (context !== undefined) { node.context = context; }
+  if (isolated !== undefined) { node.isolated = isolated; }
   return withLoc(node, loc);
 };
 

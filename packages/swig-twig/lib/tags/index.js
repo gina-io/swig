@@ -30,5 +30,6 @@ module.exports = {
   'import': require('./import'),
   'verbatim': require('./verbatim'),
   'apply': require('./apply'),
-  'from': require('./from')
+  'from': require('./from'),
+  'with': require('./with')
 };

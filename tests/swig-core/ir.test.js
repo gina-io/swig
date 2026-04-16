@@ -362,6 +362,48 @@ describe('swig-core/lib/ir — node factories', function () {
     });
   });
 
+  describe('withStmt()', function () {
+    it('bare: captures body; omits context + isolated when absent', function () {
+      var body = [ir.legacyJS('_output += "hi";\n')];
+      var node = ir.withStmt(undefined, undefined, body);
+      expect(node).to.eql({ type: 'With', body: body });
+      expect(node.hasOwnProperty('context')).to.be(false);
+      expect(node.hasOwnProperty('isolated')).to.be(false);
+    });
+
+    it('attaches context when provided; omits isolated when absent', function () {
+      var ctx = ir.varRef(['scope']);
+      var body = [ir.legacyJS('_output += "x";\n')];
+      var node = ir.withStmt(ctx, undefined, body);
+      expect(node.context).to.be(ctx);
+      expect(node.body).to.be(body);
+      expect(node.hasOwnProperty('isolated')).to.be(false);
+    });
+
+    it('attaches isolated=true + context; loc round-trips', function () {
+      var ctx = ir.objectLiteral([
+        ir.objectProperty(ir.literal('string', 'name'), ir.literal('string', 'gina'))
+      ]);
+      var body = [ir.text('scoped')];
+      var node = ir.withStmt(ctx, true, body, sampleLoc);
+      expect(node.type).to.be('With');
+      expect(node.isolated).to.be(true);
+      expect(node.context).to.be(ctx);
+      expect(node.body).to.be(body);
+      expect(node.loc).to.be(sampleLoc);
+    });
+
+    it('JSON round-trips a nested with + inner body', function () {
+      var node = ir.withStmt(
+        ir.varRef(['user']),
+        false,
+        [ir.output(ir.varRef(['user', 'name']))]
+      );
+      var round = JSON.parse(JSON.stringify(node));
+      expect(round).to.eql(node);
+    });
+  });
+
   describe('legacyJS()', function () {
     it('emits a LegacyJS node carrying the raw JS fragment verbatim', function () {
       var node = ir.legacyJS('_output += "hi";\n');

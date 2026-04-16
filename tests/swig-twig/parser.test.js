@@ -2438,3 +2438,146 @@ describe('@rhinostone/swig-twig — parser.parse — {% from import %} tag', fun
     });
   });
 });
+
+/* ================================================================ *
+ * Phase 3 Session 12 — `{% with %}` tag.
+ *
+ * Twig scoped-context region:
+ *
+ *   {% with %}…{% endwith %}                    shallow copy of _ctx
+ *   {% with <ctx> %}…{% endwith %}              merge ctx into _ctx
+ *   {% with <ctx> only %}…{% endwith %}         isolated, ctx is context
+ *   {% with only %}…{% endwith %}               isolated, empty context
+ *
+ * Emits IRWith carrying the optional context IRExpr and `isolated`
+ * flag; backend's `With` branch wires the IIFE shadow of `_ctx`.
+ * ================================================================ */
+describe('@rhinostone/swig-twig — parser.parse — {% with %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+  var backend = require('@rhinostone/swig-core/lib/backend');
+
+  it('emits a bare-with token with no context and not isolated', function () {
+    var tree = parser.parse(undefined, '{% with %}body{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('with');
+    expect(tok.ends).to.equal(true);
+    expect(tok.block).to.equal(false);
+    expect(tok.irExpr).to.equal(undefined);
+    expect(tok.args).to.eql([false]);
+    expect(tok.content.length).to.be.greaterThan(0);
+  });
+
+  it('attaches context when "with <ctx>" is a VAR expression', function () {
+    var tree = parser.parse(undefined, '{% with scope %}{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.type).to.equal('VarRef');
+    expect(tok.irExpr.path).to.eql(['scope']);
+    expect(tok.args).to.eql([false]);
+  });
+
+  it('attaches context when "with <ctx>" is an object literal', function () {
+    var tree = parser.parse(undefined, '{% with {first: "a", second: "b"} %}{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.type).to.equal('ObjectLiteral');
+    expect(tok.irExpr.properties.length).to.equal(2);
+    expect(tok.args).to.eql([false]);
+  });
+
+  it('accepts a conditional context expression', function () {
+    var tree = parser.parse(undefined, '{% with cond ? a : b %}{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.type).to.equal('Conditional');
+  });
+
+  it('sets isolated=true with "with <ctx> only"', function () {
+    var tree = parser.parse(undefined, '{% with scope only %}{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr.type).to.equal('VarRef');
+    expect(tok.irExpr.path).to.eql(['scope']);
+    expect(tok.args).to.eql([true]);
+  });
+
+  it('sets isolated=true with "with only" (no context)', function () {
+    var tree = parser.parse(undefined, '{% with only %}{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.irExpr).to.equal(undefined);
+    expect(tok.args).to.eql([true]);
+  });
+
+  it('captures body tokens (text + output)', function () {
+    var tree = parser.parse(undefined, '{% with scope %}hello {{ name }}{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.content.length).to.be.greaterThan(0);
+  });
+
+  it('supports a nested {% with %} inside another {% with %}', function () {
+    var tree = parser.parse(undefined, '{% with outer %}{% with inner %}hi{% endwith %}{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('with');
+    expect(tok.irExpr.path).to.eql(['outer']);
+    var innerTok = null;
+    for (var i = 0; i < tok.content.length; i += 1) {
+      var n = tok.content[i];
+      if (n && typeof n === 'object' && n.name === 'with') { innerTok = n; break; }
+    }
+    expect(innerTok).to.be.ok();
+    expect(innerTok.irExpr.path).to.eql(['inner']);
+  });
+
+  it('throws when {% endwith %} is missing', function () {
+    expect(function () {
+      parser.parse(undefined, '{% with scope %}body', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Missing end tag/);
+    });
+  });
+
+  it('throws on trailing tokens after "only"', function () {
+    expect(function () {
+      parser.parse(undefined, '{% with scope only extra %}{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected tokens after "only" in "with" tag/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('compile returns an IRWith node carrying context + isolated + body', function () {
+    var tree = parser.parse(undefined, '{% with scope only %}hi{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    var node = tok.compile(backend.compile, tok.args, tok.content, [], {}, null, tok);
+    expect(node.type).to.equal('With');
+    expect(node.isolated).to.equal(true);
+    expect(node.context.type).to.equal('VarRef');
+    expect(node.body.length).to.equal(1);
+    expect(node.body[0].type).to.equal('LegacyJS');
+  });
+
+  it('backend emits an IIFE shadowing _ctx for bare {% with %}', function () {
+    var tree = parser.parse(undefined, '{% with %}hi{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var js = backend.compile(tree.tokens, [], {});
+    expect(js).to.match(/\(function\s*\(_ctx\)\s*\{/);
+    expect(js).to.match(/\}\)\(_utils\.extend\(\{\},\s*_ctx\)\);/);
+  });
+
+  it('backend emits _utils.extend merge for "with <ctx>"', function () {
+    var tree = parser.parse(undefined, '{% with scope %}hi{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var js = backend.compile(tree.tokens, [], {});
+    expect(js).to.match(/_utils\.extend\(\{\},\s*_ctx,\s*\(/);
+    expect(js).to.contain('_ctx.scope');
+  });
+
+  it('backend emits plain ctx selector for "with <ctx> only"', function () {
+    var tree = parser.parse(undefined, '{% with scope only %}hi{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var js = backend.compile(tree.tokens, [], {});
+    expect(js).to.not.match(/_utils\.extend\(\{\},\s*_ctx,/);
+    expect(js).to.contain('_ctx.scope');
+    expect(js).to.match(/\}\)\(\(/);
+  });
+
+  it('backend emits {} for "with only"', function () {
+    var tree = parser.parse(undefined, '{% with only %}hi{% endwith %}', { filename: 'tpl.twig' }, tags, {});
+    var js = backend.compile(tree.tokens, [], {});
+    expect(js).to.match(/\}\)\(\{\}\);/);
+  });
+});
