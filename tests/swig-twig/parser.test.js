@@ -1856,3 +1856,107 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
     });
   });
 });
+
+/**
+ * Phase 3 Session 11 — `{% verbatim %}…{% endverbatim %}` tag tests.
+ */
+describe('@rhinostone/swig-twig — parser.parse — {% verbatim %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  it('captures ends=true and block=false', function () {
+    var tree = parser.parse(undefined, '{% verbatim %}hello{% endverbatim %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('verbatim');
+    expect(tok.ends).to.equal(true);
+    expect(tok.block).to.equal(false);
+    expect(tok.content).to.have.length(1);
+    expect(tok.content[0].type).to.equal('Text');
+    expect(tok.content[0].value).to.equal('hello');
+  });
+
+  it('preserves {{ … }} literally without lexing', function () {
+    var tree = parser.parse(undefined, '{% verbatim %}{{ foo }}{% endverbatim %}', {}, tags, {});
+    var content = tree.tokens[0].content;
+    expect(content).to.have.length(1);
+    expect(content[0].type).to.equal('Text');
+    expect(content[0].value).to.equal('{{ foo }}');
+  });
+
+  it('preserves nested tag syntax literally', function () {
+    var tree = parser.parse(undefined, '{% verbatim %}{% if x %}bar{% endif %}{% endverbatim %}', {}, tags, {});
+    var content = tree.tokens[0].content;
+    var concat = content.map(function (n) { return n.value; }).join('');
+    expect(concat).to.equal('{% if x %}bar{% endif %}');
+    content.forEach(function (n) { expect(n.type).to.equal('Text'); });
+  });
+
+  it('preserves {# … #} comments literally inside verbatim', function () {
+    var tree = parser.parse(undefined, '{% verbatim %}{# not a comment #}{% endverbatim %}', {}, tags, {});
+    var content = tree.tokens[0].content;
+    var concat = content.map(function (n) { return n.value; }).join('');
+    expect(concat).to.equal('{# not a comment #}');
+  });
+
+  it('preserves adjacent verbatim blocks independently', function () {
+    var tree = parser.parse(undefined, '{% verbatim %}{{ a }}{% endverbatim %}X{% verbatim %}{{ b }}{% endverbatim %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(3);
+    expect(tree.tokens[0].name).to.equal('verbatim');
+    var first = tree.tokens[0].content.map(function (n) { return n.value; }).join('');
+    expect(first).to.equal('{{ a }}');
+    expect(tree.tokens[1].type).to.equal('Text');
+    expect(tree.tokens[1].value).to.equal('X');
+    expect(tree.tokens[2].name).to.equal('verbatim');
+    var second = tree.tokens[2].content.map(function (n) { return n.value; }).join('');
+    expect(second).to.equal('{{ b }}');
+  });
+
+  it('accepts an empty body', function () {
+    var tree = parser.parse(undefined, '{% verbatim %}{% endverbatim %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('verbatim');
+    expect(tok.content).to.have.length(0);
+  });
+
+  it('preserves whitespace and newlines inside verbatim', function () {
+    var src = '{% verbatim %}\n  {{ foo }}\n{% endverbatim %}';
+    var tree = parser.parse(undefined, src, {}, tags, {});
+    var content = tree.tokens[0].content;
+    var concat = content.map(function (n) { return n.value; }).join('');
+    expect(concat).to.equal('\n  {{ foo }}\n');
+  });
+
+  it('captures surrounding text + verbatim + text', function () {
+    var tree = parser.parse(undefined, 'pre {% verbatim %}{{ x }}{% endverbatim %} post', {}, tags, {});
+    expect(tree.tokens).to.have.length(3);
+    expect(tree.tokens[0].type).to.equal('Text');
+    expect(tree.tokens[0].value).to.equal('pre ');
+    expect(tree.tokens[1].name).to.equal('verbatim');
+    expect(tree.tokens[2].type).to.equal('Text');
+    expect(tree.tokens[2].value).to.equal(' post');
+  });
+
+  it('does not parse unknown tag names inside verbatim', function () {
+    var tree = parser.parse(undefined, '{% verbatim %}{% foobar baz %}{% endverbatim %}', {}, tags, {});
+    var content = tree.tokens[0].content;
+    var concat = content.map(function (n) { return n.value; }).join('');
+    expect(concat).to.equal('{% foobar baz %}');
+  });
+
+  it('throws on trailing tokens after "verbatim"', function () {
+    expect(function () {
+      parser.parse(undefined, '{% verbatim foo %}body{% endverbatim %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected token "foo" after "verbatim"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on unclosed verbatim', function () {
+    expect(function () {
+      parser.parse(undefined, '{% verbatim %}body', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Missing end tag for "verbatim"/);
+    });
+  });
+});

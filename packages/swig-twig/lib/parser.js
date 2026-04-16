@@ -508,6 +508,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
   var parent = null;
   var tokens = [];
   var blocks = {};
+  var inVerbatim = false;
 
   /**
    * Build an IROutput node for a `{{ … }}` chunk.
@@ -567,10 +568,21 @@ exports.parse = function (swig, source, opts, tags, filters) {
       var openName = tagName.replace(/^end/, '');
       last = stack[stack.length - 1];
       if (last && last.name === openName && last.ends) {
+        if (openName === 'verbatim') { inVerbatim = false; }
         stack.pop();
         return;
       }
-      utils.throwError('Unexpected end of tag "' + openName + '"', _line, opts.filename);
+      if (!inVerbatim) {
+        utils.throwError('Unexpected end of tag "' + openName + '"', _line, opts.filename);
+      }
+    }
+
+    // Inside a verbatim block, non-matching tag chunks fall through to
+    // the splitter's chunk-as-text path. The `endverbatim` close has
+    // already been handled above; everything else returns undefined so
+    // the splitter wraps the raw chunk via `ir.text`.
+    if (inVerbatim) {
+      return;
     }
 
     if (!tags.hasOwnProperty(tagName)) {
@@ -593,6 +605,10 @@ exports.parse = function (swig, source, opts, tags, filters) {
       utils.throwError('Unexpected tag "' + tagName + '"', _line, opts.filename);
     }
 
+    if (tagName === 'verbatim') {
+      inVerbatim = true;
+    }
+
     return token;
   }
 
@@ -601,7 +617,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
 
     if (!chunk) { return; }
 
-    if (utils.startsWith(chunk, varOpen) && utils.endsWith(chunk, varClose)) {
+    if (!inVerbatim && utils.startsWith(chunk, varOpen) && utils.endsWith(chunk, varClose)) {
       token = parseVariable(chunk.replace(varStrip, ''), line);
     } else if (utils.startsWith(chunk, tagOpen) && utils.endsWith(chunk, tagClose)) {
       token = parseTag(chunk.replace(tagStrip, ''), line);
@@ -612,7 +628,13 @@ exports.parse = function (swig, source, opts, tags, filters) {
           blocks[token.args.join('')] = token;
         }
       }
-    } else if (utils.startsWith(chunk, cmtOpen) && utils.endsWith(chunk, cmtClose)) {
+      // parseTag returns undefined for non-`endverbatim` tag chunks
+      // while inVerbatim is true. Wrap the original chunk as literal
+      // text so the content inside `{% verbatim %}` renders verbatim.
+      if (inVerbatim && !token) {
+        token = ir.text(chunk);
+      }
+    } else if (!inVerbatim && utils.startsWith(chunk, cmtOpen) && utils.endsWith(chunk, cmtClose)) {
       lines = chunk.match(/\n/g);
       line += lines ? lines.length : 0;
       return;
