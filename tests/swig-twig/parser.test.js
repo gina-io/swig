@@ -1538,3 +1538,149 @@ describe('@rhinostone/swig-twig — parser.parse — {% include %} tag', functio
     });
   });
 });
+
+describe('@rhinostone/swig-twig — parser.parse — {% macro %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  it('emits IRMacro for a bare-name macro (no parens)', function () {
+    var tree = parser.parse(undefined, '{% macro greet %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('macro');
+    expect(tok.ends).to.equal(true);
+    expect(tok.block).to.equal(true);
+    expect(tok.args).to.eql(['greet']);
+  });
+
+  it('emits IRMacro for an empty-param macro', function () {
+    var tree = parser.parse(undefined, '{% macro greet() %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.eql(['greet']);
+  });
+
+  it('emits IRMacro for a macro with one param', function () {
+    var tree = parser.parse(undefined, '{% macro greet(name) %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args.length).to.equal(2);
+    expect(tok.args[0]).to.equal('greet');
+    expect(tok.args[1]).to.eql({ name: 'name' });
+  });
+
+  it('emits IRMacro for a macro with multiple params', function () {
+    var tree = parser.parse(undefined, '{% macro input(type, name, value) %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args.length).to.equal(4);
+    expect(tok.args[0]).to.equal('input');
+    expect(tok.args[1]).to.eql({ name: 'type' });
+    expect(tok.args[2]).to.eql({ name: 'name' });
+    expect(tok.args[3]).to.eql({ name: 'value' });
+  });
+
+  it('captures body content inside the macro', function () {
+    var tree = parser.parse(undefined, '{% macro greet(name) %}Hello {{ name }}!{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.content.length).to.equal(3);
+    expect(tok.content[0].type).to.equal('Text');
+    expect(tok.content[0].value).to.equal('Hello ');
+    expect(tok.content[1].type).to.equal('Output');
+    expect(tok.content[2].type).to.equal('Text');
+    expect(tok.content[2].value).to.equal('!');
+  });
+
+  it('throws on missing macro name', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected macro name in "macro" tag/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on dotted macro name', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro foo.bar() %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Macro name "foo\.bar" must be a bare identifier/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on dotted parameter name', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro foo(a.b) %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Parameter "a\.b" must be a bare identifier/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('CVE-2023-25345: blocks __proto__ as macro name', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro __proto__() %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe macro name "__proto__" is not allowed/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('CVE-2023-25345: blocks constructor as macro name (FUNCTIONEMPTY)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro constructor() %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe macro name "constructor" is not allowed/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('CVE-2023-25345: blocks prototype as macro name (bare VAR)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro prototype %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe macro name "prototype" is not allowed/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('CVE-2023-25345: blocks __proto__ as macro parameter', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro foo(__proto__) %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe parameter "__proto__" is not allowed/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('throws on unclosed parameter list', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro foo(a, b %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unclosed parameter list in "macro" tag/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on missing comma between parameters', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro foo(a b) %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected "," between parameters in "macro" tag/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on trailing tokens after macro signature', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro foo() junk %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected token "junk" after macro signature/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on unclosed macro tag (missing endmacro)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% macro foo() %}body without close', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Missing end tag for "macro"/);
+    });
+  });
+});
