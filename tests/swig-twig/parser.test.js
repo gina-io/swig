@@ -854,3 +854,110 @@ describe('@rhinostone/swig-twig — parser.parse (top-level splitter)', function
     expect(tree.tokens[2].value).to.equal('!');
   });
 });
+
+
+/*!
+ * Phase 3 Session 7 — `{% set %}` tag.
+ *
+ * Covers parse-time IRSet emission, LHS path shapes (bare + dotted),
+ * compound assignment operators, RHS expression lowering, and
+ * CVE-2023-25345 rejection of dangerous LHS names. Bracket-LHS and
+ * missing-RHS / missing-operator paths are pinned as throw assertions.
+ */
+describe('@rhinostone/swig-twig — parser.parse — {% set %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  it('emits an IRSet for a bare-identifier assignment', function () {
+    var tree = parser.parse(undefined, '{% set foo = "x" %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('set');
+    expect(tok.irExpr).to.be.an('object');
+    expect(tok.irExpr.type).to.equal('Set');
+    expect(tok.irExpr.op).to.equal('=');
+    expect(tok.irExpr.target.type).to.equal('VarRef');
+    expect(tok.irExpr.target.path).to.eql(['foo']);
+    expect(tok.irExpr.value.type).to.equal('Literal');
+    expect(tok.irExpr.value.kind).to.equal('string');
+    expect(tok.irExpr.value.value).to.equal('x');
+  });
+
+  it('supports compound assignment operators (+=)', function () {
+    var tree = parser.parse(undefined, '{% set bar += 1 %}', {}, tags, {});
+    var irExpr = tree.tokens[0].irExpr;
+    expect(irExpr.op).to.equal('+=');
+    expect(irExpr.target.path).to.eql(['bar']);
+    expect(irExpr.value.type).to.equal('Literal');
+    expect(irExpr.value.kind).to.equal('number');
+    expect(irExpr.value.value).to.equal(1);
+  });
+
+  it('supports a dotted-path LHS', function () {
+    var tree = parser.parse(undefined, '{% set foo.bar.baz = 42 %}', {}, tags, {});
+    var irExpr = tree.tokens[0].irExpr;
+    expect(irExpr.target.type).to.equal('VarRef');
+    expect(irExpr.target.path).to.eql(['foo', 'bar', 'baz']);
+    expect(irExpr.value.value).to.equal(42);
+  });
+
+  it('lowers a complex RHS expression via parseExpr', function () {
+    var tree = parser.parse(undefined, '{% set out = a + b * 2 %}', {}, tags, {});
+    var value = tree.tokens[0].irExpr.value;
+    expect(value.type).to.equal('BinaryOp');
+    expect(value.op).to.equal('+');
+    expect(value.left.type).to.equal('VarRef');
+    expect(value.right.type).to.equal('BinaryOp');
+    expect(value.right.op).to.equal('*');
+  });
+
+  it('rejects __proto__ on the LHS (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set __proto__ = "x" %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe assignment to "__proto__"/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('rejects constructor mid-dotted-path (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set foo.constructor = "x" %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe assignment to "constructor"/);
+    });
+  });
+
+  it('rejects bracket-notation LHS with a filename-aware throw', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set foo["bar"] = 1 %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Bracket-notation assignment is not supported/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on missing RHS', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set foo = %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected expression/);
+    });
+  });
+
+  it('throws on missing assignment operator', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set foo %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected assignment operator/);
+    });
+  });
+
+  it('does not push end-marker on the stack (no endset required)', function () {
+    var tree = parser.parse(undefined, '{% set foo = 1 %}text', {}, tags, {});
+    expect(tree.tokens).to.have.length(2);
+    expect(tree.tokens[0].name).to.equal('set');
+    expect(tree.tokens[1].type).to.equal('Text');
+    expect(tree.tokens[1].value).to.equal('text');
+  });
+});
