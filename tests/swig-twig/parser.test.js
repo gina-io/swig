@@ -945,20 +945,127 @@ describe('@rhinostone/swig-twig — parser.parse — {% set %} tag', function ()
     });
   });
 
-  it('throws on missing assignment operator', function () {
-    expect(function () {
-      parser.parse(undefined, '{% set foo %}', { filename: 'tpl.twig' }, tags, {});
-    }).to.throwException(function (e) {
-      expect(e.message).to.match(/Expected assignment operator/);
-    });
-  });
-
-  it('does not push end-marker on the stack (no endset required)', function () {
+  it('inline form does not push end-marker on the stack (no endset required)', function () {
     var tree = parser.parse(undefined, '{% set foo = 1 %}text', {}, tags, {});
     expect(tree.tokens).to.have.length(2);
     expect(tree.tokens[0].name).to.equal('set');
     expect(tree.tokens[1].type).to.equal('Text');
     expect(tree.tokens[1].value).to.equal('text');
+  });
+
+  /* ---- Body-capture form (Session 11 C2) ----------------------------- */
+
+  it('body form: captures a plain-text body and stashes the path on args', function () {
+    var tree = parser.parse(undefined, '{% set foo %}hello{% endset %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('set');
+    expect(tok.args).to.eql(['foo']);
+    expect(tok.irExpr).to.be(undefined);
+    expect(tok.content).to.have.length(1);
+    expect(tok.content[0].type).to.equal('Text');
+    expect(tok.content[0].value).to.equal('hello');
+  });
+
+  it('body form: supports a dotted-path target', function () {
+    var tree = parser.parse(undefined, '{% set foo.bar.baz %}x{% endset %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.eql(['foo', 'bar', 'baz']);
+    expect(tok.irExpr).to.be(undefined);
+  });
+
+  it('body form: captures a body with nested {{ output }}', function () {
+    var tree = parser.parse(undefined, '{% set foo %}hi {{ name }}{% endset %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.eql(['foo']);
+    expect(tok.content.length).to.be.greaterThan(1);
+    var hasOutput = false;
+    for (var i = 0; i < tok.content.length; i += 1) {
+      if (tok.content[i].type === 'Output') { hasOutput = true; }
+    }
+    expect(hasOutput).to.equal(true);
+  });
+
+  it('body form: token.ends stays true so splitter pushes it onto the stack', function () {
+    var tree = parser.parse(undefined, '{% set foo %}x{% endset %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.ends).to.equal(true);
+  });
+
+  it('body form: compile emits an IRLegacyJS IIFE capturing _output', function () {
+    var tree = parser.parse(undefined, '{% set foo %}hello{% endset %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    var backend = require('@rhinostone/swig-core/lib/backend');
+    var node = tok.compile(backend.compile, tok.args, tok.content, [], {}, null, tok);
+    expect(node).to.be.an('object');
+    expect(node.type).to.equal('LegacyJS');
+    expect(node.js).to.match(/_ctx\.foo\s*=\s*\(function\s*\(\)\s*\{/);
+    expect(node.js).to.match(/var\s+_output\s*=\s*""/);
+    expect(node.js).to.match(/return\s+_output;/);
+  });
+
+  it('body form: compile emits dotted-path assignment for nested targets', function () {
+    var tree = parser.parse(undefined, '{% set foo.bar %}x{% endset %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    var backend = require('@rhinostone/swig-core/lib/backend');
+    var node = tok.compile(backend.compile, tok.args, tok.content, [], {}, null, tok);
+    expect(node.js).to.match(/_ctx\.foo\.bar\s*=\s*\(function\s*\(\)/);
+  });
+
+  it('body form: rejects __proto__ target (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set __proto__ %}x{% endset %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe assignment to "__proto__"/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('body form: rejects constructor in a dotted-path target (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set foo.constructor %}x{% endset %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe assignment to "constructor"/);
+    });
+  });
+
+  it('body form: rejects bracket-notation target', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set foo["bar"] %}x{% endset %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Bracket-notation assignment is not supported/);
+    });
+  });
+
+  it('unclosed body form throws a missing-end-tag error', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set foo %}hello', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Missing end tag for "set"/);
+    });
+  });
+
+  it('body form can nest inside other block-level tags', function () {
+    var tree = parser.parse(undefined, '{% if cond %}{% set foo %}hi{% endset %}{% endif %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var ifTok = tree.tokens[0];
+    expect(ifTok.name).to.equal('if');
+    expect(ifTok.content).to.have.length(1);
+    var setTok = ifTok.content[0];
+    expect(setTok.name).to.equal('set');
+    expect(setTok.args).to.eql(['foo']);
+    expect(setTok.content).to.have.length(1);
+    expect(setTok.content[0].value).to.equal('hi');
+  });
+
+  it('inline form still flips token.ends = false (no stack push)', function () {
+    var tree = parser.parse(undefined, '{% set foo = "x" %}after', {}, tags, {});
+    expect(tree.tokens).to.have.length(2);
+    expect(tree.tokens[0].name).to.equal('set');
+    expect(tree.tokens[0].ends).to.equal(false);
+    expect(tree.tokens[0].irExpr).to.be.an('object');
+    expect(tree.tokens[0].irExpr.type).to.equal('Set');
   });
 });
 
