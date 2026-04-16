@@ -649,6 +649,45 @@ exports.keys = function (input) {
  * @param  {*} other
  * @return {*}
  */
+/**
+ * Format the input string using a subset of sprintf-style placeholders.
+ *
+ * Supported directives: `%s` (string), `%d` (integer), `%f` (float),
+ * `%x` (lowercase hex), `%%` (literal `%`). Width / precision / flag
+ * modifiers (`%5d`, `%.2f`, `%-10s`, `%05d`) are not supported — they
+ * pass through as literal text. A `%d`/`%f`/`%x` directive whose
+ * argument is non-numeric emits `NaN`. An under-supplied argument list
+ * emits `undefined` for the missing slots.
+ *
+ * @example
+ * {{ "Hello, %s!"|format(name) }}
+ * // => Hello, Twig!
+ *
+ * @example
+ * {{ "%d + %d = %d"|format(1, 2, 3) }}
+ * // => 1 + 2 = 3
+ *
+ * @param  {*} input
+ * @return {string}
+ */
+exports.format = function (input) {
+  if (typeof input !== 'string') { return input; }
+  var args = Array.prototype.slice.call(arguments, 1);
+  var idx = 0;
+  return input.replace(/%[sdfx%]/g, function (match) {
+    if (match === '%%') { return '%'; }
+    var a = args[idx];
+    idx += 1;
+    switch (match) {
+    case '%s': return String(a);
+    case '%d': return String(parseInt(a, 10));
+    case '%f': return String(parseFloat(a));
+    case '%x': return Number(a).toString(16);
+    }
+    return match;
+  });
+};
+
 exports.merge = function (input, other) {
   if (other === undefined || other === null) {
     return input;
