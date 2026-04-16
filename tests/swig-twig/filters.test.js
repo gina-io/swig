@@ -176,6 +176,45 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('default', function () {
+    it('returns fallback for undefined', function () {
+      expect(filters['default'](undefined, 'x')).to.equal('x');
+    });
+    it('returns fallback for null', function () {
+      expect(filters['default'](null, 'x')).to.equal('x');
+    });
+    it('returns fallback for false', function () {
+      expect(filters['default'](false, 'x')).to.equal('x');
+    });
+    it('returns fallback for empty string', function () {
+      expect(filters['default']('', 'x')).to.equal('x');
+    });
+    it('returns fallback for empty array', function () {
+      expect(filters['default']([], 'x')).to.equal('x');
+    });
+    it('returns fallback for empty object', function () {
+      expect(filters['default']({}, 'x')).to.equal('x');
+    });
+    it('passes through 0 (NOT considered empty)', function () {
+      expect(filters['default'](0, 'x')).to.equal(0);
+    });
+    it('passes through string "0" (NOT considered empty)', function () {
+      expect(filters['default']('0', 'x')).to.equal('0');
+    });
+    it('passes through non-empty string', function () {
+      expect(filters['default']('hi', 'x')).to.equal('hi');
+    });
+    it('passes through non-empty array', function () {
+      expect(filters['default']([1], 'x')).to.eql([1]);
+    });
+    it('passes through non-empty object', function () {
+      expect(filters['default']({ a: 1 }, 'x')).to.eql({ a: 1 });
+    });
+    it('is NOT marked safe', function () {
+      expect(filters['default'].safe).to.be(undefined);
+    });
+  });
+
   describe('escape / e', function () {
     it('HTML-escapes by default', function () {
       expect(filters.escape('<b>')).to.equal('&lt;b&gt;');
