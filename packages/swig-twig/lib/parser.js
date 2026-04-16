@@ -33,6 +33,7 @@ var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'd
  *     2   | && / and (LOGIC)                   | left
  *     3   | == != === !== (COMPARATOR)          | left
  *     4   | < > <= >= in  (COMPARATOR)          | left
+ *     5   | .. (RANGE — lowers to _range call) | left
  *     6   | + - (OPERATOR)                     | left
  *     7   | ~ (TILDE — string concat)          | left
  *     8   | * / % (OPERATOR)                   | left
@@ -94,6 +95,9 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         return { op: m, prec: 3 };
       }
       return { op: m, prec: 4 };
+    }
+    if (tok.type === _t.RANGE) {
+      return { op: '..', prec: 5 };
     }
     if (tok.type === _t.OPERATOR) {
       m = tok.match;
@@ -315,7 +319,11 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       if (!info || info.prec < minPrec) { break; }
       consume();
       var right = parseExpression(info.prec + 1);
-      left = ir.binaryOp(info.op, left, right);
+      if (info.op === '..') {
+        left = ir.fnCall(ir.varRef(['_range']), [left, right]);
+      } else {
+        left = ir.binaryOp(info.op, left, right);
+      }
     }
     return left;
   }
