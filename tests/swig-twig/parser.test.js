@@ -361,6 +361,89 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
     });
   });
 
+  /* ---- Ternary and Elvis ----------------------------------------- */
+
+  describe('ternary (? :) and Elvis (?:)', function () {
+    it('lowers a ? b : c to Conditional(a, b, c)', function () {
+      var node = parse('a ? b : c');
+      expect(node.type).to.equal('Conditional');
+      expect(node.test.type).to.equal('VarRef');
+      expect(node.test.path).to.eql(['a']);
+      expect(node.then.path).to.eql(['b']);
+      expect(node['else'].path).to.eql(['c']);
+    });
+
+    it('lowers Elvis a ?: b to Conditional(a, a, b)', function () {
+      var node = parse('a ?: b');
+      expect(node.type).to.equal('Conditional');
+      expect(node.test.type).to.equal('VarRef');
+      expect(node.test.path).to.eql(['a']);
+      expect(node.then.type).to.equal('VarRef');
+      expect(node.then.path).to.eql(['a']);
+      expect(node['else'].path).to.eql(['b']);
+    });
+
+    it('binds looser than ?? (a ?? b ? c : d → (a ?? b) ? c : d)', function () {
+      var node = parse('a ?? b ? c : d');
+      expect(node.type).to.equal('Conditional');
+      expect(node.test.type).to.equal('BinaryOp');
+      expect(node.test.op).to.equal('??');
+      expect(node.test.left.path).to.eql(['a']);
+      expect(node.test.right.path).to.eql(['b']);
+      expect(node.then.path).to.eql(['c']);
+      expect(node['else'].path).to.eql(['d']);
+    });
+
+    it('binds looser than + (a + b ? c : d → (a + b) ? c : d)', function () {
+      var node = parse('a + b ? c : d');
+      expect(node.type).to.equal('Conditional');
+      expect(node.test.type).to.equal('BinaryOp');
+      expect(node.test.op).to.equal('+');
+      expect(node.then.path).to.eql(['c']);
+      expect(node['else'].path).to.eql(['d']);
+    });
+
+    it('is right-associative (a ? b : c ? d : e → a ? b : (c ? d : e))', function () {
+      var node = parse('a ? b : c ? d : e');
+      expect(node.type).to.equal('Conditional');
+      expect(node.test.path).to.eql(['a']);
+      expect(node.then.path).to.eql(['b']);
+      expect(node['else'].type).to.equal('Conditional');
+      expect(node['else'].test.path).to.eql(['c']);
+      expect(node['else'].then.path).to.eql(['d']);
+      expect(node['else']['else'].path).to.eql(['e']);
+    });
+
+    it('nests in the then-branch (a ? b ? c : d : e)', function () {
+      var node = parse('a ? b ? c : d : e');
+      expect(node.type).to.equal('Conditional');
+      expect(node.test.path).to.eql(['a']);
+      expect(node.then.type).to.equal('Conditional');
+      expect(node.then.test.path).to.eql(['b']);
+      expect(node.then.then.path).to.eql(['c']);
+      expect(node.then['else'].path).to.eql(['d']);
+      expect(node['else'].path).to.eql(['e']);
+    });
+
+    it('works as an object-literal value ({k: a ? b : c})', function () {
+      var node = parse('{k: a ? b : c}');
+      expect(node.type).to.equal('ObjectLiteral');
+      expect(node.properties).to.have.length(1);
+      expect(node.properties[0].value.type).to.equal('Conditional');
+    });
+
+    it('works as a function call argument (fn(a ? b : c))', function () {
+      var node = parse('fn(a ? b : c)');
+      expect(node.type).to.equal('FnCall');
+      expect(node.args).to.have.length(1);
+      expect(node.args[0].type).to.equal('Conditional');
+    });
+
+    it('throws when the colon is missing', function () {
+      expect(function () { parse('a ? b'); }).to.throwException(/Expected colon/);
+    });
+  });
+
   /* ---- Unary operators ------------------------------------------- */
 
   describe('unary operators', function () {
