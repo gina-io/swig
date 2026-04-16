@@ -15,6 +15,17 @@
 exports.name = 'twig';
 
 /**
+ * Expression-level parser — Pratt-style recursive descent that consumes
+ * Twig lexer tokens and returns swig-core IRExpr nodes.
+ *
+ * Exposed here so callers can import it from the package entry-point;
+ * NOT wired into parse(source) yet (that still throws).
+ *
+ * @type {object}
+ */
+exports.parser = require('./parser');
+
+/**
  * Parse a Twig source string into a swig-core IR Template node.
  *
  * @param  {string} source            Twig template source.
