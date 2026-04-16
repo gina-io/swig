@@ -346,6 +346,49 @@ exports.compile = function (template, parents, options, blockName) {
         (node.ignoreMissing ? '} catch (e) {}\n' : '');
       return;
     }
+    if (node.type === 'With') {
+      // Phase 3 Session 12: scoped-context region (Twig's `{% with %}`).
+      // Emits an IIFE that shadows `_ctx` for the body's lexical scope;
+      // `_output` stays in the outer scope and is mutated via closure, so
+      // body writes still flow to the compiled template's output.
+      //
+      // Selector shapes:
+      //   bare    → _utils.extend({}, _ctx)           (shallow copy, no leak)
+      //   ctx     → _utils.extend({}, _ctx, <ctx>)    (merge)
+      //   only    → {}                                (isolated, no ctx)
+      //   ctx+only → <ctx>                            (isolated, ctx is context)
+      //
+      // `context` is IRExpr — per-slot dispatch on object-with-.type →
+      // emitExpr, else verbatim string fallback preserves the userland
+      // setTag path for any future compile functions that hand in a raw
+      // JS-source fragment.
+      var withCtxJS;
+      if (node.context !== undefined) {
+        if (node.context && typeof node.context === 'object' && typeof node.context.type === 'string') {
+          withCtxJS = exports.emitExpr(node.context);
+        } else {
+          withCtxJS = node.context;
+        }
+      }
+      var withBodyJS = '';
+      utils.each(node.body, function (b) {
+        if (b.type === 'LegacyJS') { withBodyJS += b.js; return; }
+        if (b.type === 'Text' || b.type === 'Raw') {
+          withBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+          return;
+        }
+      });
+      var withSelector;
+      if (node.isolated) {
+        withSelector = (withCtxJS !== undefined) ? withCtxJS : '{}';
+      } else if (withCtxJS !== undefined) {
+        withSelector = '_utils.extend({}, _ctx, ' + withCtxJS + ')';
+      } else {
+        withSelector = '_utils.extend({}, _ctx)';
+      }
+      out += '(function (_ctx) {\n' + withBodyJS + '})(' + withSelector + ');\n';
+      return;
+    }
     if (node.type === 'Output') {
       // Phase 2: `expr` is typed IRExpr | IRLegacyJS (Session 14b
       // Commit 9). The frontend's parseVariable falls back to LegacyJS
