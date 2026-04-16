@@ -228,6 +228,88 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
     });
   });
 
+  /* ---- Twig-only binary operators: TILDE, NULLCOALESCE ----------- */
+
+  describe('tilde (~) string concatenation', function () {
+    it('parses a ~ b as BinaryOp(~)', function () {
+      var node = parse('a ~ b');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('~');
+      expect(node.left.path).to.eql(['a']);
+      expect(node.right.path).to.eql(['b']);
+    });
+
+    it('binds tighter than + (a + b ~ c → a + (b ~ c))', function () {
+      var node = parse('a + b ~ c');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('+');
+      expect(node.left.path).to.eql(['a']);
+      expect(node.right.type).to.equal('BinaryOp');
+      expect(node.right.op).to.equal('~');
+      expect(node.right.left.path).to.eql(['b']);
+      expect(node.right.right.path).to.eql(['c']);
+    });
+
+    it('binds looser than * (a ~ b * c → a ~ (b * c))', function () {
+      var node = parse('a ~ b * c');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('~');
+      expect(node.left.path).to.eql(['a']);
+      expect(node.right.type).to.equal('BinaryOp');
+      expect(node.right.op).to.equal('*');
+    });
+
+    it('is left-associative (a ~ b ~ c → (a ~ b) ~ c)', function () {
+      var node = parse('a ~ b ~ c');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('~');
+      expect(node.left.type).to.equal('BinaryOp');
+      expect(node.left.op).to.equal('~');
+      expect(node.left.left.path).to.eql(['a']);
+      expect(node.left.right.path).to.eql(['b']);
+      expect(node.right.path).to.eql(['c']);
+    });
+  });
+
+  describe('null-coalescing (??)', function () {
+    it('parses a ?? b as BinaryOp(??)', function () {
+      var node = parse('a ?? b');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('??');
+      expect(node.left.path).to.eql(['a']);
+      expect(node.right.path).to.eql(['b']);
+    });
+
+    it('binds looser than || on the right (a ?? b || c → a ?? (b || c))', function () {
+      var node = parse('a ?? b || c');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('??');
+      expect(node.left.path).to.eql(['a']);
+      expect(node.right.type).to.equal('BinaryOp');
+      expect(node.right.op).to.equal('||');
+    });
+
+    it('binds looser than || on the left (a || b ?? c → (a || b) ?? c)', function () {
+      var node = parse('a || b ?? c');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('??');
+      expect(node.left.type).to.equal('BinaryOp');
+      expect(node.left.op).to.equal('||');
+      expect(node.right.path).to.eql(['c']);
+    });
+
+    it('is left-associative (a ?? b ?? c → (a ?? b) ?? c)', function () {
+      var node = parse('a ?? b ?? c');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('??');
+      expect(node.left.type).to.equal('BinaryOp');
+      expect(node.left.op).to.equal('??');
+      expect(node.left.left.path).to.eql(['a']);
+      expect(node.left.right.path).to.eql(['b']);
+      expect(node.right.path).to.eql(['c']);
+    });
+  });
+
   /* ---- Unary operators ------------------------------------------- */
 
   describe('unary operators', function () {

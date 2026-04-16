@@ -24,17 +24,18 @@ var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'd
  * frontend. See .claude/security.md § _dangerousProps is duplicated
  * across layers.
  *
- * Binding-power table (swig-shared subset — Twig-only operators added
- * in later sessions):
+ * Binding-power table:
  *
  *   Level | Tokens                             | Assoc
  *   ------+------------------------------------+------
+ *     0   | ?? (NULLCOALESCE)                  | left
  *     1   | || / or  (LOGIC)                   | left
  *     2   | && / and (LOGIC)                   | left
  *     3   | == != === !== (COMPARATOR)          | left
  *     4   | < > <= >= in  (COMPARATOR)          | left
- *     5   | + - (OPERATOR)                     | left
- *     6   | * / % (OPERATOR)                   | left
+ *     6   | + - (OPERATOR)                     | left
+ *     7   | ~ (TILDE — string concat)          | left
+ *     8   | * / % (OPERATOR)                   | left
  *   post  | DOTKEY BRACKETOPEN PARENOPEN        | —
  *          | FILTER FILTEREMPTY                 |
  *   pfx   | NOT, unary +/-                     | —
@@ -80,6 +81,9 @@ exports.parseExpr = function (tokens, filters, _posOut) {
 
   function getBinaryOpInfo(tok) {
     var m;
+    if (tok.type === _t.NULLCOALESCE) {
+      return { op: '??', prec: 0 };
+    }
     if (tok.type === _t.LOGIC) {
       if (tok.match === '||') { return { op: '||', prec: 1 }; }
       if (tok.match === '&&') { return { op: '&&', prec: 2 }; }
@@ -93,8 +97,11 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     }
     if (tok.type === _t.OPERATOR) {
       m = tok.match;
-      if (m === '+' || m === '-') { return { op: m, prec: 5 }; }
-      if (m === '*' || m === '/' || m === '%') { return { op: m, prec: 6 }; }
+      if (m === '+' || m === '-') { return { op: m, prec: 6 }; }
+      if (m === '*' || m === '/' || m === '%') { return { op: m, prec: 8 }; }
+    }
+    if (tok.type === _t.TILDE) {
+      return { op: '~', prec: 7 };
     }
     return null;
   }
