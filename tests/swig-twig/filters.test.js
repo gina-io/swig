@@ -379,6 +379,36 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('keys', function () {
+    it('returns integer indices for an array', function () {
+      expect(filters.keys([10, 20, 30])).to.eql([0, 1, 2]);
+    });
+    it('returns own enumerable keys for an object', function () {
+      expect(filters.keys({ a: 1, b: 2, c: 3 })).to.eql(['a', 'b', 'c']);
+    });
+    it('returns empty array for empty array input', function () {
+      expect(filters.keys([])).to.eql([]);
+    });
+    it('returns empty array for empty object input', function () {
+      expect(filters.keys({})).to.eql([]);
+    });
+    it('returns empty array for a string', function () {
+      expect(filters.keys('hello')).to.eql([]);
+    });
+    it('returns empty array for a number', function () {
+      expect(filters.keys(42)).to.eql([]);
+    });
+    it('returns empty array for null', function () {
+      expect(filters.keys(null)).to.eql([]);
+    });
+    it('returns empty array for undefined', function () {
+      expect(filters.keys(undefined)).to.eql([]);
+    });
+    it('is NOT marked safe', function () {
+      expect(filters.keys.safe).to.be(undefined);
+    });
+  });
+
   describe('escape / e', function () {
     it('HTML-escapes by default', function () {
       expect(filters.escape('<b>')).to.equal('&lt;b&gt;');

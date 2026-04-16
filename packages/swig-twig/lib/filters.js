@@ -596,3 +596,35 @@ exports['default'] = function (input, fallback) {
   }
   return input;
 };
+
+/**
+ * Return the keys of an array or object as an array.
+ *
+ * For an array, returns the integer indices (`0, 1, 2, ...`). For an
+ * object, returns the own enumerable keys. For any other input (string,
+ * number, null, undefined), returns an empty array.
+ *
+ * @example
+ * {{ [10, 20, 30]|keys|join(",") }}
+ * // => 0,1,2
+ *
+ * @example
+ * {{ {"a": 1, "b": 2}|keys|join(",") }}
+ * // => a,b
+ *
+ * @param  {*}        input
+ * @return {Array}
+ */
+exports.keys = function (input) {
+  if (utils.isArray(input)) {
+    var out = [];
+    for (var i = 0; i < input.length; i += 1) {
+      out.push(i);
+    }
+    return out;
+  }
+  if (input && typeof input === 'object') {
+    return utils.keys(input);
+  }
+  return [];
+};
