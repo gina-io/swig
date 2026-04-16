@@ -22,5 +22,6 @@
 module.exports = {
   'set': require('./set'),
   'if': require('./if'),
-  'for': require('./for')
+  'for': require('./for'),
+  'block': require('./block')
 };
