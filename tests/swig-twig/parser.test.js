@@ -1684,3 +1684,175 @@ describe('@rhinostone/swig-twig — parser.parse — {% macro %} tag', function 
     });
   });
 });
+
+/* ================================================================ *
+ * Phase 3 Session 10 — Twig `{% import %}` tag.
+ *
+ * Loads a template, walks its `{% macro %}` tokens, and namespaces
+ * each into `_ctx.<alias>` via regex-surgery over the compiled JS.
+ * Stays on IRLegacyJS per the flavor-invariant test (swig-specific
+ * coupling on compiled macro source shape).
+ * ================================================================ */
+describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  // Build a mock swig instance whose `parseFile` routes back into
+  // `parser.parse` against an in-memory template map. This is the
+  // minimum surface the import tag's parse handler reaches into.
+  function mockSwig(templates) {
+    var instance = {
+      parseFile: function (pathname, fileOpts) {
+        if (!templates.hasOwnProperty(pathname)) {
+          throw new Error('Template not found: ' + pathname);
+        }
+        var opts = fileOpts || {};
+        opts.filename = pathname;
+        return parser.parse(instance, templates[pathname], opts, tags, {});
+      }
+    };
+    return instance;
+  }
+
+  it('stashes macro list + alias on token.args', function () {
+    var swig = mockSwig({
+      'forms.twig': '{% macro foo(a) %}hi {{ a }}{% endmacro %}{% macro bar() %}bye{% endmacro %}'
+    });
+    var tree = parser.parse(swig, '{% import "forms.twig" as form %}', { filename: 'tpl.twig' }, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('import');
+    expect(tok.args).to.have.length(3);
+    expect(tok.args[0].name).to.equal('foo');
+    expect(typeof tok.args[0].compiled).to.equal('string');
+    expect(tok.args[0].compiled).to.match(/_ctx\.foo = function/);
+    expect(tok.args[1].name).to.equal('bar');
+    expect(tok.args[1].compiled).to.match(/_ctx\.bar = function/);
+    expect(tok.args[2]).to.equal('form');
+  });
+
+  it('namespaces compiled macros under the alias', function () {
+    var swig = mockSwig({
+      'forms.twig': '{% macro foo() %}hi{% endmacro %}'
+    });
+    var tree = parser.parse(swig, '{% import "forms.twig" as form %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    var out = tok.compile(null, tok.args.slice(0));
+    expect(out).to.match(/^_ctx\.form = \{\};/);
+    expect(out).to.match(/_ctx\.form\.foo = function/);
+    expect(out).to.not.match(/_ctx\.foo = function/);
+  });
+
+  it('rewrites sibling-macro references within compiled bodies', function () {
+    // bar calls foo — the sibling reference in bar's body must also
+    // rewrite to _ctx.form.foo.
+    var swig = mockSwig({
+      'forms.twig': '{% macro foo() %}hi{% endmacro %}{% macro bar() %}{{ foo() }}{% endmacro %}'
+    });
+    var tree = parser.parse(swig, '{% import "forms.twig" as form %}', { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    var out = tok.compile(null, tok.args.slice(0));
+    expect(out).to.match(/_ctx\.form\.foo = function/);
+    expect(out).to.match(/_ctx\.form\.bar = function/);
+  });
+
+  it('supports single-quoted path', function () {
+    var swig = mockSwig({
+      'forms.twig': '{% macro foo() %}hi{% endmacro %}'
+    });
+    var tree = parser.parse(swig, "{% import 'forms.twig' as form %}", { filename: 'tpl.twig' }, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args[tok.args.length - 1]).to.equal('form');
+    expect(tok.args[0].name).to.equal('foo');
+  });
+
+  it('throws on missing path', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected template path in "import" tag/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on VAR path (dynamic import rejection)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import pathVar as form %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Dynamic "import" is not supported/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on missing "as" keyword', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import "forms.twig" form %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected "as" keyword after path in "import" tag/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on missing alias after "as"', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import "forms.twig" as %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected namespace alias after "as" in "import" tag/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on dotted alias (bare-identifier rule)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import "forms.twig" as foo.bar %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Import alias "foo\.bar" must be a bare identifier/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('CVE-2023-25345: blocks __proto__ as alias', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import "forms.twig" as __proto__ %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe import alias "__proto__" is not allowed/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('CVE-2023-25345: blocks constructor as alias', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import "forms.twig" as constructor %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe import alias "constructor" is not allowed/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('CVE-2023-25345: blocks prototype as alias', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import "forms.twig" as prototype %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe import alias "prototype" is not allowed/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('throws on trailing tokens after alias', function () {
+    var swig = mockSwig({ 'forms.twig': '{% macro foo() %}hi{% endmacro %}' });
+    expect(function () {
+      parser.parse(swig, '{% import "forms.twig" as form junk %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected token "junk" after alias/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws when swig engine context is missing', function () {
+    expect(function () {
+      parser.parse(undefined, '{% import "forms.twig" as form %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/"import" tag requires an engine context with a loader/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+});
