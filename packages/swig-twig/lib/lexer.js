@@ -163,9 +163,15 @@ var rules = [
     ]
   },
   {
+    // NB: inner segment is `\w+` (not `\w*`) so `..` cannot be absorbed as a
+    // zero-width interior segment of a dotted path — `start..end` then
+    // cleanly decomposes into VAR `start` + RANGE `..` + VAR `end`. Native
+    // swig-core's VAR rule still uses `\w*` because it has no RANGE token;
+    // do not copy this tightening back without also auditing native's path
+    // semantics. Phase 3 Session 6.
     type: TYPES.VAR,
     regex: [
-      /^[a-zA-Z_$]\w*((\.\$?\w*)+)?/,
+      /^[a-zA-Z_$]\w*((\.\$?\w+)+)?/,
       /^[a-zA-Z_$]\w*/
     ]
   },

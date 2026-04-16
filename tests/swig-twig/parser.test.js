@@ -271,6 +271,57 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
     });
   });
 
+  describe('range (..)', function () {
+    it('lowers a..b to FnCall(_range, [a, b])', function () {
+      var node = parse('1..3');
+      expect(node.type).to.equal('FnCall');
+      expect(node.callee.type).to.equal('VarRef');
+      expect(node.callee.path).to.eql(['_range']);
+      expect(node.args).to.have.length(2);
+      expect(node.args[0].value).to.equal(1);
+      expect(node.args[1].value).to.equal(3);
+    });
+
+    it('binds looser than + (1..3 + 1 → _range(1, 3+1))', function () {
+      var node = parse('1..3 + 1');
+      expect(node.type).to.equal('FnCall');
+      expect(node.callee.path).to.eql(['_range']);
+      expect(node.args[0].value).to.equal(1);
+      expect(node.args[1].type).to.equal('BinaryOp');
+      expect(node.args[1].op).to.equal('+');
+      expect(node.args[1].left.value).to.equal(3);
+      expect(node.args[1].right.value).to.equal(1);
+    });
+
+    it('binds tighter than && (a..b && c → (_range(a,b)) && c)', function () {
+      var node = parse('1..3 && x');
+      expect(node.type).to.equal('BinaryOp');
+      expect(node.op).to.equal('&&');
+      expect(node.left.type).to.equal('FnCall');
+      expect(node.left.callee.path).to.eql(['_range']);
+      expect(node.right.path).to.eql(['x']);
+    });
+
+    it('is left-associative (a..b..c → _range(_range(a,b), c))', function () {
+      var node = parse('1..2..3');
+      expect(node.type).to.equal('FnCall');
+      expect(node.callee.path).to.eql(['_range']);
+      expect(node.args[0].type).to.equal('FnCall');
+      expect(node.args[0].callee.path).to.eql(['_range']);
+      expect(node.args[0].args[0].value).to.equal(1);
+      expect(node.args[0].args[1].value).to.equal(2);
+      expect(node.args[1].value).to.equal(3);
+    });
+
+    it('accepts variable operands (start..end)', function () {
+      var node = parse('start..end');
+      expect(node.type).to.equal('FnCall');
+      expect(node.callee.path).to.eql(['_range']);
+      expect(node.args[0].path).to.eql(['start']);
+      expect(node.args[1].path).to.eql(['end']);
+    });
+  });
+
   describe('null-coalescing (??)', function () {
     it('parses a ?? b as BinaryOp(??)', function () {
       var node = parse('a ?? b');
