@@ -357,6 +357,49 @@ exports.e = exports.escape;
  * @return {*}
  */
 /**
+ * Extract a slice of a string or array.
+ *
+ * Mirrors Twig's `slice` and PHP's `array_slice` / `substr` semantics:
+ * negative `start` counts from the end; `length` omitted or null slices
+ * to the end; negative `length` stops that many elements from the end.
+ * Non-string non-array input passes through unchanged.
+ *
+ * @example
+ * {{ "Hello, World"|slice(7, 5) }}
+ * // => World
+ *
+ * @example
+ * {{ [1, 2, 3, 4, 5]|slice(-2)|join(",") }}
+ * // => 4,5
+ *
+ * @param  {string|array} input
+ * @param  {number} start
+ * @param  {number} [length]
+ * @return {string|array}
+ */
+exports.slice = function (input, start, length) {
+  if (input === null || input === undefined) {
+    return input;
+  }
+  var isStr = typeof input === 'string';
+  var isArr = utils.isArray(input);
+  if (!isStr && !isArr) {
+    return input;
+  }
+  var len = input.length;
+  var s = start < 0 ? Math.max(0, len + start) : Math.min(start, len);
+  var e;
+  if (length === undefined || length === null) {
+    e = len;
+  } else if (length < 0) {
+    e = Math.max(s, len + length);
+  } else {
+    e = Math.min(s + length, len);
+  }
+  return input.slice(s, e);
+};
+
+/**
  * Format a number with grouped thousands and a fixed number of decimals.
  *
  * Mirrors Twig's `number_format` filter and PHP's `number_format`:
