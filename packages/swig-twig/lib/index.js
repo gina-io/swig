@@ -26,15 +26,31 @@ exports.name = 'twig';
 exports.parser = require('./parser');
 
 /**
- * Parse a Twig source string into a swig-core IR Template node.
+ * Built-in Twig tag registry. See `./tags/index.js` for the per-tag shape.
  *
- * @param  {string} source            Twig template source.
- * @param  {object} [options]         Per-call frontend options.
- * @return {object}                   IR Template node — see
- *                                    @rhinostone/swig-core/lib/ir
- *                                    `IRTemplate` typedef.
- * @throws {Error}                    Not yet implemented.
+ * @type {object}
+ */
+exports.tags = require('./tags');
+
+/**
+ * Parse a Twig source string into the parse-tree shape consumed by
+ * swig-core's `engine.compile`: `{ name, parent, tokens, blocks }`.
+ *
+ * Convenience wrapper around `exports.parser.parse(swig, source, options,
+ * tags, filters)` — defaults `tags` to the built-in Twig registry and
+ * `filters` to an empty map. Callers wiring Twig as a frontend through
+ * `engine.install(self, frontend)` should call `exports.parser.parse`
+ * directly so the engine's own filter and tag maps flow through.
+ *
+ * @param  {string} source     Twig template source.
+ * @param  {object} [options]  Per-call frontend options
+ *                             (`autoescape`, `varControls`, `tagControls`,
+ *                             `cmtControls`, `filename`, `tags`, `filters`).
+ * @return {object}            `{ name, parent, tokens, blocks }`.
  */
 exports.parse = function (source, options) {
-  throw new Error('@rhinostone/swig-twig: parse is not yet implemented (Phase 3 scaffold).');
+  options = options || {};
+  var tags = options.tags || exports.tags;
+  var filters = options.filters || {};
+  return exports.parser.parse(undefined, source, options, tags, filters);
 };
