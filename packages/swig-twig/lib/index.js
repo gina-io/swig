@@ -33,6 +33,18 @@ exports.parser = require('./parser');
 exports.tags = require('./tags');
 
 /**
+ * Built-in Twig filter catalog. See `./filters.js` for the per-filter shape.
+ *
+ * Shipped as the Twig frontend's `_filters` runtime map and `setFilter`
+ * mutation target via `engine.install(self, frontend)`. Filters marked
+ * `.safe = true` suppress the autoescape `e` tail injected by
+ * `parseVariable`. Only `raw` carries `.safe = true` this session.
+ *
+ * @type {object}
+ */
+exports.filters = require('./filters');
+
+/**
  * Parse a Twig source string into the parse-tree shape consumed by
  * swig-core's `engine.compile`: `{ name, parent, tokens, blocks }`.
  *
@@ -51,6 +63,6 @@ exports.tags = require('./tags');
 exports.parse = function (source, options) {
   options = options || {};
   var tags = options.tags || exports.tags;
-  var filters = options.filters || {};
+  var filters = options.filters || exports.filters;
   return exports.parser.parse(undefined, source, options, tags, filters);
 };
