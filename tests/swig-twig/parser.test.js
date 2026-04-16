@@ -1346,3 +1346,73 @@ describe('@rhinostone/swig-twig — parser.parse — {% block %} tag', function 
     });
   });
 });
+
+/**
+ * Phase 3 Session 9 — `{% extends %}` tag tests.
+ */
+describe('@rhinostone/swig-twig — parser.parse — {% extends %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  it('sets template.parent from a double-quoted STRING path', function () {
+    var tree = parser.parse(undefined, '{% extends "layout.twig" %}', {}, tags, {});
+    expect(tree.parent).to.equal('layout.twig');
+  });
+
+  it('sets template.parent from a single-quoted STRING path', function () {
+    var tree = parser.parse(undefined, "{% extends 'layout.twig' %}", {}, tags, {});
+    expect(tree.parent).to.equal('layout.twig');
+  });
+
+  it('captures block overrides alongside extends in a child template', function () {
+    var src = '{% extends "parent.twig" %}{% block a %}A1{% endblock %}{% block b %}B1{% endblock %}';
+    var tree = parser.parse(undefined, src, {}, tags, {});
+    expect(tree.parent).to.equal('parent.twig');
+    expect(tree.blocks).to.have.property('a');
+    expect(tree.blocks).to.have.property('b');
+    expect(tree.blocks.a.args).to.eql(['a']);
+    expect(tree.blocks.b.args).to.eql(['b']);
+  });
+
+  it('extends.compile returns undefined (no-op) — no runtime code emitted', function () {
+    var tree = parser.parse(undefined, '{% extends "layout.twig" %}', {}, tags, {});
+    var extendsToken = tree.tokens[0];
+    expect(extendsToken.name).to.equal('extends');
+    expect(extendsToken.ends).to.equal(false);
+    expect(extendsToken.compile()).to.equal(undefined);
+  });
+
+  it('throws on missing parent path', function () {
+    expect(function () {
+      parser.parse(undefined, '{% extends %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected parent template path/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on VAR parent (dynamic extends rejected)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% extends parentTpl %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Dynamic "extends" is not supported/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on ternary parent (dynamic extends rejected)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% extends a ? "x" : "y" %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Dynamic "extends" is not supported/);
+    });
+  });
+
+  it('throws on trailing tokens after STRING path', function () {
+    expect(function () {
+      parser.parse(undefined, '{% extends "a.twig" "b.twig" %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected token/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+});

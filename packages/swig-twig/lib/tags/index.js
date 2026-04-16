@@ -23,5 +23,6 @@ module.exports = {
   'set': require('./set'),
   'if': require('./if'),
   'for': require('./for'),
-  'block': require('./block')
+  'block': require('./block'),
+  'extends': require('./extends')
 };
