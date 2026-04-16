@@ -400,6 +400,61 @@ exports.slice = function (input, start, length) {
 };
 
 /**
+ * Split a string into an array on a delimiter.
+ *
+ * Mirrors Twig's `split` filter and PHP's `explode` / `str_split`:
+ * positive `limit` caps the number of returned pieces (last piece
+ * absorbs the remainder); negative `limit` drops that many pieces
+ * from the tail; zero or omitted `limit` splits without a cap.
+ * An empty delimiter splits by character — with a positive `limit`,
+ * each chunk is `limit` characters wide (last chunk may be shorter).
+ *
+ * @example
+ * {{ "one,two,three"|split(",") }}
+ * // => ["one","two","three"]
+ *
+ * @example
+ * {{ "one,two,three,four"|split(",", 3) }}
+ * // => ["one","two","three,four"]
+ *
+ * @param  {string} input
+ * @param  {string} delimiter
+ * @param  {number} [limit]
+ * @return {string[]}
+ */
+exports.split = function (input, delimiter, limit) {
+  if (typeof input !== 'string') {
+    return input;
+  }
+  if (delimiter === '') {
+    if (limit === undefined || limit === null || limit <= 1) {
+      return input.split('');
+    }
+    var out = [];
+    var i = 0;
+    while (i < input.length) {
+      out.push(input.substr(i, limit));
+      i += limit;
+    }
+    return out;
+  }
+  if (limit === undefined || limit === null || limit === 0) {
+    return input.split(delimiter);
+  }
+  if (limit > 0) {
+    var parts = input.split(delimiter);
+    if (parts.length <= limit) {
+      return parts;
+    }
+    var head = parts.slice(0, limit - 1);
+    head.push(parts.slice(limit - 1).join(delimiter));
+    return head;
+  }
+  var all = input.split(delimiter);
+  return all.slice(0, Math.max(0, all.length + limit));
+};
+
+/**
  * Format a number with grouped thousands and a fixed number of decimals.
  *
  * Mirrors Twig's `number_format` filter and PHP's `number_format`:

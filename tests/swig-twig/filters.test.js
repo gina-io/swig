@@ -212,6 +212,39 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('split', function () {
+    it('splits a string on a delimiter', function () {
+      expect(filters.split('one,two,three', ',')).to.eql(['one', 'two', 'three']);
+    });
+    it('splits with a positive limit (last piece keeps the rest)', function () {
+      expect(filters.split('one,two,three,four', ',', 3)).to.eql(['one', 'two', 'three,four']);
+    });
+    it('splits with a negative limit (drops N from the tail)', function () {
+      expect(filters.split('one,two,three,four', ',', -1)).to.eql(['one', 'two', 'three']);
+    });
+    it('returns all pieces when limit exceeds the piece count', function () {
+      expect(filters.split('a,b', ',', 10)).to.eql(['a', 'b']);
+    });
+    it('splits by character when delimiter is empty', function () {
+      expect(filters.split('hello', '')).to.eql(['h', 'e', 'l', 'l', 'o']);
+    });
+    it('splits by fixed-width chunks when delimiter is empty and limit > 1', function () {
+      expect(filters.split('hello', '', 2)).to.eql(['he', 'll', 'o']);
+    });
+    it('ignores a zero limit', function () {
+      expect(filters.split('a,b,c', ',', 0)).to.eql(['a', 'b', 'c']);
+    });
+    it('returns empty array when negative limit drops all pieces', function () {
+      expect(filters.split('a,b', ',', -5)).to.eql([]);
+    });
+    it('returns non-string input unchanged', function () {
+      expect(filters.split(42, ',')).to.equal(42);
+    });
+    it('is NOT marked safe', function () {
+      expect(filters.split.safe).to.be(undefined);
+    });
+  });
+
   describe('number_format', function () {
     it('formats with defaults (0 decimals, "." decimal, "," thousand)', function () {
       expect(filters.number_format(1234567)).to.equal('1,234,567');
