@@ -40,6 +40,7 @@ var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'd
  *   post  | DOTKEY BRACKETOPEN PARENOPEN        | —
  *          | FILTER FILTEREMPTY                 |
  *   pfx   | NOT, unary +/-                     | —
+ *   tern  | ? : (QMARK/COLON — ternary + Elvis) | right, minPrec=0 only
  *
  * @param  {object[]} tokens     LexerToken[] from swig-twig's lexer.
  * @param  {object}   [filters]  Filter catalog for name validation.
@@ -323,6 +324,39 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         left = ir.fnCall(ir.varRef(['_range']), [left, right]);
       } else {
         left = ir.binaryOp(info.op, left, right);
+      }
+    }
+    // Ternary + Elvis — binds looser than every binary op, so it's only
+    // handled at the top-level minPrec === 0 entry. Recursive calls (RHS
+    // of a binary op, object-literal values, arg-list elements via
+    // parseExpression(0)) still get ternary via their own top-level entry;
+    // recursive calls for a binary op's RHS run at prec + 1 ≥ 1 and skip
+    // this branch, which is what lets `a + b ? c : d` parse as
+    // `(a + b) ? c : d` rather than `a + (b ? c : d)`.
+    //
+    // Elvis shorthand `a ?: b` lowers to Conditional(a, a, b). The `a`
+    // subexpression is evaluated twice by downstream emitters — that's a
+    // documented consequence of the transliteration. Callers with
+    // side-effecting `a` should bind it to a variable first.
+    if (minPrec === 0) {
+      var qtok = peek();
+      if (qtok && qtok.type === _t.QMARK) {
+        consume();
+        var afterQ = peek();
+        var elseBranch;
+        if (afterQ && afterQ.type === _t.COLON) {
+          consume();
+          elseBranch = parseExpression(0);
+          left = ir.conditional(left, left, elseBranch);
+        } else {
+          var thenBranch = parseExpression(0);
+          var colon = consume();
+          if (!colon || colon.type !== _t.COLON) {
+            bail('Expected colon in ternary expression');
+          }
+          elseBranch = parseExpression(0);
+          left = ir.conditional(left, thenBranch, elseBranch);
+        }
       }
     }
     return left;
