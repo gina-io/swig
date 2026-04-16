@@ -628,3 +628,57 @@ exports.keys = function (input) {
   }
   return [];
 };
+
+/**
+ * Merge an array or object into another.
+ *
+ * When both operands are arrays, the result is the concatenation of the
+ * two (no dedup). When either operand is a plain object, the result is a
+ * shallow object merge with the right-hand operand's keys winning on
+ * collision. Non-array / non-object operands are passed through as-is.
+ *
+ * @example
+ * {{ [1, 2]|merge([3, 4])|join(",") }}
+ * // => 1,2,3,4
+ *
+ * @example
+ * {{ {"a": 1, "b": 2}|merge({"b": 99, "c": 3}) }}
+ * // => {"a":1,"b":99,"c":3}
+ *
+ * @param  {*} input
+ * @param  {*} other
+ * @return {*}
+ */
+exports.merge = function (input, other) {
+  if (other === undefined || other === null) {
+    return input;
+  }
+  if (utils.isArray(input) && utils.isArray(other)) {
+    return input.concat(other);
+  }
+  var out = {};
+  var k;
+  if (utils.isArray(input)) {
+    for (var i = 0; i < input.length; i += 1) {
+      out[i] = input[i];
+    }
+  } else if (input && typeof input === 'object') {
+    for (k in input) {
+      if (input.hasOwnProperty(k)) { out[k] = input[k]; }
+    }
+  } else {
+    return input;
+  }
+  if (utils.isArray(other)) {
+    for (var j = 0; j < other.length; j += 1) {
+      out[j] = other[j];
+    }
+  } else if (typeof other === 'object') {
+    for (k in other) {
+      if (other.hasOwnProperty(k)) { out[k] = other[k]; }
+    }
+  } else {
+    return input;
+  }
+  return out;
+};

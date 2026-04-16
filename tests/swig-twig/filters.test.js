@@ -409,6 +409,39 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('merge', function () {
+    it('concatenates two arrays', function () {
+      expect(filters.merge([1, 2], [3, 4])).to.eql([1, 2, 3, 4]);
+    });
+    it('does not dedup array entries', function () {
+      expect(filters.merge([1, 2], [2, 3])).to.eql([1, 2, 2, 3]);
+    });
+    it('merges two objects; right-hand wins on collision', function () {
+      expect(filters.merge({ a: 1, b: 2 }, { b: 99, c: 3 })).to.eql({ a: 1, b: 99, c: 3 });
+    });
+    it('merges object into array input using object shape', function () {
+      expect(filters.merge([10, 20], { x: 'y' })).to.eql({ 0: 10, 1: 20, x: 'y' });
+    });
+    it('merges array into object by renumbering', function () {
+      expect(filters.merge({ a: 1 }, [10, 20])).to.eql({ a: 1, 0: 10, 1: 20 });
+    });
+    it('returns input when other is null', function () {
+      expect(filters.merge([1], null)).to.eql([1]);
+    });
+    it('returns input when other is undefined', function () {
+      expect(filters.merge([1], undefined)).to.eql([1]);
+    });
+    it('returns input when input is non-array non-object', function () {
+      expect(filters.merge('hi', { a: 1 })).to.equal('hi');
+    });
+    it('returns input when other is non-array non-object', function () {
+      expect(filters.merge({ a: 1 }, 'x')).to.eql({ a: 1 });
+    });
+    it('is NOT marked safe', function () {
+      expect(filters.merge.safe).to.be(undefined);
+    });
+  });
+
   describe('escape / e', function () {
     it('HTML-escapes by default', function () {
       expect(filters.escape('<b>')).to.equal('&lt;b&gt;');
