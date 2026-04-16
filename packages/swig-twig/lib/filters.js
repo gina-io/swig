@@ -581,6 +581,73 @@ exports.number_format = function (input, decimals, decimalPoint, thousandSep) {
   return parts.join(dp);
 };
 
+/**
+ * Replace occurrences of each key in `from` with its corresponding value.
+ *
+ * Mirrors Twig's `replace` filter (which wraps PHP's `strtr` array form):
+ * all pairs are applied simultaneously rather than sequentially, so a
+ * replacement value containing one of the keys does NOT get re-replaced
+ * on a later pass. When two keys overlap at the same position, the longer
+ * key wins (matching `strtr`'s longest-first semantics); ties are broken
+ * by insertion order.
+ *
+ * Divergent from native swig's `replace(search, replacement, flags)`
+ * which takes three string args and uses `new RegExp(...)` semantics.
+ * Twig's API takes a single object argument and does literal
+ * (non-regex) string matching.
+ *
+ * Non-string input passes through unchanged. A missing, null, or
+ * non-object `from` passes through unchanged. Empty-string keys are
+ * silently skipped (a zero-length match would loop forever).
+ *
+ * @example
+ * {{ "I like %this% and %that%"|replace({"%this%": "foo", "%that%": "bar"}) }}
+ * // => I like foo and bar
+ *
+ * @example
+ * {{ "hello"|replace({"h": "j", "j": "k"}) }}
+ * // => jello
+ *
+ * @param  {string} input
+ * @param  {object} from   Map of search strings to replacement strings.
+ * @return {string}
+ */
+exports.replace = function (input, from) {
+  if (typeof input !== 'string') {
+    return input;
+  }
+  if (!from || typeof from !== 'object' || utils.isArray(from)) {
+    return input;
+  }
+  var keys = utils.keys(from);
+  if (keys.length === 0) {
+    return input;
+  }
+  keys.sort(function (a, b) {
+    return b.length - a.length;
+  });
+  var out = '';
+  var i = 0;
+  while (i < input.length) {
+    var matched = false;
+    for (var j = 0; j < keys.length; j += 1) {
+      var key = keys[j];
+      if (key.length === 0) { continue; }
+      if (input.substring(i, i + key.length) === key) {
+        out += String(from[key]);
+        i += key.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      out += input.charAt(i);
+      i += 1;
+    }
+  }
+  return out;
+};
+
 exports['default'] = function (input, fallback) {
   if (input === undefined || input === null || input === false) {
     return fallback;

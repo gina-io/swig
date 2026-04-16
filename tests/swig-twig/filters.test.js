@@ -497,4 +497,46 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  describe('replace', function () {
+    it('replaces a single pair', function () {
+      expect(filters.replace('hello world', { world: 'there' })).to.equal('hello there');
+    });
+    it('replaces multiple pairs simultaneously', function () {
+      expect(filters.replace('I like %this% and %that%', { '%this%': 'foo', '%that%': 'bar' })).to.equal('I like foo and bar');
+    });
+    it('does not re-scan replacement text (strtr semantics)', function () {
+      expect(filters.replace('hello', { h: 'j', j: 'k' })).to.equal('jello');
+    });
+    it('prefers the longest matching key at each position', function () {
+      expect(filters.replace('abcd', { a: 'X', ab: 'Y', abc: 'Z' })).to.equal('Zd');
+    });
+    it('coerces replacement values to strings', function () {
+      expect(filters.replace('x=?', { '?': 42 })).to.equal('x=42');
+    });
+    it('passes through non-string input unchanged', function () {
+      expect(filters.replace(42, { a: 'b' })).to.equal(42);
+      var arr = [1, 2];
+      expect(filters.replace(arr, { a: 'b' })).to.equal(arr);
+    });
+    it('passes through when `from` is null or undefined', function () {
+      expect(filters.replace('hello', null)).to.equal('hello');
+      expect(filters.replace('hello', undefined)).to.equal('hello');
+    });
+    it('passes through when `from` is empty object', function () {
+      expect(filters.replace('hello', {})).to.equal('hello');
+    });
+    it('rejects array `from` (must be plain object)', function () {
+      expect(filters.replace('hello', ['a', 'b'])).to.equal('hello');
+    });
+    it('skips empty-string keys without looping', function () {
+      expect(filters.replace('hello', { '': 'X', l: 'L' })).to.equal('heLLo');
+    });
+    it('returns empty string when input is empty', function () {
+      expect(filters.replace('', { a: 'b' })).to.equal('');
+    });
+    it('leaves input unchanged when no keys match', function () {
+      expect(filters.replace('hello', { xyz: 'abc' })).to.equal('hello');
+    });
+  });
+
 });
