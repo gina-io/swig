@@ -1214,3 +1214,135 @@ describe('@rhinostone/swig-twig — parser.parse — {% for %} tag', function ()
     });
   });
 });
+
+/**
+ * Phase 3 Session 9 — `{% block %}` tag tests.
+ */
+describe('@rhinostone/swig-twig — parser.parse — {% block %} tag', function () {
+  var tags = require('@rhinostone/swig-twig/lib/tags');
+
+  it('captures block name in args and ends=true', function () {
+    var tree = parser.parse(undefined, '{% block title %}hello{% endblock %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var tok = tree.tokens[0];
+    expect(tok.name).to.equal('block');
+    expect(tok.ends).to.equal(true);
+    expect(tok.block).to.equal(true);
+    expect(tok.args).to.eql(['title']);
+    expect(tok.content).to.have.length(1);
+    expect(tok.content[0].type).to.equal('Text');
+    expect(tok.content[0].value).to.equal('hello');
+  });
+
+  it('populates tree.blocks at top level keyed by block name', function () {
+    var tree = parser.parse(undefined, 'pre {% block a %}A{% endblock %} mid {% block b %}B{% endblock %} post', {}, tags, {});
+    expect(tree.blocks).to.have.property('a');
+    expect(tree.blocks).to.have.property('b');
+    expect(tree.blocks.a.name).to.equal('block');
+    expect(tree.blocks.a.args).to.eql(['a']);
+    expect(tree.blocks.b.args).to.eql(['b']);
+  });
+
+  it('keeps block token inline in tokens at top level (not only in blocks map)', function () {
+    var tree = parser.parse(undefined, '{% block x %}y{% endblock %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    expect(tree.tokens[0].name).to.equal('block');
+    expect(tree.blocks.x).to.equal(tree.tokens[0]);
+  });
+
+  it('accepts an empty body', function () {
+    var tree = parser.parse(undefined, '{% block empty %}{% endblock %}', {}, tags, {});
+    var tok = tree.tokens[0];
+    expect(tok.args).to.eql(['empty']);
+    expect(tok.content).to.have.length(0);
+  });
+
+  it('captures mixed text + output content', function () {
+    var tree = parser.parse(undefined, '{% block m %}hi {{ name }}!{% endblock %}', {}, tags, {});
+    var content = tree.tokens[0].content;
+    expect(content).to.have.length(3);
+    expect(content[0].type).to.equal('Text');
+    expect(content[0].value).to.equal('hi ');
+    expect(content[1].type).to.equal('Output');
+    expect(content[2].type).to.equal('Text');
+    expect(content[2].value).to.equal('!');
+  });
+
+  it('captures a nested block inside another block', function () {
+    var tree = parser.parse(undefined, '{% block outer %}o{% block inner %}i{% endblock %}o{% endblock %}', {}, tags, {});
+    expect(tree.tokens).to.have.length(1);
+    var outer = tree.tokens[0];
+    expect(outer.args).to.eql(['outer']);
+    expect(outer.content).to.have.length(3);
+    expect(outer.content[0].type).to.equal('Text');
+    expect(outer.content[1].name).to.equal('block');
+    expect(outer.content[1].args).to.eql(['inner']);
+    expect(outer.content[2].type).to.equal('Text');
+  });
+
+  it('only top-level blocks populate tree.blocks (nested blocks do not)', function () {
+    var tree = parser.parse(undefined, '{% block outer %}{% block inner %}x{% endblock %}{% endblock %}', {}, tags, {});
+    expect(tree.blocks).to.have.property('outer');
+    expect(tree.blocks).to.not.have.property('inner');
+  });
+
+  it('throws on empty block name', function () {
+    expect(function () {
+      parser.parse(undefined, '{% block %}body{% endblock %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Expected block name/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on dotted block name (bare identifier required)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% block foo.bar %}body{% endblock %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/must be a bare identifier/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on __proto__ block name (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% block __proto__ %}body{% endblock %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe block name "__proto__"/);
+      expect(e.message).to.match(/CVE-2023-25345/);
+    });
+  });
+
+  it('throws on constructor block name (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% block constructor %}body{% endblock %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe block name "constructor"/);
+    });
+  });
+
+  it('throws on prototype block name (CVE-2023-25345)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% block prototype %}body{% endblock %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe block name "prototype"/);
+    });
+  });
+
+  it('throws on trailing tokens after block name', function () {
+    expect(function () {
+      parser.parse(undefined, '{% block foo bar %}body{% endblock %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unexpected token "bar"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
+  it('throws on unclosed block', function () {
+    expect(function () {
+      parser.parse(undefined, '{% block foo %}body', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Missing end tag for "block"/);
+    });
+  });
+});
