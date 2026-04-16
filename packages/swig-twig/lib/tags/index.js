@@ -19,4 +19,6 @@
  * `from … import`.
  */
 
-module.exports = {};
+module.exports = {
+  'set': require('./set')
+};
