@@ -1,8 +1,7 @@
 {
   "name": "@rhinostone/swig-twig",
-  "version": "0.1.0-alpha.0",
-  "private": true,
-  "description": "Twig frontend for the @rhinostone/swig-core template engine. Phase 3 of the multi-flavor architecture (see @rhinostone/swig #T16). Not yet implemented — scaffolded as Phase 3 Session 1.",
+  "version": "2.0.0-alpha.3",
+  "description": "Twig frontend for the @rhinostone/swig-core template engine. Phase 3 of the multi-flavor architecture (see @rhinostone/swig #T16).",
   "keywords": [
     "template",
     "templating",
@@ -23,7 +22,7 @@
     "node": ">=12"
   },
   "peerDependencies": {
-    "@rhinostone/swig-core": "^0.1.0-alpha"
+    "@rhinostone/swig-core": "2.0.0-alpha.3"
   },
   "publishConfig": {
     "access": "public"

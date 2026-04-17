@@ -1,0 +1,4 @@
+kind: changed
+body: Internal carve — `lib/dateformatter.js` moved into `@rhinostone/swig-core/lib/dateformatter`. The old path stays as a shim so every existing `require('./dateformatter')` consumer (including `lib/swig.js` and `lib/filters.js`) resolves to the same exports object via Node's module cache. `swig.setDefaultTZOffset` continues to mutate the shared `tzOffset` binding. No user-visible change.
+custom:
+  Issue: ""

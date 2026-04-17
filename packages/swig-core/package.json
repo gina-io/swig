@@ -1,8 +1,7 @@
 {
   "name": "@rhinostone/swig-core",
-  "version": "0.1.0-alpha.0",
-  "private": true,
-  "description": "Shared IR, backend, and runtime for the @rhinostone/swig family of template engines. Not yet published — scaffolded as part of Phase 1 of the multi-flavor architecture (see @rhinostone/swig #T14).",
+  "version": "2.0.0-alpha.3",
+  "description": "Shared IR, backend, and runtime for the @rhinostone/swig family of template engines. First publish at 2.0.0-alpha.3 — see @rhinostone/swig #T14 (Phase 1 carve).",
   "keywords": [
     "template",
     "templating",

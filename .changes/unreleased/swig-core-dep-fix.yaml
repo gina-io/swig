@@ -1,0 +1,4 @@
+kind: fixed
+body: '`@rhinostone/swig@2.0.0-alpha.2` was unusable as a Node consumer — it relied on `@rhinostone/swig-core` at runtime but did not declare the dependency, so a fresh `npm install @rhinostone/swig@alpha` failed with `Cannot find module ''@rhinostone/swig-core''`. `2.0.0-alpha.3` adds an exact-version pin (`"@rhinostone/swig-core": "2.0.0-alpha.3"`) and ships all three packages (`@rhinostone/swig-core`, `@rhinostone/swig`, `@rhinostone/swig-twig`) in lockstep. `@rhinostone/swig@2.0.0-alpha.2` has been deprecated on the registry pointing users at alpha.3.'
+custom:
+  Issue: ""
