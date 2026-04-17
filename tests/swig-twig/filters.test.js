@@ -539,4 +539,66 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     });
   });
 
+  /*!
+   * {{ x|date(format[, offset[, abbr]]) }} — PHP-style format spec via
+   * the shared @rhinostone/swig-core/lib/dateformatter. Twig's native
+   * DateTime / DateInterval inputs, timezone-string argument, and
+   * locale-aware names are Phase 4 concerns. Today this matches the
+   * surface of native swig's `date` filter verbatim.
+   */
+  describe('date', function () {
+    // 2011-09-23 07:00:00 UTC — picked to match tests/filters.test.js's
+    // existing defaultTZOffset case so tests stay comparable across
+    // frontends.
+    var d = new Date(Date.UTC(2011, 8, 23, 7, 0, 0));
+
+    it('formats a Date with Y-m-d', function () {
+      expect(filters.date(d, 'Y-m-d')).to.equal('2011-09-23');
+    });
+    it('accepts epoch-ms numeric input', function () {
+      expect(filters.date(d.getTime(), 'Y-m-d')).to.equal('2011-09-23');
+    });
+    it('accepts ISO string input', function () {
+      expect(filters.date('2011-09-23T07:00:00Z', 'Y-m-d')).to.equal('2011-09-23');
+    });
+    it('escapes literal characters with backslash', function () {
+      // 'Y' yields 2011; '\\Y' passes a literal Y through to the formatter
+      // as a character the map doesn't own, so it emits as-is.
+      expect(filters.date(d, '\\Y=Y')).to.equal('Y=2011');
+    });
+    it('keeps unknown format characters literal', function () {
+      expect(filters.date(d, 'Y / m / d')).to.equal('2011 / 09 / 23');
+    });
+    it('honors the offset argument (UTC+4h → 11:00)', function () {
+      // offset is minutes WEST of GMT in swig-core's DateZ convention:
+      // -240 = GMT+4. For 07:00 UTC that lands at 11:00.
+      expect(filters.date(d, 'H:i', -240)).to.equal('11:00');
+    });
+    it('honors the offset argument (UTC-4h → 03:00)', function () {
+      // 240 = GMT-4, so 07:00 UTC lands at 03:00.
+      expect(filters.date(d, 'H:i', 240)).to.equal('03:00');
+    });
+    it('renders ordinal day via jS', function () {
+      expect(filters.date(d, 'jS')).to.equal('23rd');
+    });
+    it('renders full month name via F', function () {
+      expect(filters.date(d, 'F')).to.equal('September');
+    });
+    it('renders abbreviated month via M', function () {
+      expect(filters.date(d, 'M')).to.equal('Sep');
+    });
+    it('renders full day name via l', function () {
+      expect(filters.date(d, 'l')).to.equal('Friday');
+    });
+    it('renders 12-hour + meridiem via g:i a', function () {
+      expect(filters.date(d, 'g:i a')).to.equal('7:00 am');
+    });
+    it('returns epoch seconds via U', function () {
+      expect(filters.date(d, 'U')).to.equal(String(d.getTime() / 1000));
+    });
+    it('emits empty string for empty format', function () {
+      expect(filters.date(d, '')).to.equal('');
+    });
+  });
+
 });

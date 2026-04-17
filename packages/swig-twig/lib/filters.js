@@ -1,4 +1,5 @@
 var utils = require('@rhinostone/swig-core/lib/utils'),
+  dateFormatter = require('@rhinostone/swig-core/lib/dateformatter'),
   iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter;
 
 /**
@@ -785,6 +786,60 @@ exports.merge = function (input, other) {
     }
   } else {
     return input;
+  }
+  return out;
+};
+
+/**
+ * Format a date or Date-compatible string using a PHP-style format spec.
+ *
+ * Wraps the shared `@rhinostone/swig-core/lib/dateformatter`. Format
+ * tokens match PHP's `date()` — see the swig-core dateformatter for the
+ * full table (d/D/j/l/N/S/w/z, W, F/m/M/n/t, L/o/Y/y, a/A/B/g/G/h/H/i/s,
+ * O/Z, c/r/U). Backslash (`\`) escapes the next character so literal
+ * tokens can appear in the output.
+ *
+ * Twig's native `|date` accepts DateTime / DateInterval objects, a
+ * timezone string argument, and locale-aware month/day names. Those are
+ * Phase 4 concerns — today this filter supports the same surface as
+ * native swig's `date` filter: Date object or epoch-ms number input, a
+ * format string, an optional numeric `offset` in minutes from GMT, and
+ * an optional `abbr` timezone abbreviation (output-only).
+ *
+ * @example
+ * {{ now|date('Y-m-d') }}
+ * // => 2026-04-17
+ * @example
+ * {{ now|date('jS \\o\\f F') }}
+ * // => 17th of April
+ *
+ * @param  {?(string|Date|number)} input
+ * @param  {string}                format  PHP-style date format string. Escape literals with `\`.
+ * @param  {number=}               offset  Timezone offset from GMT in minutes.
+ * @param  {string=}               abbr    Timezone abbreviation. Output only.
+ * @return {string}                        Formatted date string.
+ */
+exports.date = function (input, format, offset, abbr) {
+  var l = format.length,
+    date = new dateFormatter.DateZ(input),
+    cur,
+    i = 0,
+    out = '';
+
+  if (offset) {
+    date.setTimezoneOffset(offset, abbr);
+  }
+
+  for (i; i < l; i += 1) {
+    cur = format.charAt(i);
+    if (cur === '\\') {
+      i += 1;
+      out += (i < l) ? format.charAt(i) : cur;
+    } else if (dateFormatter.hasOwnProperty(cur)) {
+      out += dateFormatter[cur](date, offset, abbr);
+    } else {
+      out += cur;
+    }
   }
   return out;
 };
