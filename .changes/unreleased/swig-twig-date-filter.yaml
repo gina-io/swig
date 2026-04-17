@@ -1,0 +1,4 @@
+kind: added
+body: '`@rhinostone/swig-twig` gains the `{{ x|date(format[, offset[, abbr]]) }}` filter. Accepts a `Date`, epoch-ms number, or date-compatible string; format spec matches PHP `date()` (backslash escapes literal characters). Wraps the shared `@rhinostone/swig-core/lib/dateformatter`, so `swig.setDefaultTZOffset` applies in Twig templates too. Twig-native `DateTime` / `DateInterval` inputs, timezone-string arguments, and locale-aware month/day names are Phase 4 concerns — today the filter surface matches native swig `date` verbatim.'
+custom:
+  Issue: ""
