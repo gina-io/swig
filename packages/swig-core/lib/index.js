@@ -15,6 +15,7 @@ exports.tokentypes = require('./tokentypes');
 exports.tokenparser = require('./tokenparser');
 exports.loaders = require('./loaders');
 exports.filters = require('./filters');
+exports.dateformatter = require('./dateformatter');
 exports.backend = require('./backend');
 exports.cache = require('./cache');
 exports.engine = require('./engine');
