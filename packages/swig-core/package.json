@@ -1,6 +1,6 @@
 {
   "name": "@rhinostone/swig-core",
-  "version": "2.0.0-alpha.3",
+  "version": "2.0.0-alpha.4",
   "description": "Shared IR, backend, and runtime for the @rhinostone/swig family of template engines. First publish at 2.0.0-alpha.3 — see @rhinostone/swig #T14 (Phase 1 carve).",
   "keywords": [
     "template",

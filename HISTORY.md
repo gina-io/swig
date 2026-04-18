@@ -1,3 +1,14 @@
+[2.0.0-alpha.4](https://github.com/gina-io/swig/tree/v2.0.0-alpha.4) / 2026-04-18
+---------------------------------------------------------------------------------
+
+* **Added** `@rhinostone/swig-twig` gains the `{{ x|date(format[, offset[, abbr]]) }}` filter. Accepts a `Date`, epoch-ms number, or date-compatible string; format spec matches PHP `date()` (backslash escapes literal characters). Wraps the shared `@rhinostone/swig-core/lib/dateformatter`, so `swig.setDefaultTZOffset` applies in Twig templates too. Twig-native `DateTime` / `DateInterval` inputs, timezone-string arguments, and locale-aware month/day names are Phase 4 concerns — today the filter surface matches native swig `date` verbatim.
+
+* **Fixed** `@rhinostone/swig@2.0.0-alpha.2` was unusable as a Node consumer — it relied on `@rhinostone/swig-core` at runtime but did not declare the dependency, so a fresh `npm install @rhinostone/swig@alpha` failed with `Cannot find module '@rhinostone/swig-core'`. `2.0.0-alpha.3` adds an exact-version pin (`"@rhinostone/swig-core": "2.0.0-alpha.3"`) and ships all three packages (`@rhinostone/swig-core`, `@rhinostone/swig`, `@rhinostone/swig-twig`) in lockstep. `@rhinostone/swig@2.0.0-alpha.2` has been deprecated on the registry pointing users at alpha.3.
+
+* **Changed** Internal carve — `lib/dateformatter.js` moved into `@rhinostone/swig-core/lib/dateformatter`. The old path stays as a shim so every existing `require('./dateformatter')` consumer (including `lib/swig.js` and `lib/filters.js`) resolves to the same exports object via Node's module cache. `swig.setDefaultTZOffset` continues to mutate the shared `tzOffset` binding. No user-visible change.
+
+* **Changed** `@rhinostone/swig-twig` soft-deprecates the legacy `exports.parse(source, options)` Path B wrapper. Calling it still returns a parse-tree shape (`{ name, parent, tokens, blocks }`) for backwards compatibility, but emits a one-shot `console.warn` on first invocation. Slated for removal in `2.0.0` stable. Migrate to `new twig.Twig(opts)` and the per-instance `precompile` / `compile` / `render` API installed by `engine.install` — the full-instance path uses closure-captured tag/filter maps and honors `setFilter` / `setTag` overrides, which the Path B wrapper does not.
+
 [2.0.0-alpha.2](https://github.com/gina-io/swig/tree/v2.0.0-alpha.2) / 2026-04-15
 ---------------------------------------------------------------------------------
 
