@@ -1,0 +1,4 @@
+kind: changed
+body: '`@rhinostone/swig-twig` soft-deprecates the legacy `exports.parse(source, options)` Path B wrapper. Calling it still returns a parse-tree shape (`{ name, parent, tokens, blocks }`) for backwards compatibility, but emits a one-shot `console.warn` on first invocation. Slated for removal in `2.0.0` stable. Migrate to `new twig.Twig(opts)` and the per-instance `precompile` / `compile` / `render` API installed by `engine.install` — the full-instance path uses closure-captured tag/filter maps and honors `setFilter` / `setTag` overrides, which the Path B wrapper does not.'
+custom:
+  Issue: ""
