@@ -177,8 +177,8 @@ exports.buildTemplateFunction = function (tokens, parents, options) {
  */
 exports.install = function (self, frontend) {
   var parser = frontend.parser,
-    tags = frontend.tags,
-    filters = frontend.filters,
+    tags = utils.extend({}, frontend.tags),
+    filters = utils.extend({}, frontend.filters),
     validateOptions = frontend.validateOptions,
     onCompileError = frontend.onCompileError;
 
