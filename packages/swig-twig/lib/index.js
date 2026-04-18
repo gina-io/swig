@@ -181,22 +181,29 @@ exports.invalidateCache = defaultInstance.invalidateCache;
  */
 exports.__express = defaultInstance.renderFile;
 
+var _parseDeprecationWarned = false;
+
 /**
  * Parse a Twig source string into the parse-tree shape consumed by
  * swig-core's `engine.compile`: `{ name, parent, tokens, blocks }`.
  *
- * Retained from Path B for backward compat with callers that pass
- * `options.tags` / `options.filters` overrides. The full-instance path
- * (`defaultInstance.parse` via engine.install) uses closure-captured
- * maps and does not honor overrides — prefer `new exports.Twig(opts)`
- * for per-instance customisation. Scheduled for retirement once
- * dependents migrate (#T16 Session 17 C3).
+ * @deprecated since 2.0.0-alpha.4 — use `new exports.Twig(opts)` and the
+ * per-instance `precompile` / `compile` / `render` surface installed by
+ * `engine.install`. Slated for removal in `2.0.0` stable. The full-instance
+ * path uses closure-captured tag/filter maps and honors `setFilter` /
+ * `setTag` overrides; this Path B wrapper does not.
  *
  * @param  {string} source     Twig template source.
  * @param  {object} [options]  Per-call options.
  * @return {object}            `{ name, parent, tokens, blocks }`.
  */
 exports.parse = function (source, options) {
+  if (!_parseDeprecationWarned) {
+    _parseDeprecationWarned = true;
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[@rhinostone/swig-twig] exports.parse is deprecated and will be removed in 2.0.0. Use `new twig.Twig(opts)` and the per-instance precompile/compile/render API instead.');
+    }
+  }
   options = options || {};
   var tags = options.tags || exports.tags;
   var filters = options.filters || exports.filters;
