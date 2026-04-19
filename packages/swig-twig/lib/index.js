@@ -16,7 +16,8 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
   dateformatter = require('@rhinostone/swig-core/lib/dateformatter'),
   parser = require('./parser'),
   _tags = require('./tags'),
-  _filters = require('./filters');
+  _filters = require('./filters'),
+  _tests = require('./tests');
 
 exports.name = 'twig';
 
@@ -140,6 +141,7 @@ exports.setDefaultTZOffset = function (offset) {
  * @return {object}           New Twig environment.
  */
 exports.Twig = function (opts) {
+  var self = this;
   validateOptions(opts);
   this.options = utils.extend({}, defaultOptions, opts || {});
   this.cache = {};
@@ -153,6 +155,16 @@ exports.Twig = function (opts) {
     onCompileError: function (err, options) {
       utils.throwError(err, null, options.filename);
     }
+  });
+
+  // Register Twig `is <name>` runtime helpers as `_ext._test_<name>`. The
+  // parser lowers `foo is odd` to a two-segment VarRef + FnCall pointing
+  // at this slot, so the helpers must be installed on every Twig
+  // instance (including the default one). `setExtension` attaches to the
+  // per-instance `extensions` map — consumers can still override a test
+  // with their own `setExtension('_test_<name>', fn)` after construction.
+  utils.each(_tests, function (fn, name) {
+    self.setExtension('_test_' + name, fn);
   });
 };
 

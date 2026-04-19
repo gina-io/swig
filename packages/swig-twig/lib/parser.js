@@ -371,7 +371,23 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       // parses as `(foo is defined) and bar`.
       if (info.op === 'is' || info.op === 'is not') {
         var test = parseTest();
-        var testCall = ir.fnCall(ir.varRef(['_test_' + test.name]), [left].concat(test.args));
+        var testCall;
+        // VarRef subjects coerce null/undefined to "" through checkMatchExpr
+        // in emitVarRef, which loses the defined/undefined signal that
+        // `is defined` / `is null` need. Route both through IRVarRefExists
+        // (same shape as the `??` fallback from C3) so a path that is
+        // actually undefined or null yields the right boolean instead of
+        // being compared against the coerced "" placeholder. Non-VarRef
+        // subjects (Literal, BinaryOp, FnCall, FilterCall) evaluate to a
+        // concrete value with no coercion, so they fall through to the
+        // generic `_ext._test_<name>` helper path registered by the engine.
+        if (test.args.length === 0 && left.type === 'VarRef' && test.name === 'defined') {
+          testCall = ir.varRefExists(left.path, left.loc);
+        } else if (test.args.length === 0 && left.type === 'VarRef' && test.name === 'null') {
+          testCall = ir.unaryOp('!', ir.varRefExists(left.path, left.loc));
+        } else {
+          testCall = ir.fnCall(ir.varRef(['_ext', '_test_' + test.name]), [left].concat(test.args));
+        }
         left = info.op === 'is not' ? ir.unaryOp('!', testCall) : testCall;
         continue;
       }
