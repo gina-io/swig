@@ -186,6 +186,25 @@ describe('swig-core/lib/backend — emitExpr', function () {
       var js = backend.emitExpr(ir.binaryOp('in', ir.literal('string', 'a'), ir.varRef(['items'])));
       expect(js).to.match(/^"a" in \(/);
     });
+
+    it('routes `??` with a VarRef LHS through IRVarRefExists to preserve the defined/undefined signal', function () {
+      // Twig `foo ?? "fallback"` — `foo` is a VarRef, emitVarRef would
+      // coerce missing to "" which is truthy-for-??. The special-case
+      // guards the ternary with emitVarRefExists so undefined keys fall
+      // through to the right-hand expression.
+      var js = backend.emitExpr(ir.binaryOp('??', ir.varRef(['foo']), ir.literal('string', 'fallback')));
+      expect(js).to.contain('((typeof _ctx.foo !== "undefined" && _ctx.foo !== null) || (typeof foo !== "undefined" && foo !== null))');
+      expect(js).to.contain(' ? ');
+      expect(js).to.contain(' : "fallback"');
+      expect(js).to.match(/^\(.* \? .* : "fallback"\)$/);
+    });
+
+    it('falls through to bare `left??right` when the LHS is not a VarRef', function () {
+      // A FnCall / FilterCall / Literal LHS doesn't go through
+      // emitVarRef and so doesn't suffer the missing-key → "" coercion
+      // — JavaScript's native `??` is sufficient.
+      expect(backend.emitExpr(ir.binaryOp('??', ir.literal('null', null), ir.literal('string', 'x')))).to.be('null??"x"');
+    });
   });
 
   describe('IRUnaryOp', function () {

@@ -663,6 +663,16 @@ function emitBinaryOp(node, d) {
   if (node.op === '~') {
     return '(String(' + left + ') + String(' + right + '))';
   }
+  // Twig `??` undefined-fallback: when LHS is a VarRef, route through
+  // IRVarRefExists to preserve the defined/undefined signal. emitVarRef
+  // coerces missing/null lookups to "", and "" is defined — a bare
+  // `<left>??<right>` emission would never take the fallback branch.
+  // Non-VarRef LHS (FnCall, FilterCall, Literal) doesn't coerce that
+  // way, so falling through to bare `left??right` is correct there.
+  if (node.op === '??' && node.left && node.left.type === 'VarRef') {
+    var existsNode = ir.varRefExists(node.left.path, node.left.loc);
+    return '(' + emitVarRefExists(existsNode, d) + ' ? ' + left + ' : ' + right + ')';
+  }
   return left + node.op + right;
 }
 
