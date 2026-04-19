@@ -87,6 +87,51 @@ describe('swig-core/lib/backend — emitExpr', function () {
     });
   });
 
+  describe('IRVarRefExists', function () {
+    it('emits a boolean disjunction of the two scope-prefix dot walks for a single segment', function () {
+      var js = backend.emitExpr(ir.varRefExists(['foo']));
+      expect(js).to.be(
+        '((typeof _ctx.foo !== "undefined" && _ctx.foo !== null) || ' +
+        '(typeof foo !== "undefined" && foo !== null))'
+      );
+    });
+
+    it('chains the dot-path null checks for a multi-segment path', function () {
+      var js = backend.emitExpr(ir.varRefExists(['user', 'profile', 'name']));
+      expect(js).to.be(
+        '((typeof _ctx.user !== "undefined" && _ctx.user !== null && _ctx.user.profile !== undefined && _ctx.user.profile !== null && _ctx.user.profile.name !== undefined && _ctx.user.profile.name !== null) || ' +
+        '(typeof user !== "undefined" && user !== null && user.profile !== undefined && user.profile !== null && user.profile.name !== undefined && user.profile.name !== null))'
+      );
+    });
+
+    it('does not coerce a missing or null result to "" — the boolean signal is the whole point', function () {
+      // Spot-check: no `? ... : ""` ternary tail anywhere in the emission,
+      // and no leading `(<...> !== null ? ...)` wrapper that emitVarRef
+      // adds. This is the contract distinction from IRVarRef.
+      var js = backend.emitExpr(ir.varRefExists(['foo']));
+      expect(js).to.not.contain('?');
+      expect(js).to.not.contain('""');
+    });
+
+    it('throws CVE-2023-25345 on a dangerous segment in the path', function () {
+      expect(function () {
+        backend.emitExpr(ir.varRefExists(['__proto__']));
+      }).to.throwException(/CVE-2023-25345/);
+      expect(function () {
+        backend.emitExpr(ir.varRefExists(['foo', 'constructor']));
+      }).to.throwException(/CVE-2023-25345/);
+      expect(function () {
+        backend.emitExpr(ir.varRefExists(['foo', 'prototype', 'bar']));
+      }).to.throwException(/CVE-2023-25345/);
+    });
+
+    it('throws on an empty path', function () {
+      expect(function () {
+        backend.emitExpr(ir.varRefExists([]));
+      }).to.throwException(/path must be a non-empty array/);
+    });
+  });
+
   describe('IRAccess', function () {
     it('emits object[key] with both operands recursively reduced', function () {
       var node = ir.access(ir.varRef(['items']), ir.literal('number', 0));
