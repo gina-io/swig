@@ -447,36 +447,38 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
   /* ---- is / is not tests ----------------------------------------- */
 
   describe('is / is not tests', function () {
-    it('lowers "foo is defined" to _test_defined(foo)', function () {
+    it('lowers "foo is defined" to IRVarRefExists(foo) — VarRef subject special case', function () {
       var node = parse('foo is defined');
-      expect(node.type).to.equal('FnCall');
-      expect(node.callee.type).to.equal('VarRef');
-      expect(node.callee.path).to.eql(['_test_defined']);
-      expect(node.args).to.have.length(1);
-      expect(node.args[0].type).to.equal('VarRef');
-      expect(node.args[0].path).to.eql(['foo']);
+      expect(node.type).to.equal('VarRefExists');
+      expect(node.path).to.eql(['foo']);
     });
 
-    it('lowers "foo is not defined" to UnaryOp(!, _test_defined(foo))', function () {
+    it('lowers "foo is not defined" to UnaryOp(!, VarRefExists(foo))', function () {
       var node = parse('foo is not defined');
       expect(node.type).to.equal('UnaryOp');
       expect(node.op).to.equal('!');
-      expect(node.operand.type).to.equal('FnCall');
-      expect(node.operand.callee.path).to.eql(['_test_defined']);
-      expect(node.operand.args[0].path).to.eql(['foo']);
+      expect(node.operand.type).to.equal('VarRefExists');
+      expect(node.operand.path).to.eql(['foo']);
     });
 
-    it('accepts FUNCTIONEMPTY test name (foo is defined())', function () {
+    it('accepts FUNCTIONEMPTY test name (foo is defined()) — same VarRefExists shape', function () {
       var node = parse('foo is defined()');
-      expect(node.type).to.equal('FnCall');
-      expect(node.callee.path).to.eql(['_test_defined']);
-      expect(node.args[0].path).to.eql(['foo']);
+      expect(node.type).to.equal('VarRefExists');
+      expect(node.path).to.eql(['foo']);
     });
 
-    it('accepts FUNCTION test name with args (n is divisibleby(3))', function () {
+    it('lowers "zilch is null" to UnaryOp(!, VarRefExists(zilch)) — VarRef subject special case', function () {
+      var node = parse('zilch is null');
+      expect(node.type).to.equal('UnaryOp');
+      expect(node.op).to.equal('!');
+      expect(node.operand.type).to.equal('VarRefExists');
+      expect(node.operand.path).to.eql(['zilch']);
+    });
+
+    it('accepts FUNCTION test name with args (n is divisibleby(3)) — routes through _ext._test_<name>', function () {
       var node = parse('n is divisibleby(3)');
       expect(node.type).to.equal('FnCall');
-      expect(node.callee.path).to.eql(['_test_divisibleby']);
+      expect(node.callee.path).to.eql(['_ext', '_test_divisibleby']);
       expect(node.args).to.have.length(2);
       expect(node.args[0].path).to.eql(['n']);
       expect(node.args[1].type).to.equal('Literal');
@@ -487,27 +489,29 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
       var node = parse('foo is defined && bar is null');
       expect(node.type).to.equal('BinaryOp');
       expect(node.op).to.equal('&&');
-      expect(node.left.type).to.equal('FnCall');
-      expect(node.left.callee.path).to.eql(['_test_defined']);
-      expect(node.right.type).to.equal('FnCall');
-      expect(node.right.callee.path).to.eql(['_test_null']);
+      expect(node.left.type).to.equal('VarRefExists');
+      expect(node.left.path).to.eql(['foo']);
+      expect(node.right.type).to.equal('UnaryOp');
+      expect(node.right.op).to.equal('!');
+      expect(node.right.operand.type).to.equal('VarRefExists');
+      expect(node.right.operand.path).to.eql(['bar']);
     });
 
-    it('binds looser than + ((a + 1) is defined)', function () {
+    it('binds looser than + ((a + 1) is defined) — BinaryOp subject falls through to _ext helper', function () {
       var node = parse('a + 1 is defined');
       expect(node.type).to.equal('FnCall');
-      expect(node.callee.path).to.eql(['_test_defined']);
+      expect(node.callee.path).to.eql(['_ext', '_test_defined']);
       expect(node.args[0].type).to.equal('BinaryOp');
       expect(node.args[0].op).to.equal('+');
     });
 
-    it('composes with is not and other operators', function () {
+    it('composes with is not and other operators (is empty routes through _ext helper)', function () {
       var node = parse('foo is not empty && bar');
       expect(node.type).to.equal('BinaryOp');
       expect(node.op).to.equal('&&');
       expect(node.left.type).to.equal('UnaryOp');
       expect(node.left.op).to.equal('!');
-      expect(node.left.operand.callee.path).to.eql(['_test_empty']);
+      expect(node.left.operand.callee.path).to.eql(['_ext', '_test_empty']);
       expect(node.right.path).to.eql(['bar']);
     });
 

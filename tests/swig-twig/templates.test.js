@@ -6,13 +6,6 @@
  * against its paired *.expectation.html. Supporting templates (layouts,
  * includes, imports) use bare *.twig and group under their own basename
  * with no .test. file; the walker skips those groups.
- *
- * Known gaps — fixtures intentionally omitted, not just untested:
- *
- * - `is X` tests lower to `_ctx._test_<name>` calls. That runtime helper
- *   is not registered on the swig-twig engine — the compiled template's
- *   _fn fallback silently swallows the call (returns ''). Surface as
- *   Phase 4 follow-up.
  */
 var fs = require('fs'),
   path = require('path'),
@@ -26,7 +19,11 @@ var locals = {
   second: 'Burritos',
   flag: true,
   defined: 'present',
-  bar: ['a', 'b', 'c']
+  bar: ['a', 'b', 'c'],
+  zilch: null,
+  hollow: '',
+  user: { name: 'Alice' },
+  num: 4
 };
 
 var casefiles = [],
