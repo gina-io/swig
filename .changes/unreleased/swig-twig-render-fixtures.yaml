@@ -1,0 +1,4 @@
+kind: added
+body: '`@rhinostone/swig-twig` end-to-end render-fixture suite at `tests/swig-twig/cases/` (19 `*.test.twig` + `.expectation.html` pairs across operators, Twig-specific tags, filter semantics, and multi-template flows), walked by `tests/swig-twig/templates.test.js`.'
+custom:
+  Issue: ""
