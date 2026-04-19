@@ -1,4 +1,0 @@
-kind: fixed
-body: '`@rhinostone/swig-core` backend now lowers Twig/Jinja2 `~` (string-concat) to `(String(left) + String(right))`. Bare `<left>~<right>` emission was JS unary bitwise-NOT and threw `SyntaxError` at compile time.'
-custom:
-  Issue: ""
