@@ -503,6 +503,7 @@ function emitExpr(node, d) {
   switch (node.type) {
   case 'Literal':       return emitLiteral(node, d);
   case 'VarRef':        return emitVarRef(node, d);
+  case 'VarRefExists':  return emitVarRefExists(node, d);
   case 'Access':        return emitAccess(node, d);
   case 'BinaryOp':      return emitBinaryOp(node, d);
   case 'UnaryOp':       return emitUnaryOp(node, d);
@@ -560,6 +561,55 @@ function emitVarRef(node, d) {
 }
 
 /*!
+ * Emit an existence-only check for a dot-path variable. Result is a JS
+ * boolean expression — truthy when every segment of `node.path` resolves
+ * defined and non-null in either `_ctx` or the surrounding closure
+ * scope, falsy otherwise. Distinct from {@link emitVarRef}, which
+ * coerces a missing or null result to `""` and so loses the
+ * defined/undefined signal that Twig's `is defined` test and `??`
+ * undefined-fallback need to preserve. @private
+ */
+function emitVarRefExists(node, d) {
+  if (!utils.isArray(node.path) || node.path.length === 0) {
+    d.throwError('emitVarRefExists: path must be a non-empty array');
+  }
+  utils.each(node.path, function (segment) {
+    checkDangerousSegment(segment, d, node);
+  });
+  return '(' + checkDotExpr(node.path, '_ctx.') + ' || ' + checkDotExpr(node.path, '') + ')';
+}
+
+/*!
+ * Build a `(typeof <head> !== "undefined" && <head> !== null && ...)`
+ * expression that is truthy when every segment of `path` is defined and
+ * non-null under the given lookup prefix (`'_ctx.'` for the dotted-ctx
+ * walk, `''` for the bare-closure walk).
+ *
+ * Hoisted out of {@link checkMatchExpr}'s inline `checkDot` closure so
+ * {@link emitVarRefExists} can reuse the same shape for Twig's
+ * `is defined` / `is null` tests and `??` undefined-fallback. The output
+ * MUST stay byte-identical to the pre-extraction inline form, since
+ * {@link checkMatchExpr}'s downstream concatenation is what every
+ * compiled VarRef body relies on. @private
+ */
+function checkDotExpr(path, ctxPrefix) {
+  var c = ctxPrefix + path[0],
+    build = '';
+
+  build = '(typeof ' + c + ' !== "undefined" && ' + c + ' !== null';
+  utils.each(path, function (v, i) {
+    if (i === 0) {
+      return;
+    }
+    build += ' && ' + c + '.' + v + ' !== undefined && ' + c + '.' + v + ' !== null';
+    c += '.' + v;
+  });
+  build += ')';
+
+  return build;
+}
+
+/*!
  * Replica of `TokenParser.prototype.checkMatch`. Kept as a local private
  * helper rather than imported from tokenparser.js because (a) it is a
  * pure function of its argument and (b) the backend must not acquire a
@@ -567,30 +617,12 @@ function emitVarRef(node, d) {
  * frontend concern, not a shared-backend one). @private
  */
 function checkMatchExpr(match) {
-  var temp = match[0], result;
-
-  function checkDot(ctx) {
-    var c = ctx + temp,
-      m = match,
-      build = '';
-
-    build = '(typeof ' + c + ' !== "undefined" && ' + c + ' !== null';
-    utils.each(m, function (v, i) {
-      if (i === 0) {
-        return;
-      }
-      build += ' && ' + c + '.' + v + ' !== undefined && ' + c + '.' + v + ' !== null';
-      c += '.' + v;
-    });
-    build += ')';
-
-    return build;
-  }
+  var result;
 
   function buildDot(ctx) {
-    return '(' + checkDot(ctx) + ' ? ' + ctx + match.join('.') + ' : "")';
+    return '(' + checkDotExpr(match, ctx) + ' ? ' + ctx + match.join('.') + ' : "")';
   }
-  result = '(' + checkDot('_ctx.') + ' ? ' + buildDot('_ctx.') + ' : ' + buildDot('') + ')';
+  result = '(' + checkDotExpr(match, '_ctx.') + ' ? ' + buildDot('_ctx.') + ' : ' + buildDot('') + ')';
   return '(' + result + ' !== null ? ' + result + ' : ' + '"" )';
 }
 

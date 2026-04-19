@@ -310,6 +310,27 @@
  */
 
 /**
+ * Existence check for a dot-path variable. Emits an expression that
+ * evaluates truthy when every segment of the path is defined and non-null
+ * (in either `_ctx` or the surrounding closure scope), false otherwise.
+ *
+ * Distinct from {@link IRVarRef}: VarRef coerces a missing or null result
+ * to the empty string for safe interpolation, which loses the
+ * defined/undefined signal that backends like Twig's `is defined` test
+ * and `??` undefined-fallback need. IRVarRefExists preserves that signal
+ * by returning the raw boolean disjunction of the dot-walks rather than
+ * the value itself.
+ *
+ * Every path segment MUST pass the dangerousProps guard at backend emit
+ * time, same rule as IRVarRef.
+ *
+ * @typedef {Object} IRVarRefExists
+ * @property {'VarRefExists'} type
+ * @property {string[]} path
+ * @property {IRLoc} [loc]
+ */
+
+/**
  * Dynamic (bracket) property access: `obj[key]`. `key` is any expression.
  * When `key` is an {@link IRLiteral} of kind `'string'`, the backend
  * applies the dangerousProps guard.
@@ -407,9 +428,9 @@
  * Any expression-position IR node.
  *
  * @typedef {(
- *   IRLiteral | IRVarRef | IRAccess | IRBinaryOp | IRUnaryOp |
- *   IRConditional | IRArrayLiteral | IRObjectLiteral | IRFnCall |
- *   IRFilterCallExpr
+ *   IRLiteral | IRVarRef | IRVarRefExists | IRAccess | IRBinaryOp |
+ *   IRUnaryOp | IRConditional | IRArrayLiteral | IRObjectLiteral |
+ *   IRFnCall | IRFilterCallExpr
  * )} IRExpr
  */
 
@@ -760,6 +781,17 @@ exports.literal = function (kind, value, loc) {
  */
 exports.varRef = function (path, loc) {
   return withLoc({ type: 'VarRef', path: path }, loc);
+};
+
+/**
+ * Build an {@link IRVarRefExists} existence check. Every path segment
+ * MUST pass the dangerousProps guard at backend emit time.
+ * @param  {string[]} path
+ * @param  {IRLoc}    [loc]
+ * @return {IRVarRefExists}
+ */
+exports.varRefExists = function (path, loc) {
+  return withLoc({ type: 'VarRefExists', path: path }, loc);
 };
 
 /**
