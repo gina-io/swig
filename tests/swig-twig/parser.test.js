@@ -591,6 +591,24 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
       expect(node.right.name).to.equal('upper');
       expect(node.right.input.path).to.eql(['b']);
     });
+
+    it('routes string literals through parsePostfix for filtering', function () {
+      var node = parse('"hi"|upper');
+      expect(node.type).to.equal('FilterCall');
+      expect(node.name).to.equal('upper');
+      expect(node.input.type).to.equal('Literal');
+      expect(node.input.kind).to.equal('string');
+      expect(node.input.value).to.equal('hi');
+    });
+
+    it('routes number literals through parsePostfix for filtering', function () {
+      var node = parse('42|json_encode');
+      expect(node.type).to.equal('FilterCall');
+      expect(node.name).to.equal('json_encode');
+      expect(node.input.type).to.equal('Literal');
+      expect(node.input.kind).to.equal('number');
+      expect(node.input.value).to.equal(42);
+    });
   });
 
   /* ---- String interpolation -------------------------------------- */

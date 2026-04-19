@@ -1,0 +1,4 @@
+kind: fixed
+body: '`@rhinostone/swig-twig` parser now routes STRING and NUMBER literal LHS through `parsePostfix`, so filter chains like `{{ "hi"|upper }}` and `{{ 42|json_encode }}` parse correctly instead of bailing with `Unexpected token "<filter>"`.'
+custom:
+  Issue: ""

@@ -302,11 +302,11 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     var m;
     switch (tok.type) {
     case _t.STRING:
-      return ir.literal('string', unquoteString(tok.match));
+      return parsePostfix(ir.literal('string', unquoteString(tok.match)));
     case _t.NUMBER:
-      return ir.literal('number', parseFloat(tok.match));
+      return parsePostfix(ir.literal('number', parseFloat(tok.match)));
     case _t.BOOL:
-      return ir.literal('bool', tok.match === 'true');
+      return parsePostfix(ir.literal('bool', tok.match === 'true'));
     case _t.NOT:
       return ir.unaryOp('!', parseUnary());
     case _t.OPERATOR:
