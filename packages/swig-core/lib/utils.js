@@ -182,3 +182,39 @@ exports.throwError = function (message, line, file) {
   }
   throw new Error(message + '.');
 };
+
+/**
+ * Inclusive range generator. Mirrors Twig's `..` operator semantics and
+ * PHP's range(): numeric bounds produce [from, from±1, ..., to]; single-
+ * character string bounds produce a char array across the charCode span.
+ * Descending when `from > to`. Mismatched or unsupported argument shapes
+ * return an empty array so compiled templates degrade silently rather
+ * than throwing at render time.
+ *
+ * @param  {number|string} from
+ * @param  {number|string} to
+ * @return {Array}
+ */
+exports.range = function (from, to) {
+  var out = [], i, fc, tc;
+  if (typeof from === 'number' && typeof to === 'number') {
+    if (from <= to) {
+      for (i = from; i <= to; i += 1) { out.push(i); }
+    } else {
+      for (i = from; i >= to; i -= 1) { out.push(i); }
+    }
+    return out;
+  }
+  if (typeof from === 'string' && typeof to === 'string' &&
+      from.length === 1 && to.length === 1) {
+    fc = from.charCodeAt(0);
+    tc = to.charCodeAt(0);
+    if (fc <= tc) {
+      for (i = fc; i <= tc; i += 1) { out.push(String.fromCharCode(i)); }
+    } else {
+      for (i = fc; i >= tc; i -= 1) { out.push(String.fromCharCode(i)); }
+    }
+    return out;
+  }
+  return out;
+};

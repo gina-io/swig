@@ -377,7 +377,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       }
       var right = parseExpression(info.prec + 1);
       if (info.op === '..') {
-        left = ir.fnCall(ir.varRef(['_range']), [left, right]);
+        left = ir.fnCall(ir.varRef(['_utils', 'range']), [left, right]);
       } else {
         left = ir.binaryOp(info.op, left, right);
       }

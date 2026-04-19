@@ -9,10 +9,10 @@
  *
  * Known gaps — fixtures intentionally omitted, not just untested:
  *
- * - `..` range and `is X` tests lower to _ctx._range / _ctx._test_<name>
- *   calls. Those runtime helpers are not registered on the swig-twig
- *   engine — the compiled template's _fn fallback silently swallows the
- *   call (returns ''). Surface as Phase 4 follow-up.
+ * - `is X` tests lower to `_ctx._test_<name>` calls. That runtime helper
+ *   is not registered on the swig-twig engine — the compiled template's
+ *   _fn fallback silently swallows the call (returns ''). Surface as
+ *   Phase 4 follow-up.
  *
  * - emitVarRef coerces undefined/null _ctx lookups to "". That breaks
  *   the undefined-fallback path of `??` (yields "" instead of the
