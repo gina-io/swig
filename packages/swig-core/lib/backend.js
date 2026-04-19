@@ -625,6 +625,12 @@ function emitBinaryOp(node, d) {
   if (node.op === 'in') {
     return left + ' in ' + right;
   }
+  // Twig/Jinja2 `~` is explicit string-concat: both sides coerce to
+  // string before `+` runs. A bare `<left>~<right>` emission would be
+  // JS unary bitwise-NOT and SyntaxError.
+  if (node.op === '~') {
+    return '(String(' + left + ') + String(' + right + '))';
+  }
   return left + node.op + right;
 }
 
