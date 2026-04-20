@@ -3,13 +3,11 @@ var twig = require('@rhinostone/swig-twig'),
 
 
 /*!
- * Phase 3 — package surface smoke tests.
+ * Package surface smoke tests.
  *
  * Verifies the workspace package resolves and exposes the documented
  * surface: flavor name, parser module, tags registry, and the per-instance
- * render API installed via `engine.install`. The legacy `exports.parse`
- * wrapper (Path B) is retained as a soft-deprecated shim — see the
- * dedicated suite below.
+ * render API installed via `engine.install`.
  */
 describe('@rhinostone/swig-twig — package surface', function () {
 
@@ -34,46 +32,8 @@ describe('@rhinostone/swig-twig — package surface', function () {
     expect(twig.Twig).to.be.a('function');
   });
 
-});
-
-describe('@rhinostone/swig-twig — exports.parse soft-deprecation', function () {
-
-  // Each test reloads the module so the one-shot deprecation flag starts fresh.
-  function freshTwig() {
-    var key = require.resolve('@rhinostone/swig-twig');
-    delete require.cache[key];
-    return require('@rhinostone/swig-twig');
-  }
-
-  it('still returns a parse-tree shape for plain source', function () {
-    var t = freshTwig();
-    var origWarn = console.warn;
-    console.warn = function () {};
-    try {
-      var tree = t.parse('{{ hello }}');
-      expect(tree).to.have.property('tokens');
-      expect(tree.tokens).to.have.length(1);
-      expect(tree.tokens[0].type).to.equal('Output');
-    } finally {
-      console.warn = origWarn;
-    }
-  });
-
-  it('emits a one-shot console.warn on first call', function () {
-    var t = freshTwig();
-    var origWarn = console.warn;
-    var calls = [];
-    console.warn = function (msg) { calls.push(msg); };
-    try {
-      t.parse('{{ a }}');
-      t.parse('{{ b }}');
-      t.parse('{{ c }}');
-    } finally {
-      console.warn = origWarn;
-    }
-    expect(calls).to.have.length(1);
-    expect(calls[0]).to.contain('deprecated');
-    expect(calls[0]).to.contain('@rhinostone/swig-twig');
+  it('does not expose the removed Path B exports.parse wrapper', function () {
+    expect(twig.parse).to.be(undefined);
   });
 
 });
