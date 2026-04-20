@@ -1,3 +1,8 @@
+[2.0.0-alpha.7](https://github.com/gina-io/swig/tree/v2.0.0-alpha.7) / 2026-04-20
+---------------------------------------------------------------------------------
+
+* **Changed** Source-comment cleanup pass across the workspace. No functional or API changes since 2.0.0-alpha.5; this is a metadata-only republish with commit messages and source comments tidied. Supersedes 2.0.0-alpha.6 (unpublished).
+
 [2.0.0-alpha.6](https://github.com/gina-io/swig/tree/v2.0.0-alpha.6) / 2026-04-20
 ---------------------------------------------------------------------------------
 
