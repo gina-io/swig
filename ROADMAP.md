@@ -10,21 +10,41 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 | Status | Item |
 | --- | --- |
-| Planned | Port the native Swig frontend to emit IR instead of JS directly. Test gate: byte-identical compiled output for existing suites. Target: `2.0.0-alpha.2`. |
+| In progress | `2.0.0` stable — one-week bake window on `2.0.0-alpha.8` before lockstep release of `@rhinostone/swig` + `@rhinostone/swig-core` + `@rhinostone/swig-twig`. |
+| Planned | Add a Twig browser-usage page under `gina-io/docs` (memory-loader recipe, bundle guidance, autoescape + CVE-2023-25345 guard story). Target: alongside `2.0.0` stable. |
 
 ## Future (post-2.0)
 
-Multi-flavor architecture — a single backend with swappable frontends so Twig / Jinja2 / Django templates can run on the same compile pipeline. Design: `multi-flavor-ir.md`.
-
 | Status | Item |
 | --- | --- |
-| Planned | Ship `@rhinostone/swig-twig` frontend — expression sugar (`~`, `??`, `?:`, `..`, `is X`, `not in`, `#{}`), Twig tag rewrites (`apply`, `verbatim`, `set/endset`, `with/endwith`, `from import`), ~20 filter parity. |
-| Planned | Ship Jinja2 and Django frontends. On demand — when there's concrete user demand. |
-| Planned | Engine bump + test framework migration. Move to Node ≥ 18, `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. Bundled with `2.0.0`. |
+| Planned | Ship Jinja2 and Django frontends as additional `@rhinostone/swig-*` packages. On demand — when there's concrete user demand. |
+| Planned | Engine bump + test framework migration. Move to Node ≥ 18, `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. |
+| Planned | Unfork from `paularmstrong/swig` on GitHub once the multi-flavor track is stable. Attribution stays preserved via `LICENSE` and `package.json.author`. |
 
 ---
 
 ## Completed
+
+### v2.0.0-alpha.8 (April 2026)
+
+- Remove the soft-deprecated `exports.parse(source, options)` wrapper (Path B) from `@rhinostone/swig-twig`. Soft-deprecated since `2.0.0-alpha.4`; removed now so any remaining consumer surfaces during the alpha.8 bake window before `2.0.0` stable. Migrate to the per-instance API installed by `engine.install`: `new twig.Twig(opts)` (or the default instance `exports.precompile` / `exports.compile` / `exports.render` / `exports.renderFile`). Internal plumbing (`exports.parser.parse`, `exports.parseFile`) is unaffected.
+
+### v2.0.0-alpha.5 (April 2026)
+
+- Twig render-path polish — fix `~` string-concat SyntaxError in the shared backend; route literal LHS (STRING/NUMBER/BOOL) through `parsePostfix` so `{{ "hi"|upper }}` works; land a 19-fixture render corpus under `tests/swig-twig/cases/`.
+- Scope-closing Twig expression sugar: `..` range via `_utils.range`; `??` undefined-fallback via new `IRVarRefExists` IR node; `is <test>` routed through `_ext._test_<name>` with seven built-in tests (`defined`, `null`, `empty`, `iterable`, `odd`, `even`, `divisibleby`).
+
+### v2.0.0-alpha.4 (April 2026)
+
+- Wire `@rhinostone/swig-twig` for Path A render via `engine.install(self, frontend)`; isolate per-instance tags and filters; soft-deprecate the Path B `exports.parse` wrapper with a one-shot `console.warn`.
+
+### v2.0.0-alpha.3 (April 2026)
+
+- Ship `@rhinostone/swig-twig` parser surface — Twig lexer, Pratt parser, 8 built-in tags (`apply`, `verbatim`, `set/endset`, `with/endwith`, `from import`, plus native parity), 5 Twig-specific tags, 24 filter parity. Lockstep cut of `swig-core` + `swig` + `swig-twig` fixes the broken `alpha.2` missing-dep regression.
+
+### v2.0.0-alpha.2 (April 2026)
+
+- Port the native Swig frontend to emit IR instead of JS directly. All built-in tags and TokenParser expression codegen now route through `@rhinostone/swig-core`'s IR → backend pipeline. Test gate: byte-identical compiled output for existing suites.
 
 ### v2.0.0-alpha.1 (April 2026)
 
