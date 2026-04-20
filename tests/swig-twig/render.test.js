@@ -10,8 +10,6 @@ var twig = require('@rhinostone/swig-twig'),
  * render / renderFile / compile / compileFile / precompile / run /
  * __express, plus gh-496 isolation (filters / tags / extensions / cache)
  * and filename-aware parse errors.
- *
- * See .claude/architecture/multi-flavor-ir.md § Phase 3 for scope.
  */
 describe('@rhinostone/swig-twig — render surface', function () {
 

@@ -32,8 +32,7 @@ var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'd
  * CVE-2023-25345 guards (`_dangerousProps`) fire on VAR path segments,
  * DOTKEY matches, STRING-inside-BRACKETOPEN values, and
  * FUNCTION/FUNCTIONEMPTY callee names — same checkpoints as the native
- * frontend. See .claude/security.md § _dangerousProps is duplicated
- * across layers.
+ * frontend.
  *
  * Binding-power table:
  *

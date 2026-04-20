@@ -22,8 +22,7 @@
  * `_dangerousProps`. A `{% block __proto__ %}` in native Swig would
  * key the blocks map by that name; the override path does not currently
  * reach the prototype chain but the cross-layer invariant is to guard
- * anyway. See .claude/architecture/multi-flavor-ir.md § Phase 3 —
- * Session 9 native hardening follow-up.
+ * anyway.
  */
 
 var ir = require('@rhinostone/swig-core/lib/ir');

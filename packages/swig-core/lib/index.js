@@ -4,8 +4,7 @@
  *
  * Phase 1 scaffold. Subsequent commits move security guards, loader
  * contract, filter infra, cache, and the JS-codegen backend in from
- * @rhinostone/swig. See .claude/architecture/multi-flavor-ir.md for
- * the full design.
+ * @rhinostone/swig.
  */
 
 exports.utils = require('./utils');

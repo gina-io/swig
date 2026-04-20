@@ -22,8 +22,6 @@ var utils = require('./utils'),
  * is unchanged. Built-in tags migrate per session by returning IR nodes
  * directly. The `new Function(...)` wrapper stays with the native
  * frontend (filename-aware error attribution, per the seam rule).
- *
- * See .claude/architecture/multi-flavor-ir.md § Phase 2.
  */
 
 /*!
@@ -157,8 +155,7 @@ exports.compile = function (template, parents, options, blockName) {
       // dot+bracket) stay on the transitional string fragment — the
       // bracket-lvalue contract is a cross-flavor design call and is
       // deferred. The frontend's set-tag parse handler retains its own
-      // _dangerousProps guards on every LHS path segment per the
-      // duplication invariant in .claude/security.md.
+      // _dangerousProps guards on every LHS path segment.
       // `value` is an IRExpr node (Session 14b) — backward-compat string
       // fallback preserved for userland setTag tags that may still hand
       // in a raw JS fragment. Emits `<target> <op> <value>;`.
@@ -463,16 +460,15 @@ exports.compile = function (template, parents, options, blockName) {
  * The emitter enforces the CVE-2023-25345 blocklist on every {@link
  * IRVarRef} path segment and every string-literal {@link IRAccess} key,
  * mirroring the guards on the frontend's TokenParser + tag-parse paths.
- * The frontend-side guards stay live per `.claude/security.md`; the
- * duplicate is intentional defense-in-depth during the migration.
+ * The frontend-side guards stay live; the duplicate is intentional
+ * defense-in-depth during the migration.
  *
  * `deps` is an optional injection hook:
  *   - `deps.dangerousProps` — override the security blocklist. Defaults
  *     to `require('./security').dangerousProps`.
  *   - `deps.throwError(msg, line, filename)` — override the throw shape.
  *     Defaults to `utils.throwError`, matching the seam rule for
- *     filename-opaque attribution (see
- *     .claude/architecture/multi-flavor-ir.md § Filename-awareness seam).
+ *     filename-opaque attribution.
  *
  * @param  {object} node    IR expression node (any IRExpr shape).
  * @param  {object} [deps]  Optional dependency overrides.

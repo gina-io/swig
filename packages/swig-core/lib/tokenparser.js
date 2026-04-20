@@ -17,15 +17,13 @@ var utils = require('./utils'),
  * Filter catalogs stay per-flavor — the caller passes its own
  * `filters` map at construction. The `.safe` autoescape-bypass check
  * is preserved verbatim and is the sole gate for the final `e` filter
- * tail-injection. See .claude/security.md § Autoescape is the only
- * default XSS protection.
+ * tail-injection.
  *
  * Error attribution (`utils.throwError(msg, line, filename)`) stays
  * intact: the filename is passed in at construction as an opaque
  * label and used only inside thrown-error messages. TokenParser does
  * not resolve, read, or path-manipulate it — so filename-awareness
- * never crosses the seam back into frontend code. See
- * .claude/architecture/multi-flavor-ir.md § Filename-awareness seam.
+ * never crosses the seam back into frontend code.
  */
 
 // CVE-2023-25345: prototype-chain properties that must never appear as
@@ -33,7 +31,6 @@ var utils = require('./utils'),
 // gives compiled template code access to Object.prototype (__proto__),
 // Object (constructor), or Function (constructor.constructor), which
 // enables arbitrary code execution inside the new Function(...) body.
-// See .claude/security.md.
 var _dangerousProps = require('./security').dangerousProps;
 
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
@@ -412,8 +409,7 @@ TokenParser.prototype = {
    * VAR segments, DOTKEY matches, STRING-inside-BRACKETOPEN values,
    * FUNCTION / FUNCTIONEMPTY callee names) are mirrored verbatim from
    * {@link TokenParser#parseToken}. Both layers stay live during the
-   * migration per `.claude/security.md § _dangerousProps is duplicated
-   * across layers — DO NOT dedup`.
+   * migration.
    *
    * Parses until end of tokens or an un-nested top-level FILTER /
    * FILTEREMPTY token (filter pipes are an Output-site concern —
@@ -687,8 +683,7 @@ TokenParser.prototype = {
    * segments, STRING-in-BRACKETOPEN, DOTKEY) stay live in {@link
    * TokenParser#parseToken} and {@link TokenParser#parseExpr}. Fallback
    * path re-runs through them via `self.parse()`; IR path hits the
-   * parseExpr copies. See `.claude/security.md § _dangerousProps is
-   * duplicated across layers — DO NOT dedup`.
+   * parseExpr copies.
    *
    * @param  {object[]} tokens  LexerToken[] — the full {{ … }} token stream.
    * @return {object}           IROutput IR node.

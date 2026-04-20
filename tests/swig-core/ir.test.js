@@ -15,9 +15,7 @@ var ir = require('@rhinostone/swig-core/lib/ir'),
  *
  * The gate is pure-data: no behavior change, no codegen, no round-trip
  * against the backend. Acts as the schema's lock-in before any
- * frontend starts producing IR. See
- * .claude/architecture/multi-flavor-ir.md § Phase 2 for the migration
- * sequence and .claude/conventions.md § 14 for the carve-cadence rules.
+ * frontend starts producing IR.
  */
 describe('swig-core/lib/ir — node factories', function () {
 

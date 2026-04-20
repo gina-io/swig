@@ -6,8 +6,7 @@ var utils = require('./utils');
  * Phase 1 carve — `iterateFilter` and the `.safe` flag convention live
  * here so every flavor's filter catalog (native Swig, Twig, Jinja2,
  * Django) picks up identical recursion + autoescape-bypass semantics.
- * Filter catalogs themselves stay per-flavor. See
- * .claude/architecture/multi-flavor-ir.md.
+ * Filter catalogs themselves stay per-flavor.
  */
 
 /**

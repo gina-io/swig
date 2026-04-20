@@ -9,9 +9,6 @@
  * Every frontend (native Swig, Twig, Jinja2, Django) must lower its
  * parse tree into these shapes. Constructs that cannot lower cleanly
  * must throw at parse time — no silent partial behavior.
- *
- * See .claude/architecture/multi-flavor-ir.md for the full design doc,
- * trade-offs considered, and open questions.
  */
 
 /**
@@ -268,8 +265,7 @@
  * functions, and built-in tags not yet migrated to real IR nodes. The
  * backend concatenates `js` verbatim into the compiled template body.
  *
- * Transitional per the Phase 2 layering decision (hybrid / option iii);
- * see .claude/architecture/multi-flavor-ir.md.
+ * Transitional per the Phase 2 layering decision (hybrid / option iii).
  *
  * @typedef {Object} IRLegacyJS
  * @property {'LegacyJS'} type
@@ -445,8 +441,7 @@
  *
  * No consumers yet — this commit introduces the schema surface only.
  * Subsequent sessions will migrate the native frontend's token-tree
- * production over to these shapes. See the Phase 2 layering notes in
- * .claude/architecture/multi-flavor-ir.md.
+ * production over to these shapes.
  * ------------------------------------------------------------------ */
 
 /*!

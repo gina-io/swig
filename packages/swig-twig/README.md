@@ -5,7 +5,7 @@
 
 > **Experimental alpha.** The render pipeline is wired end-to-end and the Twig render corpus passes, but the IR ABI is not stable across alpha minors. `2.0.0` stable is the target for production use.
 
-Twig frontend for the [@rhinostone/swig-core](https://www.npmjs.com/package/@rhinostone/swig-core) template engine. See #T16 in [ROADMAP.md](https://github.com/gina-io/swig/blob/develop/ROADMAP.md) and `.claude/architecture/multi-flavor-ir.md` for the multi-flavor design.
+Twig frontend for the [@rhinostone/swig-core](https://www.npmjs.com/package/@rhinostone/swig-core) template engine. See #T16 in [ROADMAP.md](https://github.com/gina-io/swig/blob/develop/ROADMAP.md) for the multi-flavor roadmap.
 
 Installation
 ------------

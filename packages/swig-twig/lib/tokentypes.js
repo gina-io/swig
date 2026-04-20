@@ -15,9 +15,6 @@
  * rules without renumbering. Keeping the layout stable up front avoids
  * silent ID collisions across in-flight flavor work.
  *
- * See .claude/architecture/multi-flavor-ir.md § Phase 3 for the
- * per-flavor split decision.
- *
  * @readonly
  * @enum {number}
  */

@@ -16,8 +16,6 @@ var TYPES = require('@rhinostone/swig-twig/lib/tokentypes'),
  * Twig-only IDs (30–37) are reserved here for Session 3+; the lexer
  * rules for `~`, `..`, `is`, `?:`, `??`, and `#{}` interpolation are
  * not yet wired up.
- *
- * See .claude/architecture/multi-flavor-ir.md § Phase 3.
  */
 describe('@rhinostone/swig-twig — token type enum', function () {
 

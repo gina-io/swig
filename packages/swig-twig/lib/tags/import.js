@@ -26,10 +26,8 @@
  *
  * The alias is a bare identifier — dotted paths are rejected at parse
  * time, and CVE-2023-25345 prototype-chain names are rejected before
- * the namespace assignment. Lexer-folded-path bail per
- * `.claude/conventions.md § Lexer-folded-path bail`: single-name
- * binding slots reject any `.` in the match before the
- * `_dangerousProps` check.
+ * the namespace assignment. Single-name binding slots reject any `.`
+ * in the match before the `_dangerousProps` check.
  */
 
 var utils = require('@rhinostone/swig-core/lib/utils');

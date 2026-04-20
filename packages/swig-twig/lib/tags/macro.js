@@ -13,9 +13,8 @@
  *
  * Param names and the macro name are bare identifiers — dotted paths
  * (`foo.bar`) and CVE-2023-25345 prototype-chain names (`__proto__`,
- * `constructor`, `prototype`) are rejected at parse time. Lexer-folded
- * dotted-path bail per `.claude/conventions.md § Lexer-folded-path bail`:
- * single-name binding slots reject any `.` in the match before the
+ * `constructor`, `prototype`) are rejected at parse time. Single-name
+ * binding slots reject any `.` in the match before the
  * `_dangerousProps` check.
  *
  * Twig kwargs (`{% macro foo(a=1, b="x") %}`) are deferred — Phase 4 with

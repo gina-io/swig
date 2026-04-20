@@ -12,8 +12,6 @@ var lexer = require('@rhinostone/swig-twig/lib/lexer'),
  * wired up — they fall through to the unknown-token throw and a
  * dedicated test pins that behaviour so Session 3 can flip the
  * assertion when each rule lands.
- *
- * See .claude/architecture/multi-flavor-ir.md § Phase 3.
  */
 describe('@rhinostone/swig-twig — lexer (shared token subset)', function () {
 

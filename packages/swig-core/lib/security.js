@@ -12,9 +12,6 @@
  * Kept as a shared constant so any future tag that assigns to `_ctx.*`
  * or otherwise exposes an identifier as a property key picks up the
  * full blocklist without drift across copies.
- *
- * See .claude/security.md for the full attack-vector table and the
- * tags/parser checkpoints that consume this list.
  */
 
 /**

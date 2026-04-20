@@ -6,8 +6,7 @@
  * without closure state. The native Swig constructor wires its inline
  * `self.cache` + `self.options.cache` through these at each call site.
  *
- * See .claude/architecture/multi-flavor-ir.md — cache keys are opaque
- * strings; the cache layer has no filename awareness.
+ * Cache keys are opaque strings; the cache layer has no filename awareness.
  */
 
 /**

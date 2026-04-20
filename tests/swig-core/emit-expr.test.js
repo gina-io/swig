@@ -159,8 +159,7 @@ describe('swig-core/lib/backend — emitExpr', function () {
 
     it('does not guard non-literal (runtime) keys — matches the documented scope', function () {
       // Runtime bracket access with a variable key cannot be guarded at
-      // emit time. See .claude/security.md § What the guards do NOT
-      // protect against.
+      // emit time.
       var node = ir.access(ir.varRef(['foo']), ir.varRef(['key']));
       expect(function () { backend.emitExpr(node); }).not.to.throwException();
     });

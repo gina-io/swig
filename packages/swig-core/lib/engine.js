@@ -24,9 +24,8 @@ function efn() { return ''; }
  * not know whether the loader's `resolve` output is a file path, a URL, or
  * a Memcached key.
  *
- * See .claude/architecture/multi-flavor-ir.md — filename-aware code
- * (utils.throwError wrapping, the engine's try/catch that attaches a
- * filename to compile errors) stays in the frontend.
+ * Filename-aware code (utils.throwError wrapping, the engine's try/catch
+ * that attaches a filename to compile errors) stays in the frontend.
  */
 
 /**

@@ -16,12 +16,7 @@ var filters = require('@rhinostone/swig-twig/lib/filters'),
  *
  * `.safe = true` convention check: only `raw` carries it this session.
  * `json_encode` and `url_encode` deliberately do NOT — per the session
- * scope decision, Twig matches swig-core's actual flagging, not the stale
- * architecture-doc claim. See .claude/architecture/tags-and-filters.md for
- * follow-up.
- *
- * See .claude/architecture/multi-flavor-ir.md § Phase 3 and
- * .claude/architecture/tags-and-filters.md § Filters.
+ * scope decision, Twig matches swig-core's actual flagging.
  */
 describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
 

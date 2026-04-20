@@ -32,8 +32,7 @@
  *
  * CVE-2023-25345 checkpoints apply twice — here on the LHS path
  * segments, and again in the backend `checkDangerousSegment` walk —
- * per the duplication invariant in .claude/security.md § _dangerousProps
- * is duplicated across layers.
+ * intentional defense-in-depth during the migration.
  */
 
 var ir = require('@rhinostone/swig-core/lib/ir');

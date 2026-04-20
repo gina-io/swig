@@ -10,8 +10,6 @@ var twig = require('@rhinostone/swig-twig'),
  * render API installed via `engine.install`. The legacy `exports.parse`
  * wrapper (Path B) is retained as a soft-deprecated shim — see the
  * dedicated suite below.
- *
- * See .claude/architecture/multi-flavor-ir.md § Phase 3 for scope.
  */
 describe('@rhinostone/swig-twig — package surface', function () {
 

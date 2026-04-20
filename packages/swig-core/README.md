@@ -5,7 +5,7 @@
 
 > **Experimental alpha — IR ABI is unstable across alpha minors.** This package is the shared runtime for the `@rhinostone/swig` family of template engines. It is not intended for direct consumption unless you are building a custom frontend. Install [@rhinostone/swig](https://www.npmjs.com/package/@rhinostone/swig) for the default Swig (Jinja2/Django-inspired) flavor, or [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig) for the Twig flavor — both pull this package in as a peer dependency pinned to the exact alpha version.
 
-Extracted from `@rhinostone/swig@1.6.0` during the Phase 1 carve (see #T14 in [ROADMAP.md](https://github.com/gina-io/swig/blob/develop/ROADMAP.md) and `.claude/architecture/multi-flavor-ir.md` for the full design).
+Extracted from `@rhinostone/swig@1.6.0` during the Phase 1 carve (see #T14 in [ROADMAP.md](https://github.com/gina-io/swig/blob/develop/ROADMAP.md)).
 
 What lives here
 ---------------

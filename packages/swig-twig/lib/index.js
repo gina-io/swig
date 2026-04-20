@@ -5,9 +5,6 @@
  * exposes a Twig constructor + default instance via `engine.install(self,
  * frontend)` from @rhinostone/swig-core, so callers can `render(source,
  * locals)` / `renderFile(path, locals, cb)` directly against Twig syntax.
- *
- * See .claude/architecture/multi-flavor-ir.md § Phase 3 for the per-flavor
- * split decision.
  */
 
 var utils = require('@rhinostone/swig-core/lib/utils'),

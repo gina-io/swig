@@ -16,10 +16,6 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
  * prototype chain, so CVE-2023-25345 guards don't apply at this layer.
  * Filter arg expressions inherit the expression parser's existing
  * `_dangerousProps` guards.
- *
- * See .claude/architecture/tags-and-filters.md § Filters and
- * .claude/architecture/multi-flavor-ir.md § Filter catalogs stay
- * per-flavor.
  */
 
 /**
