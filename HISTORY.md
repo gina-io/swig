@@ -186,7 +186,7 @@
 * **Fixed** Allow parent and other tags to work correctly nested in other tags. gh-331
 * **Fixed** Prevent lexer from matching partial logic/words in variables. gh-330
 
-Migrating from v0.x.x? View the [Migration Guide](https://github.com/paularmstrong/swig/wiki/Migrating-from-v0.x.x-to-v1.0.0)
+Migrating from v0.x.x? The upstream wiki has since been deleted; see the individual breaking-change entries below.
 
 [1.0.0-rc3](https://github.com/paularmstrong/swig/tree/v1.0.0-rc3) / 2013-09-14
 -------------------------------------------------------------------------------
@@ -259,8 +259,8 @@ Migrating from v0.x.x? View the [Migration Guide](https://github.com/paularmstro
 * **Changed** Template parsing has been completely rewritten
 * **Changed** `swig.compileFile` returns a function that renders templates, not an object
 * **Changed** Express-compatible using `swig.renderFile`.
-* **Changed** `extends`, `import`, and `include` now reference files with relative paths from the current file ([info](https://github.com/paularmstrong/swig/wiki/Migrating-from-v0.x.x-to-v1.0.0#extends-include-import-changes)).
-* **Changed** `extends` may no longer accept variables ([info](https://github.com/paularmstrong/swig/wiki/Migrating-from-v0.x.x-to-v1.0.0#extends-include-import-changes)).
+* **Changed** `extends`, `import`, and `include` now reference files with relative paths from the current file.
+* **Changed** `extends` may no longer accept variables.
 * **Changed** `else if` tag is now `elseif` or `elif`.
 * **Changed** Removed `only` argument from `include`.
 * **Changed** allow `_`, `$` to start var names in templates.

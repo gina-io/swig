@@ -1,7 +1,7 @@
 @rhinostone/swig-twig
 =====================
 
-[![NPM version](http://img.shields.io/npm/v/@rhinostone/swig-twig.svg?style=flat)](https://www.npmjs.org/package/@rhinostone/swig-twig) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig-twig)](https://socket.dev/npm/package/@rhinostone/swig-twig)
+[![NPM version](http://img.shields.io/npm/v/@rhinostone/swig-twig.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig-twig) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig-twig)](https://socket.dev/npm/package/@rhinostone/swig-twig)
 
 > **Experimental alpha.** The render pipeline is wired end-to-end and the Twig render corpus passes, but the IR ABI is not stable across alpha minors. `2.0.0` stable is the target for production use.
 
