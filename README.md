@@ -3,9 +3,9 @@ Swig
 
 [![CI](https://github.com/gina-io/swig/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/gina-io/swig/actions/workflows/ci.yml) [![NPM version](http://img.shields.io/npm/v/@rhinostone/swig.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig) [![NPM Downloads](http://img.shields.io/npm/dm/@rhinostone/swig.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig)](https://socket.dev/npm/package/@rhinostone/swig)
 
-> **Maintained, multi-flavor template engine.** Originally forked from the abandoned [paularmstrong/swig](https://github.com/paularmstrong/swig); now [gina-io/swig](https://github.com/gina-io/swig), an actively developed workspace covering native Swig syntax (Jinja2/Django-inspired) and Twig syntax via dedicated frontends sharing one IR backend. Security and bug fixes ship here; the original project has not had a release since 2014.
+> **Multi-flavor template engine** for Node.js and browsers — native Swig syntax (Jinja2/Django-inspired) and Twig syntax via dedicated frontends sharing one IR backend. [gina-io/swig](https://github.com/gina-io/swig) started as a maintained continuation of the abandoned [paularmstrong/swig](https://github.com/paularmstrong/swig) (last released 2014) and is now a standalone project. Security and bug fixes ship here.
 
-> **Part of the [Gina](https://github.com/gina-io/gina) ecosystem.** This fork is the built-in template engine for [Gina](https://gina.io) ([npm](https://www.npmjs.com/package/gina)), a Node.js MVC framework with HTTP/2, multi-bundle architecture, and scope-based data isolation.
+> **Part of the [Gina](https://github.com/gina-io/gina) ecosystem.** This is the built-in template engine for [Gina](https://gina.io) ([npm](https://www.npmjs.com/package/gina)), a Node.js MVC framework with HTTP/2, multi-bundle architecture, and scope-based data isolation.
 
 Swig is a **Jinja2/Django-inspired** template engine for node.js and browsers. The syntax will feel familiar to Jinja2 and Django users, but Swig is **not drop-in compatible** with either — porting templates from an existing project requires a handful of changes. See the [Migration Guide](https://gina.io/docs/swig/migration) for the full parity list and workaround patterns.
 

@@ -8,9 +8,7 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Next
 
-| Status | Item |
-| --- | --- |
-| Planned | Unfork from `paularmstrong/swig` on GitHub. Multi-flavor track is now stable; the repo is substantively its own project. Attribution stays preserved via `LICENSE` and `package.json.author`. |
+_No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upcoming work._
 
 ## Future (post-2.0)
 
@@ -27,6 +25,7 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 - Multi-flavor template-engine workspace shipped: `@rhinostone/swig` (native syntax, drop-in for `1.x`), `@rhinostone/swig-twig` (Twig syntax), `@rhinostone/swig-core` (shared IR backend). Production-ready cut of the changeset introduced across `2.0.0-alpha.1` through `2.0.0-alpha.5`. No functional or API changes since `2.0.0-alpha.5`. IR ABI is stable from this release onward; cross-package dependencies pin exact versions and frontends + core release in lockstep.
 - README messaging refreshed across all three packages to reflect production-ready status; package descriptions cleaned of historical internal-tracking references; stale documentation URLs refreshed.
+- Repository unforked from `paularmstrong/swig` on GitHub once the multi-flavor track stabilised — gina-io/swig is now a standalone project rather than a fork. Attribution preserved via `LICENSE` and `package.json.author`.
 
 ### v2.0.0-alpha.8 (April 2026)
 
