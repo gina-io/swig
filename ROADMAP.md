@@ -10,8 +10,7 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 | Status | Item |
 | --- | --- |
-| In progress | `2.0.0` stable — one-week bake window on `2.0.0-alpha.8` before lockstep release of `@rhinostone/swig` + `@rhinostone/swig-core` + `@rhinostone/swig-twig`. |
-| Planned | Add a Twig browser-usage page under `gina-io/docs` (memory-loader recipe, bundle guidance, autoescape + CVE-2023-25345 guard story). Target: alongside `2.0.0` stable. |
+| Planned | Unfork from `paularmstrong/swig` on GitHub. Multi-flavor track is now stable; the repo is substantively its own project. Attribution stays preserved via `LICENSE` and `package.json.author`. |
 
 ## Future (post-2.0)
 
@@ -19,11 +18,15 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | --- | --- |
 | Planned | Ship Jinja2 and Django frontends as additional `@rhinostone/swig-*` packages. On demand — when there's concrete user demand. |
 | Planned | Engine bump + test framework migration. Move to Node ≥ 18, `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. |
-| Planned | Unfork from `paularmstrong/swig` on GitHub once the multi-flavor track is stable. Attribution stays preserved via `LICENSE` and `package.json.author`. |
 
 ---
 
 ## Completed
+
+### v2.0.0 (May 2026)
+
+- Multi-flavor template-engine workspace shipped: `@rhinostone/swig` (native syntax, drop-in for `1.x`), `@rhinostone/swig-twig` (Twig syntax), `@rhinostone/swig-core` (shared IR backend). Production-ready cut of the changeset introduced across `2.0.0-alpha.1` through `2.0.0-alpha.5`. No functional or API changes since `2.0.0-alpha.5`. IR ABI is stable from this release onward; cross-package dependencies pin exact versions and frontends + core release in lockstep.
+- README messaging refreshed across all three packages to reflect production-ready status; package descriptions cleaned of historical internal-tracking references; stale documentation URLs refreshed.
 
 ### v2.0.0-alpha.8 (April 2026)
 
