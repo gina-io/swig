@@ -11,6 +11,7 @@
 npm-debug.log
 node_modules/*
 package-lock.json
+*.tgz
 
 # Test artifacts
 tests/browser/swig.pack.js
