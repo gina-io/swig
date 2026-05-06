@@ -3,23 +3,36 @@ Swig
 
 [![CI](https://github.com/gina-io/swig/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/gina-io/swig/actions/workflows/ci.yml) [![NPM version](http://img.shields.io/npm/v/@rhinostone/swig.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig) [![NPM Downloads](http://img.shields.io/npm/dm/@rhinostone/swig.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig)](https://socket.dev/npm/package/@rhinostone/swig)
 
-> **Maintained fork.** This is [gina-io/swig](https://github.com/gina-io/swig), a maintained fork of the abandoned [paularmstrong/swig](https://github.com/paularmstrong/swig). Security fixes and critical bug fixes land here; no new features are planned. The original project has not had a release since 2014.
+> **Maintained, multi-flavor template engine.** Originally forked from the abandoned [paularmstrong/swig](https://github.com/paularmstrong/swig); now [gina-io/swig](https://github.com/gina-io/swig), an actively developed workspace covering native Swig syntax (Jinja2/Django-inspired) and Twig syntax via dedicated frontends sharing one IR backend. Security and bug fixes ship here; the original project has not had a release since 2014.
 
 > **Part of the [Gina](https://github.com/gina-io/gina) ecosystem.** This fork is the built-in template engine for [Gina](https://gina.io) ([npm](https://www.npmjs.com/package/gina)), a Node.js MVC framework with HTTP/2, multi-bundle architecture, and scope-based data isolation.
 
 Swig is a **Jinja2/Django-inspired** template engine for node.js and browsers. The syntax will feel familiar to Jinja2 and Django users, but Swig is **not drop-in compatible** with either — porting templates from an existing project requires a handful of changes. See the [Migration Guide](https://gina.io/docs/swig/migration) for the full parity list and workaround patterns.
 
+> **Coming from Twig?** Install [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig) instead — a dedicated Twig-syntax frontend with closer parity than working around incompatibilities here.
+
+Workspace packages
+------------------
+
+| Package | Description | When to use |
+| --- | --- | --- |
+| [`@rhinostone/swig`](https://www.npmjs.com/package/@rhinostone/swig) | Native Swig syntax (Jinja2/Django-inspired). Drop-in for `@rhinostone/swig@1.x` consumers. | Upgrading from `@rhinostone/swig@1.x`, or starting fresh with Swig syntax. |
+| [`@rhinostone/swig-twig`](https://www.npmjs.com/package/@rhinostone/swig-twig) | Twig-syntax frontend with closer Twig parity. | Migrating from PHP Twig, or writing new templates in Twig syntax. |
+| [`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core) | Shared IR, backend, and runtime primitives. | Building a custom flavor frontend. Otherwise pulled in transitively. |
+
+Each frontend pins the matching `@rhinostone/swig-core` version exactly during the alpha cycle — the IR is not stable across alpha minors. From `2.0.0` stable onward, frontends and the core release in lockstep.
+
 Features
 --------
 
-* Available for node.js **and** major web browsers!
+* Available for node.js **and** major web browsers.
 * [Express](http://expressjs.com/) compatible.
 * Object-Oriented template inheritance.
 * Apply filters and transformations to output in your templates.
 * Automatically escapes all output for safe HTML rendering.
 * Lots of iteration and conditionals supported.
 * Robust without the bloat.
-* Extendable and customizable. See [Swig-Extras](https://github.com/paularmstrong/swig-extras) (abandoned, kept for reference) for some examples.
+* Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
 Need Help? Have Questions? Comments?
 ------------------------------------
@@ -31,6 +44,10 @@ Installation
 ------------
 
     npm install @rhinostone/swig
+
+For Twig syntax:
+
+    npm install @rhinostone/swig-twig
 
 Documentation
 -------------
@@ -75,6 +92,13 @@ var output = template({
 
 For working example see [examples/basic](https://github.com/gina-io/swig/tree/master/examples/basic).
 
+Migrating from `@rhinostone/swig@1.x`
+-------------------------------------
+
+`@rhinostone/swig@2.x` is **drop-in for `1.x` consumers** — `swig.compileFile`, `swig.renderFile`, `swig.setFilter`, `swig.setTag`, and the rest of the public API are unchanged. The internal carve into [@rhinostone/swig-core](https://www.npmjs.com/package/@rhinostone/swig-core) is transparent (test gate during the alpha cycle: byte-identical compiled output against the `1.x` test suite).
+
+`2.0.0` also ships [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig), a sibling Twig-syntax frontend. Switching is opt-in — your existing `@rhinostone/swig` install keeps working.
+
 Migrating from Jinja2 or Django
 -------------------------------
 
@@ -94,7 +118,9 @@ Full parity tables and workaround patterns: **[Migration Guide](https://gina.io/
 How it works
 ------------
 
-Swig reads template files and translates them into cached javascript functions. When we later render a template we call the evaluated function, passing a context object as an argument.
+Swig reads template files and translates them into cached JavaScript functions. The pipeline is: parse → emit IR → lower IR to JS source → `new Function(...)`. At render time, the compiled function runs against a context object to produce the output string.
+
+In `2.x`, frontend parsers (native Swig syntax in [@rhinostone/swig](https://www.npmjs.com/package/@rhinostone/swig), Twig syntax in [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig)) emit a shared intermediate representation. The backend in [@rhinostone/swig-core](https://www.npmjs.com/package/@rhinostone/swig-core) lowers IR to JS. New flavors plug in at the frontend without touching the runtime.
 
 License
 -------

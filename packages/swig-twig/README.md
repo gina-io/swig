@@ -3,16 +3,14 @@
 
 [![NPM version](http://img.shields.io/npm/v/@rhinostone/swig-twig.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig-twig) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig-twig)](https://socket.dev/npm/package/@rhinostone/swig-twig)
 
-> **Experimental alpha.** The render pipeline is wired end-to-end and the Twig render corpus passes, but the IR ABI is not stable across alpha minors. `2.0.0` stable is the target for production use.
-
-Twig frontend for the [@rhinostone/swig-core](https://www.npmjs.com/package/@rhinostone/swig-core) template engine. See #T16 in [ROADMAP.md](https://github.com/gina-io/swig/blob/develop/ROADMAP.md) for the multi-flavor roadmap.
+Twig-syntax frontend for the [@rhinostone/swig-core](https://www.npmjs.com/package/@rhinostone/swig-core) template engine. Part of the multi-flavor architecture introduced in `2.0.0` — see [ROADMAP.md](https://github.com/gina-io/swig/blob/develop/ROADMAP.md) for the release narrative.
 
 Installation
 ------------
 
-    npm install @rhinostone/swig-twig@alpha
+    npm install @rhinostone/swig-twig
 
-This pulls in `@rhinostone/swig-core` as a peer dependency, pinned to the matching alpha version. Do not mix alpha minors — lockstep only.
+This pulls in `@rhinostone/swig-core` as a peer dependency, pinned to the matching version. Frontends and the core release in lockstep — do not mix versions.
 
 Basic example
 -------------
@@ -26,8 +24,8 @@ var out = swig.render('Hello, {{ name|upper }}!', {
 // => Hello, WORLD!
 ```
 
-Supported surface (as of 2.0.0-alpha.5)
----------------------------------------
+Supported surface (as of 2.0.0)
+-------------------------------
 
 * **Tags** — `apply`, `block`, `extends`, `for`, `from`, `if`, `import`, `include`, `macro`, `set`, `verbatim`, `with`.
 * **Operators** — `..` range, `??` null-coalescing, `~` string concat, `is <test>` / `is not <test>`.
