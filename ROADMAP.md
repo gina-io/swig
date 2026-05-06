@@ -15,7 +15,7 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 | Status | Item |
 | --- | --- |
 | Planned | Ship Jinja2 and Django frontends as additional `@rhinostone/swig-*` packages. On demand — when there's concrete user demand. |
-| Planned | Engine bump + test framework migration. Move to Node ≥ 18, `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. |
+| Planned | Test framework migration. Replace mocha 1.x + expect.js with `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. (The Node engines bump is upstream-driven by gina and is being treated as done.) |
 
 ---
 
