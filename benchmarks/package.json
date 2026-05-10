@@ -1,0 +1,12 @@
+{
+  "name": "swig-benchmarks",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Render-throughput benchmark for @rhinostone/swig vs nunjucks. Not published.",
+  "scripts": {
+    "bench": "node render.js"
+  },
+  "dependencies": {
+    "nunjucks": "^3.2.4"
+  }
+}
