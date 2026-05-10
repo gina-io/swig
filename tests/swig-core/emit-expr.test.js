@@ -46,15 +46,11 @@ describe('swig-core/lib/backend — emitExpr', function () {
   });
 
   describe('IRVarRef', function () {
-    it('emits a byte-identical checkMatch ladder for a single-segment path', function () {
+    it('emits the dot-path checkMatch with bare-closure fallback', function () {
       var js = backend.emitExpr(ir.varRef(['foo']));
       expect(js).to.be(
-        '(((typeof _ctx.foo !== "undefined" && _ctx.foo !== null) ? ' +
-        '((typeof _ctx.foo !== "undefined" && _ctx.foo !== null) ? _ctx.foo : "") : ' +
-        '((typeof foo !== "undefined" && foo !== null) ? foo : "")) !== null ? ' +
-        '((typeof _ctx.foo !== "undefined" && _ctx.foo !== null) ? ' +
-        '((typeof _ctx.foo !== "undefined" && _ctx.foo !== null) ? _ctx.foo : "") : ' +
-        '((typeof foo !== "undefined" && foo !== null) ? foo : "")) : "" )'
+        '((typeof _ctx.foo !== "undefined" && _ctx.foo !== null) ? _ctx.foo : ' +
+        '((typeof foo !== "undefined" && foo !== null) ? foo : ""))'
       );
     });
 

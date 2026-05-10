@@ -606,20 +606,19 @@ function checkDotExpr(path, ctxPrefix) {
 }
 
 /*!
- * Replica of `TokenParser.prototype.checkMatch`. Kept as a local private
- * helper rather than imported from tokenparser.js because (a) it is a
- * pure function of its argument and (b) the backend must not acquire a
- * runtime dependency on the TokenParser module (which is a specific
+ * Build the dot-path emit. `(checkDot_ctx ? _ctx.<path> : (checkDot_closure
+ * ? <path> : ""))` — checks the `_ctx.<path>` walk first, falls back to a
+ * bare-closure walk (covers macro params, host-globals like `Math`), and
+ * coerces a missing path to `""` for safe interpolation. Kept as a local
+ * private helper rather than imported from tokenparser.js because (a) it
+ * is a pure function of its argument and (b) the backend must not acquire
+ * a runtime dependency on the TokenParser module (which is a specific
  * frontend concern, not a shared-backend one). @private
  */
 function checkMatchExpr(match) {
-  var result;
-
-  function buildDot(ctx) {
-    return '(' + checkDotExpr(match, ctx) + ' ? ' + ctx + match.join('.') + ' : "")';
-  }
-  result = '(' + checkDotExpr(match, '_ctx.') + ' ? ' + buildDot('_ctx.') + ' : ' + buildDot('') + ')';
-  return '(' + result + ' !== null ? ' + result + ' : ' + '"" )';
+  var leaf = match.join('.');
+  return '(' + checkDotExpr(match, '_ctx.') + ' ? _ctx.' + leaf
+    + ' : (' + checkDotExpr(match, '') + ' ? ' + leaf + ' : ""))';
 }
 
 /*!

@@ -884,7 +884,8 @@ TokenParser.prototype = {
    * @private
    */
   checkMatch: function (match) {
-    var temp = match[0], result;
+    var temp = match[0],
+      leaf = match.join('.');
 
     function checkDot(ctx) {
       var c = ctx + temp,
@@ -904,11 +905,8 @@ TokenParser.prototype = {
       return build;
     }
 
-    function buildDot(ctx) {
-      return '(' + checkDot(ctx) + ' ? ' + ctx + match.join('.') + ' : "")';
-    }
-    result = '(' + checkDot('_ctx.') + ' ? ' + buildDot('_ctx.') + ' : ' + buildDot('') + ')';
-    return '(' + result + ' !== null ? ' + result + ' : ' + '"" )';
+    return '(' + checkDot('_ctx.') + ' ? _ctx.' + leaf
+      + ' : (' + checkDot('') + ' ? ' + leaf + ' : ""))';
   }
 };
 
