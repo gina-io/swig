@@ -21,6 +21,12 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.1.0 (May 2026)
+
+- Async loader support via `renderFileAsync(path, locals, cb)` and `compileFileAsync(path, options, cb)` on `@rhinostone/swig` and `@rhinostone/swig-twig`. The implementation pre-walks the template dependency graph through the user loader's cb-shape arm, builds an in-memory map keyed by resolved path, then runs the existing sync render against an in-memory wrapper for the duration of the call. Supports `extends`, `include`, `import`, and Twig `from import` with string-literal paths; dynamic paths surface a `Pre-walked map missing path` error at render time. Existing sync `renderFile` / `compileFile` consumers are unaffected.
+- Internal scaffolding for a future async parse path: new deferred-resolution IR shapes (`IRExtendsDeferred`, `IRIncludeDeferred`, `IRImportDeferred`, `IRFromImportDeferred`) and matching `AsyncFunction`-wrapped backend emit branches land on `@rhinostone/swig-core`, all gated behind `options.codegenMode === 'async'` (default sync, no behavior change for existing consumers). The frontend tag wiring and public API dispatch that would activate this path are not yet shipped.
+- Internal cleanup: simplified `IRVarRef` emit shape into a single-evaluation ternary (smaller compiled bodies, same runtime semantics); added a runnable render-throughput benchmark suite at `benchmarks/render.js` (excluded from the published tarball); README clarifications surfaced the prototype-pollution hardening across CVE-2023-25345 and CVE-2021-44906.
+
 ### v2.0.1 (May 2026)
 
 - Fixed bracket-access expressions failing on unspaced binary arithmetic in `@rhinostone/swig` and `@rhinostone/swig-twig`. The lexer's NUMBER rule was greedy-eating leading `+` / `-` operators inside bracket expressions like `arr[arr.length-1]` and `arr[idx-1]`, causing the parser to bail with "Unexpected closing square bracket". Dropped the optional sign prefix from the NUMBER rule; signed-literal paths continue to work via the existing unary-operator wrapping.
