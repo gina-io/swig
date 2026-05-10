@@ -423,6 +423,89 @@ describe('swig-core/lib/ir — node factories', function () {
     });
   });
 
+  describe('extendsDeferred() / includeDeferred() / importDeferred() / fromImportDeferred()', function () {
+    it('extendsDeferred: only required field is path', function () {
+      var path = ir.literal('string', 'layout.html');
+      var node = ir.extendsDeferred(path);
+      expect(node).to.eql({ type: 'ExtendsDeferred', path: path });
+    });
+
+    it('extendsDeferred: carries childBlocks + childIRs + resolveFrom + loc', function () {
+      var path = ir.varRef(['parentVar']);
+      var blocks = { content: ir.block('content', [ir.text('overridden')]) };
+      var irs = [ir.set(ir.varRef(['x']), '=', ir.literal('number', 1))];
+      var node = ir.extendsDeferred(path, blocks, irs, 'home.html', sampleLoc);
+      expect(node.path).to.be(path);
+      expect(node.childBlocks).to.be(blocks);
+      expect(node.childIRs).to.be(irs);
+      expect(node.resolveFrom).to.be('home.html');
+      expect(node.loc).to.be(sampleLoc);
+    });
+
+    it('extendsDeferred: stores path opaquely without inspection', function () {
+      var node = ir.extendsDeferred('"raw-string-fallback"');
+      expect(node.path).to.be('"raw-string-fallback"');
+    });
+
+    it('includeDeferred: only required field is path', function () {
+      var path = ir.literal('string', 'footer.html');
+      var node = ir.includeDeferred(path);
+      expect(node).to.eql({ type: 'IncludeDeferred', path: path });
+    });
+
+    it('includeDeferred: context + isolated + ignoreMissing + resolveFrom', function () {
+      var path = ir.varRef(['p']);
+      var ctx = ir.objectLiteral([]);
+      var node = ir.includeDeferred(path, ctx, true, true, 'pages/home.html');
+      expect(node.context).to.be(ctx);
+      expect(node.isolated).to.be(true);
+      expect(node.ignoreMissing).to.be(true);
+      expect(node.resolveFrom).to.be('pages/home.html');
+    });
+
+    it('includeDeferred: explicit false flags are preserved (distinct from omitted)', function () {
+      var node = ir.includeDeferred(ir.literal('string', 'p.html'), undefined, false, false);
+      expect(node.isolated).to.be(false);
+      expect(node.ignoreMissing).to.be(false);
+    });
+
+    it('importDeferred: requires path + alias', function () {
+      var path = ir.literal('string', 'forms.html');
+      var node = ir.importDeferred(path, 'forms');
+      expect(node).to.eql({ type: 'ImportDeferred', path: path, alias: 'forms' });
+    });
+
+    it('importDeferred: carries resolveFrom + loc when supplied', function () {
+      var path = ir.varRef(['formsPath']);
+      var node = ir.importDeferred(path, 'forms', 'pages/index.html', sampleLoc);
+      expect(node.resolveFrom).to.be('pages/index.html');
+      expect(node.loc).to.be(sampleLoc);
+    });
+
+    it('fromImportDeferred: path + imports[] are required', function () {
+      var path = ir.literal('string', 'macros.twig');
+      var imports = [{ name: 'input', alias: null }, { name: 'select', alias: 'sel' }];
+      var node = ir.fromImportDeferred(path, imports);
+      expect(node.type).to.be('FromImportDeferred');
+      expect(node.path).to.be(path);
+      expect(node.imports).to.be(imports);
+    });
+
+    it('fromImportDeferred: carries resolveFrom + loc when supplied', function () {
+      var path = ir.literal('string', 'm.twig');
+      var node = ir.fromImportDeferred(path, [], 'home.twig', sampleLoc);
+      expect(node.resolveFrom).to.be('home.twig');
+      expect(node.loc).to.be(sampleLoc);
+    });
+
+    it('all four: do not attach loc when omitted', function () {
+      expect(ir.extendsDeferred(ir.literal('string', 'a')).hasOwnProperty('loc')).to.be(false);
+      expect(ir.includeDeferred(ir.literal('string', 'a')).hasOwnProperty('loc')).to.be(false);
+      expect(ir.importDeferred(ir.literal('string', 'a'), 'b').hasOwnProperty('loc')).to.be(false);
+      expect(ir.fromImportDeferred(ir.literal('string', 'a'), []).hasOwnProperty('loc')).to.be(false);
+    });
+  });
+
   /* -- Expression factories --------------------------------------- */
 
   describe('literal()', function () {
@@ -563,7 +646,11 @@ describe('swig-core/lib/ir — node factories', function () {
         ir.parent(undefined, sampleLoc),
         ir.autoescape(true, [], sampleLoc),
         ir.filter('upper', [], undefined, sampleLoc),
-        ir.template([], undefined, undefined, sampleLoc)
+        ir.template([], undefined, undefined, sampleLoc),
+        ir.extendsDeferred(ir.literal('string', 'p'), undefined, undefined, undefined, sampleLoc),
+        ir.includeDeferred(ir.literal('string', 'p'), undefined, undefined, undefined, undefined, sampleLoc),
+        ir.importDeferred(ir.literal('string', 'p'), 'alias', undefined, sampleLoc),
+        ir.fromImportDeferred(ir.literal('string', 'p'), [], undefined, sampleLoc)
       ];
       nodes.forEach(function (node) {
         expect(node.loc).to.be(sampleLoc);

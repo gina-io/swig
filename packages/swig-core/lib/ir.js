@@ -273,13 +273,93 @@
  * @property {IRLoc} [loc]
  */
 
+/* ------------------------------------------------------------------ *
+ * Deferred-resolution shapes — async codegen path.
+ *
+ * In sync codegen mode the parser pre-resolves `extends` / `include` /
+ * `import` / Twig `from` paths via `swig.parseFile(...)` and inlines
+ * the resolved tokens at parse-finalization time. That model can't run
+ * against an async-only loader (S3 / Redis / fetch-backed), and it
+ * can't handle dynamic paths (`{% extends parent_var %}`) since the
+ * value isn't known until render.
+ *
+ * The deferred shapes carry the unresolved path expression to render
+ * time. The async backend (`compileAsync`) emits cb-shaped or
+ * AsyncFunction-shaped JS that hits a runtime `_swig.getTemplate(...)`
+ * call to resolve and apply the parent / included / imported template.
+ *
+ * Sync codegen uses the existing {@link IRInclude} / {@link IRImport}
+ * shapes and the parser's pre-resolution path. Async codegen uses
+ * these. The frontend tag handlers branch on the codegen mode.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Deferred extends marker — replaces the parse-finalization
+ * `getParents()` walk for async-mode templates. The runtime backend
+ * loads the parent via `_swig.getTemplate(<path>)`, applies the
+ * child's block overrides via `remapBlocks`, prepends the child's
+ * non-block IR via `importNonBlocks`, then renders.
+ *
+ * @typedef {Object} IRExtendsDeferred
+ * @property {'ExtendsDeferred'} type
+ * @property {IRExpr} path                            Path expression. Resolved at render time.
+ * @property {Object<string, IRBlock>} [childBlocks]  Child template's block overrides.
+ * @property {IRStatement[]} [childIRs]               Child template's non-block IR (prepended at runtime).
+ * @property {string} [resolveFrom]                   Including template's filename for loader-relative resolution.
+ * @property {IRLoc} [loc]
+ */
+
+/**
+ * Deferred include — async codegen counterpart to {@link IRInclude}.
+ * Same field shape; the `'IncludeDeferred'` type tag is the dispatch
+ * signal that tells the backend to emit an async resolution call
+ * instead of an inlined sync include.
+ *
+ * @typedef {Object} IRIncludeDeferred
+ * @property {'IncludeDeferred'} type
+ * @property {IRExpr} path
+ * @property {IRExpr} [context]
+ * @property {boolean} [isolated]
+ * @property {boolean} [ignoreMissing]
+ * @property {string} [resolveFrom]
+ * @property {IRLoc} [loc]
+ */
+
+/**
+ * Deferred import — async codegen counterpart to {@link IRImport}.
+ * `alias` MUST pass the dangerousProps guard at backend emit time.
+ *
+ * @typedef {Object} IRImportDeferred
+ * @property {'ImportDeferred'} type
+ * @property {IRExpr} path
+ * @property {string} alias
+ * @property {string} [resolveFrom]
+ * @property {IRLoc} [loc]
+ */
+
+/**
+ * Deferred Twig `{% from "file" import macroA, macroB as alias %}` —
+ * async codegen path. Each `imports[]` entry binds the imported macro
+ * `name` as a callable in `_ctx` under `alias` (or under `name` when
+ * `alias` is null). Every `name` and every non-null `alias` MUST pass
+ * the dangerousProps guard at backend emit time.
+ *
+ * @typedef {Object} IRFromImportDeferred
+ * @property {'FromImportDeferred'} type
+ * @property {IRExpr} path
+ * @property {Array<{name: string, alias: (string|null)}>} imports
+ * @property {string} [resolveFrom]
+ * @property {IRLoc} [loc]
+ */
+
 /**
  * Any body-level IR node.
  *
  * @typedef {(
  *   IRText | IROutput | IRIf | IRFor | IRBlock | IRInclude | IRImport |
  *   IRMacro | IRCall | IRSet | IRRaw | IRParent | IRAutoescape | IRFilter |
- *   IRWith | IRLegacyJS
+ *   IRWith | IRLegacyJS |
+ *   IRExtendsDeferred | IRIncludeDeferred | IRImportDeferred | IRFromImportDeferred
  * )} IRStatement
  */
 
@@ -752,6 +832,81 @@ exports.withStmt = function (context, isolated, body, loc) {
  */
 exports.legacyJS = function (js, loc) {
   return withLoc({ type: 'LegacyJS', js: js }, loc);
+};
+
+/* -- Deferred-resolution factories --------------------------------- */
+
+/**
+ * Build an {@link IRExtendsDeferred} node. The factory stores `path`,
+ * `childBlocks`, and `childIRs` opaquely.
+ *
+ * @param  {IRExpr}                       path
+ * @param  {Object<string, IRBlock>}      [childBlocks]
+ * @param  {IRStatement[]}                [childIRs]
+ * @param  {string}                       [resolveFrom]
+ * @param  {IRLoc}                        [loc]
+ * @return {IRExtendsDeferred}
+ */
+exports.extendsDeferred = function (path, childBlocks, childIRs, resolveFrom, loc) {
+  var node = { type: 'ExtendsDeferred', path: path };
+  if (childBlocks !== undefined) { node.childBlocks = childBlocks; }
+  if (childIRs !== undefined) { node.childIRs = childIRs; }
+  if (resolveFrom !== undefined) { node.resolveFrom = resolveFrom; }
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRIncludeDeferred} node. Async-codegen counterpart
+ * to {@link exports.include}.
+ *
+ * @param  {IRExpr}  path
+ * @param  {IRExpr}  [context]
+ * @param  {boolean} [isolated]
+ * @param  {boolean} [ignoreMissing]
+ * @param  {string}  [resolveFrom]
+ * @param  {IRLoc}   [loc]
+ * @return {IRIncludeDeferred}
+ */
+exports.includeDeferred = function (path, context, isolated, ignoreMissing, resolveFrom, loc) {
+  var node = { type: 'IncludeDeferred', path: path };
+  if (context !== undefined) { node.context = context; }
+  if (isolated !== undefined) { node.isolated = isolated; }
+  if (ignoreMissing !== undefined) { node.ignoreMissing = ignoreMissing; }
+  if (resolveFrom !== undefined) { node.resolveFrom = resolveFrom; }
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRImportDeferred} node. `alias` MUST pass the
+ * dangerousProps guard at backend emit time.
+ *
+ * @param  {IRExpr} path
+ * @param  {string} alias
+ * @param  {string} [resolveFrom]
+ * @param  {IRLoc}  [loc]
+ * @return {IRImportDeferred}
+ */
+exports.importDeferred = function (path, alias, resolveFrom, loc) {
+  var node = { type: 'ImportDeferred', path: path, alias: alias };
+  if (resolveFrom !== undefined) { node.resolveFrom = resolveFrom; }
+  return withLoc(node, loc);
+};
+
+/**
+ * Build an {@link IRFromImportDeferred} node. Each entry's `name` and
+ * non-null `alias` MUST pass the dangerousProps guard at backend emit
+ * time.
+ *
+ * @param  {IRExpr}                                          path
+ * @param  {Array<{name: string, alias: (string|null)}>}     imports
+ * @param  {string}                                          [resolveFrom]
+ * @param  {IRLoc}                                           [loc]
+ * @return {IRFromImportDeferred}
+ */
+exports.fromImportDeferred = function (path, imports, resolveFrom, loc) {
+  var node = { type: 'FromImportDeferred', path: path, imports: imports };
+  if (resolveFrom !== undefined) { node.resolveFrom = resolveFrom; }
+  return withLoc(node, loc);
 };
 
 /* -- Expression factories ------------------------------------------ */
