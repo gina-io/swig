@@ -3,6 +3,17 @@ var utils = require('./utils'),
   cache = require('./cache');
 
 /**
+ * Constructor for AsyncFunction. Not a global; resolved once at module
+ * load via the prototype-chain walk of an async function expression.
+ * Used by {@link buildTemplateFunction} to wrap async-codegen template
+ * bodies so they return a Promise. Available in any engine that supports
+ * the `async function` syntax — Node ≥ 7.6 / all modern browsers; the
+ * package's engine floor (>=12) guarantees it.
+ * @private
+ */
+var AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
+/**
  * Empty function used as a fallback in compiled template code.
  * @return {string} Empty string.
  * @private
@@ -132,24 +143,32 @@ exports.getParents = function (tokens, options, deps) {
  * contract every tag's compile() output depends on — `_output`, `_ext`,
  * `_ctx`, etc. are referenced by name in emitted code.
  *
+ * When `options.codegenMode === 'async'` the body is wrapped with
+ * AsyncFunction instead so it returns a Promise<string>; that mode is
+ * the consumer of the deferred-resolution IR shapes (IRIncludeDeferred,
+ * IRImportDeferred, IRFromImportDeferred, IRExtendsDeferred) which emit
+ * `await` calls into the body. The argument list is unchanged.
+ *
  * Filename attribution on compile-time failures lives on the frontend
  * per the seam rule (the caller knows which template the body came from
  * and can attach that via options.filename in its own try/catch). This
- * helper only throws whatever `new Function(...)` throws — the caller
- * can catch and rewrap.
+ * helper only throws whatever the wrapper constructor throws — the
+ * caller can catch and rewrap.
  *
  * @param  {object|array} tokens   Parsed token tree.
  * @param  {array}  [parents]      Parent tokens from getParents().
  * @param  {object} [options]      Swig options object.
- * @return {Function}              Template function.
+ * @return {Function}              Template function (sync) or async template function (Promise-returning).
  */
 exports.buildTemplateFunction = function (tokens, parents, options) {
-  return new Function('_swig', '_ctx', '_filters', '_utils', '_fn',
-    '  var _ext = _swig.extensions,\n' +
+  var body = '  var _ext = _swig.extensions,\n' +
     '    _output = "";\n' +
     backend.compile(tokens, parents, options) + '\n' +
-    '  return _output;\n'
-    );
+    '  return _output;\n';
+  if (options && options.codegenMode === 'async') {
+    return new AsyncFunction('_swig', '_ctx', '_filters', '_utils', '_fn', body);
+  }
+  return new Function('_swig', '_ctx', '_filters', '_utils', '_fn', body);
 };
 
 /**
@@ -372,6 +391,78 @@ exports.install = function (self, frontend) {
 
     src = self.options.loader.load(pathname);
     return self.compile(src, options);
+  };
+
+  /**
+   * Async-codegen runtime helper. Resolves a template path via the active
+   * loader (cb-shape preferred when supported, sync fallback otherwise),
+   * compiles the source in async-codegen mode, and returns a
+   * Promise<TemplateFn>. Called from compiled bodies emitted for
+   * IRIncludeDeferred (and, in subsequent slices, IRImportDeferred /
+   * IRFromImportDeferred / IRExtendsDeferred) when an async-mode template
+   * needs to load a child template at render time.
+   *
+   * Cache semantics — slice 1 bypasses the cache via `options.cache = false`
+   * on the inner compile call. The sync compile cache and the async compile
+   * cache would otherwise share a key (the resolved filename) and serve a
+   * mode-mismatched compiled fn to the wrong caller. Cleaner namespacing
+   * (separate sync/async cache buckets, or a key suffix) is deferred to a
+   * follow-up slice; no consumers besides the slice-1 tests yet.
+   *
+   * @param  {string} pathname    Template path; resolved via the active loader.
+   * @param  {object} [options]   Per-call options. Honored: `resolveFrom`,
+   *                              `filename`. Inherits `self.options` for the rest.
+   * @return {Promise<Function>}  Resolves with the compiled async template fn.
+   */
+  self.getTemplate = function (pathname, options) {
+    options = options || {};
+
+    var resolved;
+    try {
+      resolved = self.options.loader.resolve(pathname, options.resolveFrom);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+
+    var compileOpts = utils.extend({}, options, {
+      filename: options.filename || resolved,
+      codegenMode: 'async',
+      cache: false
+    });
+
+    return new Promise(function (resolve, reject) {
+      function onLoaded(err, src) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        var compiled;
+        try {
+          compiled = self.compile(src, compileOpts);
+        } catch (err2) {
+          reject(err2);
+          return;
+        }
+        resolve(compiled);
+      }
+
+      if (self.options.loader.load.length >= 2) {
+        try {
+          self.options.loader.load(resolved, onLoaded);
+        } catch (e) {
+          onLoaded(e);
+        }
+      } else {
+        var src;
+        try {
+          src = self.options.loader.load(resolved);
+        } catch (e) {
+          onLoaded(e);
+          return;
+        }
+        onLoaded(null, src);
+      }
+    });
   };
 
   self.render = function (source, options) {

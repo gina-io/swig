@@ -343,6 +343,41 @@ exports.compile = function (template, parents, options, blockName) {
         (node.ignoreMissing ? '} catch (e) {}\n' : '');
       return;
     }
+    if (node.type === 'IncludeDeferred') {
+      // Phase 3 (#T22): async-codegen counterpart to Include. Resolves the
+      // path via `_swig.getTemplate(...)` at render time (Promise<TemplateFn>),
+      // then awaits the resolved template fn's call. The double-await flows
+      // correctly whether the loaded tpl is sync (returns string) or async-
+      // compiled (returns Promise<string>) — `await <non-Promise>` resolves
+      // to the value unchanged. Mirrors the Include branch's path/context/
+      // isolated/ignoreMissing dispatch; only the runtime call shape differs.
+      var incdPathJS, incdCtxJS;
+      if (node.path && typeof node.path === 'object' && typeof node.path.type === 'string') {
+        incdPathJS = exports.emitExpr(node.path);
+      } else {
+        incdPathJS = node.path;
+      }
+      if (node.context !== undefined) {
+        if (typeof node.context === 'object' && typeof node.context.type === 'string') {
+          incdCtxJS = exports.emitExpr(node.context);
+        } else {
+          incdCtxJS = node.context;
+        }
+      }
+      var incdSelector;
+      if (node.isolated && incdCtxJS) {
+        incdSelector = incdCtxJS;
+      } else if (!incdCtxJS) {
+        incdSelector = '_ctx';
+      } else {
+        incdSelector = '_utils.extend({}, _ctx, ' + incdCtxJS + ')';
+      }
+      var incdOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
+      out += (node.ignoreMissing ? '  try {\n' : '') +
+        '_output += await (await _swig.getTemplate(' + incdPathJS + ', ' + incdOpts + '))(' + incdSelector + ');\n' +
+        (node.ignoreMissing ? '} catch (e) {}\n' : '');
+      return;
+    }
     if (node.type === 'With') {
       // Phase 3 Session 12: scoped-context region (Twig's `{% with %}`).
       // Emits an IIFE that shadows `_ctx` for the body's lexical scope;
