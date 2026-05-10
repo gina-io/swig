@@ -515,8 +515,16 @@ exports.parse = function (swig, source, opts, tags, filters) {
       escapeRegExp(cmtOpen) + anyChar + escapeRegExp(cmtClose) +
       ')'
   );
-  var tagStrip = new RegExp('^' + escapeRegExp(tagOpen) + '\\s*|\\s*' + escapeRegExp(tagClose) + '$', 'g');
-  var varStrip = new RegExp('^' + escapeRegExp(varOpen) + '\\s*|\\s*' + escapeRegExp(varClose) + '$', 'g');
+  // Twig/Jinja2 whitespace-control. `{{- … -}}` / `{%- … -%}` strip
+  // surrounding whitespace; the `-?` lives only adjacent to the open /
+  // close marker (post-#T23 shape — drop the inner `-?` after `\s*` so
+  // `{{ -5 }}` doesn't have its expression-`-` eaten as a strip marker).
+  var tagStrip = new RegExp('^' + escapeRegExp(tagOpen) + '-?\\s*|\\s*-?' + escapeRegExp(tagClose) + '$', 'g');
+  var varStrip = new RegExp('^' + escapeRegExp(varOpen) + '-?\\s*|\\s*-?' + escapeRegExp(varClose) + '$', 'g');
+  var tagStripBefore = new RegExp('^' + escapeRegExp(tagOpen) + '-');
+  var tagStripAfter = new RegExp('-' + escapeRegExp(tagClose) + '$');
+  var varStripBefore = new RegExp('^' + escapeRegExp(varOpen) + '-');
+  var varStripAfter = new RegExp('-' + escapeRegExp(varClose) + '$');
 
   var line = 1;
   var stack = [];
@@ -524,6 +532,29 @@ exports.parse = function (swig, source, opts, tags, filters) {
   var tokens = [];
   var blocks = {};
   var inVerbatim = false;
+  // Carries `-}}` / `-%}` strip-after intent across the chunk boundary.
+  // Consumed by the next text chunk (leading whitespace stripped, flag
+  // reset). Mirrors native lib/parser.js's closure-scoped `stripNext`.
+  var stripNext = false;
+
+  /**
+   * If the previous token is a Text IR node, strip its trailing
+   * whitespace in-place. No-op for non-Text tokens.
+   *
+   * Mirrors lib/parser.js's stripPrevToken — same one-level-deep
+   * limitation: a `{%- endif %}` only strips the trailing whitespace of
+   * the last child of the immediately enclosing tag, not deeper.
+   *
+   * @param  {object} token IR node (typed), possibly a Text node.
+   * @return {object}       Same node; mutated when `type === 'Text'`.
+   * @private
+   */
+  function stripPrevToken(token) {
+    if (token && token.type === 'Text' && typeof token.value === 'string') {
+      token.value = token.value.replace(/\s*$/, '');
+    }
+    return token;
+  }
 
   /**
    * Build an IROutput node for a `{{ … }}` chunk.
@@ -628,13 +659,17 @@ exports.parse = function (swig, source, opts, tags, filters) {
   }
 
   utils.each(source.split(splitter), function (chunk) {
-    var token, lines;
+    var token, lines, stripPrev, prevToken, prevChildToken;
 
     if (!chunk) { return; }
 
     if (!inVerbatim && utils.startsWith(chunk, varOpen) && utils.endsWith(chunk, varClose)) {
+      stripPrev = varStripBefore.test(chunk);
+      stripNext = varStripAfter.test(chunk);
       token = parseVariable(chunk.replace(varStrip, ''), line);
     } else if (utils.startsWith(chunk, tagOpen) && utils.endsWith(chunk, tagClose)) {
+      stripPrev = tagStripBefore.test(chunk);
+      stripNext = tagStripAfter.test(chunk);
       token = parseTag(chunk.replace(tagStrip, ''), line);
       if (token) {
         if (token.name === 'extends') {
@@ -654,7 +689,26 @@ exports.parse = function (swig, source, opts, tags, filters) {
       line += lines ? lines.length : 0;
       return;
     } else {
+      if (stripNext) {
+        chunk = chunk.replace(/^\s*/, '');
+        stripNext = false;
+      }
       token = ir.text(chunk);
+    }
+
+    // `{{-` / `{%-` strips the previous text chunk's trailing whitespace.
+    // Mirrors lib/parser.js: pop tokens.last; if it's a Text node strip
+    // it directly, else if it carries `.content` (a tag with body) drill
+    // one level into its last child. One-level-deep — matches native.
+    if (stripPrev && tokens.length) {
+      prevToken = tokens.pop();
+      if (prevToken && prevToken.type === 'Text') {
+        prevToken = stripPrevToken(prevToken);
+      } else if (prevToken && prevToken.content && prevToken.content.length) {
+        prevChildToken = stripPrevToken(prevToken.content.pop());
+        prevToken.content.push(prevChildToken);
+      }
+      tokens.push(prevToken);
     }
 
     if (token) {
