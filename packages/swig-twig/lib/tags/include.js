@@ -163,8 +163,17 @@ function sliceTrim(tokens, start, end, types) {
  * context emission, isolated-vs-merged selector, resolveFrom, optional
  * try/catch for ignoreMissing).
  *
- * @return {object} IRInclude node from `token.irExpr`.
+ * In async codegen mode (`options.codegenMode === 'async'`), derive an
+ * `IRIncludeDeferred` from the same fields so the backend routes through
+ * the `_swig.getTemplate` + `await` deferred-resolution path instead of
+ * the sync `_swig.compileFile` call.
+ *
+ * @return {object} IRInclude or IRIncludeDeferred node.
  */
 exports.compile = function (compiler, args, content, parents, options, blockName, token) {
+  if (options && options.codegenMode === 'async') {
+    var i = token.irExpr;
+    return ir.includeDeferred(i.path, i.context, i.isolated, i.ignoreMissing, i.resolveFrom);
+  }
   return token.irExpr;
 };
