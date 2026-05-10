@@ -21,6 +21,12 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.0.1 (May 2026)
+
+- Fixed bracket-access expressions failing on unspaced binary arithmetic in `@rhinostone/swig` and `@rhinostone/swig-twig`. The lexer's NUMBER rule was greedy-eating leading `+` / `-` operators inside bracket expressions like `arr[arr.length-1]` and `arr[idx-1]`, causing the parser to bail with "Unexpected closing square bracket". Dropped the optional sign prefix from the NUMBER rule; signed-literal paths continue to work via the existing unary-operator wrapping.
+- Fixed `varStrip` / `tagStrip` regexes in `lib/parser.js` greedy-eating the leading `-` of negative-number expressions. `{{ -5 }}` and `{{ -1.5 }}` were rendering as `"5"` / `"1.5"` because the strip patterns matched the sign before the lexer saw it. Whitespace-control markers (`{{-`, `-}}`, `{%-`, `-%}`) now fire only when `-` is immediately adjacent to the open / close marker, matching the standard Twig/Jinja2 contract.
+- Fixed missing whitespace-control parity in `@rhinostone/swig-twig`. `{{- … -}}` and `{%- … -%}` markers now strip surrounding whitespace at chunk boundaries, matching the native swig surface and the upstream Twig spec. Same one-level-deep limitation as native — a `{%- endif %}` strips the trailing whitespace of the immediately enclosing tag's last child only, not deeper.
+
 ### v2.0.0 (May 2026)
 
 - Multi-flavor template-engine workspace shipped: `@rhinostone/swig` (native syntax, drop-in for `1.x`), `@rhinostone/swig-twig` (Twig syntax), `@rhinostone/swig-core` (shared IR backend). Production-ready cut of the changeset introduced across `2.0.0-alpha.1` through `2.0.0-alpha.5`. No functional or API changes since `2.0.0-alpha.5`. IR ABI is stable from this release onward; cross-package dependencies pin exact versions and frontends + core release in lockstep.
