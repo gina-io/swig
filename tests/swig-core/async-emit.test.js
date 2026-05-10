@@ -8,18 +8,25 @@ var backend = require('@rhinostone/swig-core/lib/backend'),
 
 /*!
  * Acceptance tests for the async-codegen path introduced as Phase 3
- * slice 1 of #T22:
+ * of #T22:
  *   - engine.buildTemplateFunction wrapping with AsyncFunction when
- *     options.codegenMode === 'async'.
+ *     options.codegenMode === 'async'. Body returns
+ *     `Promise<{output: string, exports: object}>` so importers can
+ *     pick up top-level macros via the .exports field.
  *   - backend.compile emitting the IRIncludeDeferred branch (await /
- *     _swig.getTemplate / double-await selector dispatch).
+ *     _swig.getTemplate / .output extraction), the IRImportDeferred
+ *     branch (.exports → _ctx[<alias>] bind), and the
+ *     IRFromImportDeferred branch (per-entry alias bind via async IIFE).
+ *   - IRMacro async-emit copies _ctx.<name> to _exports.<name> so cross-
+ *     template imports can resolve macros.
  *   - self.getTemplate runtime helper installed by engine.install
  *     (Promise<TemplateFn>; cb-shape loader preferred, sync fallback).
  *
  * Sync-mode behavior is verified untouched: codegenMode omitted or set
- * to 'sync' produces a regular Function and the sync IRInclude branch
- * keeps emitting `_swig.compileFile(...)` (covered by the existing
- * regressions suite — not re-asserted here).
+ * to 'sync' produces a regular Function, the sync IRInclude / IRImport
+ * branches keep emitting `_swig.compileFile(...)` + parse-time
+ * regex-namespaced macro inlining (covered by the existing regressions
+ * suite — not re-asserted here).
  */
 function efn() { return ''; }
 
@@ -37,7 +44,10 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       expect(typeof ret.then).to.be('function');
 
       ret.then(function (result) {
-        expect(result).to.be('hello async');
+        expect(result).to.be.an('object');
+        expect(result.output).to.be('hello async');
+        expect(result.exports).to.be.an('object');
+        expect(Object.keys(result.exports).length).to.be(0);
         done();
       }).catch(done);
     });
@@ -65,7 +75,7 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
 
   describe('IRIncludeDeferred emit shape', function () {
 
-    it('emits an await/getTemplate shape for a literal-path IRIncludeDeferred node', function () {
+    it('emits an await/getTemplate shape with .output extraction for a literal-path node', function () {
       var pathExpr = ir.literal('string', 'partial.html');
       var node = ir.includeDeferred(pathExpr, undefined, false, false, '');
       var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
@@ -73,6 +83,7 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       expect(body).to.contain('_swig.getTemplate');
       expect(body).to.contain('await');
       expect(body).to.contain('"partial.html"');
+      expect(body).to.contain(').output');
     });
 
     it('does NOT wrap in try/catch when ignoreMissing is false', function () {
@@ -99,7 +110,7 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       var node = ir.includeDeferred(pathExpr, undefined, false, false, '');
       var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
 
-      expect(body).to.contain(')(_ctx)');
+      expect(body).to.contain(')(_ctx)).output');
     });
 
     it('uses _utils.extend({}, _ctx, <ctx>) when with-context is provided without "only"', function () {
@@ -139,6 +150,18 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
 
   describe('IRIncludeDeferred end-to-end with mock _swig.getTemplate', function () {
 
+    function mockTemplate(output, exports) {
+      return function () {
+        return { output: output, exports: exports || {} };
+      };
+    }
+
+    function mockAsyncTemplate(output, exports) {
+      return function () {
+        return Promise.resolve({ output: output, exports: exports || {} });
+      };
+    }
+
     it('renders a sync-resolved child via mock getTemplate', function (done) {
       var pathExpr = ir.literal('string', 'partial.html');
       var template = {
@@ -156,12 +179,12 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
         getTemplate: function (path, opts) {
           captured.path = path;
           captured.opts = opts;
-          return Promise.resolve(function () { return 'CHILD'; });
+          return Promise.resolve(mockTemplate('CHILD'));
         }
       };
 
       fn(mockSwig, {}, {}, utils, efn).then(function (result) {
-        expect(result).to.be('parent[CHILD]parent');
+        expect(result.output).to.be('parent[CHILD]parent');
         expect(captured.path).to.be('partial.html');
         expect(captured.opts).to.eql({ resolveFrom: '' });
         done();
@@ -182,14 +205,12 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       var mockSwig = {
         extensions: {},
         getTemplate: function () {
-          return Promise.resolve(function () {
-            return Promise.resolve('CHILD-ASYNC');
-          });
+          return Promise.resolve(mockAsyncTemplate('CHILD-ASYNC'));
         }
       };
 
       fn(mockSwig, {}, {}, utils, efn).then(function (result) {
-        expect(result).to.be('parent[CHILD-ASYNC]parent');
+        expect(result.output).to.be('parent[CHILD-ASYNC]parent');
         done();
       }).catch(done);
     });
@@ -213,7 +234,7 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       };
 
       fn(mockSwig, {}, {}, utils, efn).then(function (result) {
-        expect(result).to.be('before[]after');
+        expect(result.output).to.be('before[]after');
         done();
       }).catch(done);
     });
@@ -258,15 +279,236 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
         getTemplate: function () {
           return Promise.resolve(function (ctx) {
             capturedCtx = ctx;
-            return '';
+            return { output: '', exports: {} };
           });
         }
       };
 
       fn(mockSwig, { existing: 'A' }, {}, utils, efn).then(function () {
         expect(capturedCtx.existing).to.be('A');
-        // scope is undefined in this _ctx — the merge still produces an object.
         expect(typeof capturedCtx).to.be('object');
+        done();
+      }).catch(done);
+    });
+  });
+
+  describe('IRMacro async-emit (cross-template export wiring)', function () {
+
+    it('declares _exports in the prelude and returns it on the resolved value', function (done) {
+      var template = { tokens: [ir.text('body text')] };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      fn({ extensions: {} }, {}, {}, utils, efn).then(function (result) {
+        expect(result.exports).to.be.an('object');
+        expect(Object.keys(result.exports).length).to.be(0);
+        done();
+      }).catch(done);
+    });
+
+    it('IRMacro async-emit assigns to both _ctx and _exports', function () {
+      var macroNode = ir.macro('greet', [ir.macroParam('name')], [
+        ir.legacyJS('_output += "hello " + name;\n')
+      ]);
+      var body = backend.compile({ tokens: [macroNode] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('_ctx.greet = function');
+      expect(body).to.contain('_exports.greet = _ctx.greet;');
+    });
+
+    it('IRMacro sync-emit does NOT assign to _exports', function () {
+      var macroNode = ir.macro('greet', [ir.macroParam('name')], [
+        ir.legacyJS('_output += "hello " + name;\n')
+      ]);
+      var body = backend.compile({ tokens: [macroNode] }, [], {});
+
+      expect(body).to.contain('_ctx.greet = function');
+      expect(body).to.not.contain('_exports.greet');
+    });
+
+    it('throws on a dangerousProps macro name in async mode', function () {
+      var macroNode = ir.macro('__proto__', [], [ir.legacyJS('_output += "x";\n')]);
+      expect(function () {
+        backend.compile({ tokens: [macroNode] }, [], { codegenMode: 'async' });
+      }).to.throwException(/reserved/);
+    });
+  });
+
+  describe('IRImportDeferred emit shape', function () {
+
+    it('emits a single await/getTemplate call with .exports extraction', function () {
+      var node = ir.importDeferred(ir.literal('string', 'macros.html'), 'forms', '');
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('_ctx.forms = ');
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('.exports;');
+    });
+
+    it('passes parent _ctx to the imported tpl call', function () {
+      var node = ir.importDeferred(ir.literal('string', 'macros.html'), 'forms', '');
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('))(_ctx)).exports');
+    });
+
+    it('throws on dangerousProps alias at backend emit time', function () {
+      var node = ir.importDeferred(ir.literal('string', 'macros.html'), '__proto__', '');
+      expect(function () {
+        backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+      }).to.throwException(/reserved/);
+    });
+  });
+
+  describe('IRImportDeferred end-to-end with mock _swig.getTemplate', function () {
+
+    it('binds the imported template\'s exports onto _ctx[<alias>]', function (done) {
+      var greet = function (name) { return 'hi ' + name; };
+      var bye = function () { return 'bye'; };
+
+      var template = {
+        tokens: [
+          ir.importDeferred(ir.literal('string', 'macros.html'), 'forms', ''),
+          ir.text('imported')
+        ]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function () {
+          return Promise.resolve(function () {
+            return { output: '', exports: { greet: greet, bye: bye } };
+          });
+        }
+      };
+
+      var ctx = {};
+      fn(mockSwig, ctx, {}, utils, efn).then(function (result) {
+        expect(result.output).to.be('imported');
+        expect(ctx.forms).to.be.an('object');
+        expect(ctx.forms.greet).to.be(greet);
+        expect(ctx.forms.bye).to.be(bye);
+        done();
+      }).catch(done);
+    });
+  });
+
+  describe('IRFromImportDeferred emit shape', function () {
+
+    it('emits an async IIFE with single getTemplate call and per-entry _ctx bind', function () {
+      var node = ir.fromImportDeferred(
+        ir.literal('string', 'macros.html'),
+        [
+          { name: 'a', alias: null },
+          { name: 'b', alias: 'c' }
+        ],
+        ''
+      );
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('await (async function () {');
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('_imp = ');
+      expect(body).to.contain('_ctx.a = _imp["a"];');
+      expect(body).to.contain('_ctx.c = _imp["b"];');
+    });
+
+    it('rejects dangerousProps in either name or alias', function () {
+      var badName = ir.fromImportDeferred(
+        ir.literal('string', 'macros.html'),
+        [{ name: '__proto__', alias: 'safe' }],
+        ''
+      );
+      expect(function () {
+        backend.compile({ tokens: [badName] }, [], { codegenMode: 'async' });
+      }).to.throwException(/reserved/);
+
+      var badAlias = ir.fromImportDeferred(
+        ir.literal('string', 'macros.html'),
+        [{ name: 'safe', alias: 'constructor' }],
+        ''
+      );
+      expect(function () {
+        backend.compile({ tokens: [badAlias] }, [], { codegenMode: 'async' });
+      }).to.throwException(/reserved/);
+    });
+  });
+
+  describe('IRFromImportDeferred end-to-end', function () {
+
+    it('binds named entries (and aliased entries) onto _ctx', function (done) {
+      var fnA = function () { return 'A'; };
+      var fnB = function () { return 'B'; };
+
+      var template = {
+        tokens: [
+          ir.fromImportDeferred(
+            ir.literal('string', 'macros.html'),
+            [
+              { name: 'a', alias: null },
+              { name: 'b', alias: 'aliasedB' }
+            ],
+            ''
+          ),
+          ir.text('done')
+        ]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function () {
+          return Promise.resolve(function () {
+            return { output: '', exports: { a: fnA, b: fnB } };
+          });
+        }
+      };
+
+      var ctx = {};
+      fn(mockSwig, ctx, {}, utils, efn).then(function (result) {
+        expect(result.output).to.be('done');
+        expect(ctx.a).to.be(fnA);
+        expect(ctx.aliasedB).to.be(fnB);
+        // Original 'b' name is NOT bound — alias takes precedence
+        expect(ctx.b).to.be(undefined);
+        done();
+      }).catch(done);
+    });
+
+    it('handles two from-imports in the same template without _imp variable collision', function (done) {
+      var fnA = function () { return 'A'; };
+      var fnX = function () { return 'X'; };
+
+      var template = {
+        tokens: [
+          ir.fromImportDeferred(
+            ir.literal('string', 'one.html'),
+            [{ name: 'a', alias: null }],
+            ''
+          ),
+          ir.fromImportDeferred(
+            ir.literal('string', 'two.html'),
+            [{ name: 'x', alias: null }],
+            ''
+          )
+        ]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function (path) {
+          if (path === 'one.html') {
+            return Promise.resolve(function () { return { output: '', exports: { a: fnA } }; });
+          }
+          return Promise.resolve(function () { return { output: '', exports: { x: fnX } }; });
+        }
+      };
+
+      var ctx = {};
+      fn(mockSwig, ctx, {}, utils, efn).then(function () {
+        expect(ctx.a).to.be(fnA);
+        expect(ctx.x).to.be(fnX);
         done();
       }).catch(done);
     });
@@ -274,7 +516,7 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
 
   describe('self.getTemplate runtime helper (integration via memory loader)', function () {
 
-    it('returns a Promise<TemplateFn> for a memory-loaded template', function (done) {
+    it('returns a Promise<TemplateFn> that resolves to a fn returning {output, exports}', function (done) {
       var instance = new swig.Swig({
         loader: swig.loaders.memory({ '/foo.html': 'foo content' })
       });
@@ -285,11 +527,12 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       promise.then(function (tpl) {
         expect(typeof tpl).to.be('function');
         var result = tpl({});
-        // Compiled in async mode -> Promise<string>
         expect(typeof result.then).to.be('function');
         return result;
-      }).then(function (output) {
-        expect(output).to.be('foo content');
+      }).then(function (resolved) {
+        expect(resolved).to.be.an('object');
+        expect(resolved.output).to.be('foo content');
+        expect(resolved.exports).to.be.an('object');
         done();
       }).catch(done);
     });
@@ -317,8 +560,8 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       instance.getTemplate('/dir/sibling.html', { resolveFrom: '/dir/main.html' })
         .then(function (tpl) {
           return tpl({});
-        }).then(function (output) {
-          expect(output).to.be('sibling here');
+        }).then(function (resolved) {
+          expect(resolved.output).to.be('sibling here');
           done();
         }).catch(done);
     });
@@ -335,8 +578,8 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
 
       instance.getTemplate('/x.html').then(function (tpl) {
         return tpl({});
-      }).then(function (output) {
-        expect(output).to.be('sync-loaded: /x.html');
+      }).then(function (resolved) {
+        expect(resolved.output).to.be('sync-loaded: /x.html');
         done();
       }).catch(done);
     });
@@ -345,7 +588,6 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       var cbLoader = {
         resolve: function (to) { return to; },
         load: function (path, cb) {
-          // Simulate async I/O.
           setImmediate(function () {
             cb(null, 'cb-loaded: ' + path);
           });
@@ -356,8 +598,8 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
 
       instance.getTemplate('/y.html').then(function (tpl) {
         return tpl({});
-      }).then(function (output) {
-        expect(output).to.be('cb-loaded: /y.html');
+      }).then(function (resolved) {
+        expect(resolved.output).to.be('cb-loaded: /y.html');
         done();
       }).catch(done);
     });
@@ -394,10 +636,8 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       };
       var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
 
-      // Drive the template directly. _filters / _fn aren't referenced by
-      // this body, so empty stubs are fine.
-      fn(instance, {}, {}, utils, efn).then(function (output) {
-        expect(output).to.be('parent[CHILD]parent');
+      fn(instance, {}, {}, utils, efn).then(function (resolved) {
+        expect(resolved.output).to.be('parent[CHILD]parent');
         done();
       }).catch(done);
     });

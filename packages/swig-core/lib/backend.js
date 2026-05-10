@@ -273,6 +273,19 @@ exports.compile = function (template, parents, options, blockName) {
         '  return _output;\n' +
         '};\n' +
         '_ctx.' + node.name + '.safe = true;\n';
+      // Phase 3 (#T22): async-codegen mirrors the macro into _exports so
+      // {% import %} / Twig's {% from %} can bind macros across templates
+      // at runtime. The macro's closure still references _ctx (not
+      // _exports) for outer-ctx lookups — sync-semantics-preserving.
+      // Top-level filter is implicit: the existing macro body walker
+      // (above) only handles Text/Raw/LegacyJS children, so nested
+      // IRMacro never reaches this branch.
+      if (options && options.codegenMode === 'async') {
+        if (_security.dangerousProps.indexOf(node.name) !== -1) {
+          throw new Error('Macro name "' + node.name + '" is reserved.');
+        }
+        out += '_exports.' + node.name + ' = _ctx.' + node.name + ';\n';
+      }
       return;
     }
     if (node.type === 'Parent') {
@@ -374,8 +387,61 @@ exports.compile = function (template, parents, options, blockName) {
       }
       var incdOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
       out += (node.ignoreMissing ? '  try {\n' : '') +
-        '_output += await (await _swig.getTemplate(' + incdPathJS + ', ' + incdOpts + '))(' + incdSelector + ');\n' +
+        '_output += (await (await _swig.getTemplate(' + incdPathJS + ', ' + incdOpts + '))(' + incdSelector + ')).output;\n' +
         (node.ignoreMissing ? '} catch (e) {}\n' : '');
+      return;
+    }
+    if (node.type === 'ImportDeferred') {
+      // Phase 3 (#T22): async-codegen counterpart to the parse-time
+      // import flow. The imported template is loaded via _swig.getTemplate
+      // and called with the parent's _ctx so its body's compiled JS
+      // closes over outer-ctx vars (sync-semantics-preserving). Only
+      // the resolved value's `.exports` is bound; the imported body's
+      // `.output` is discarded — import doesn't render.
+      if (_security.dangerousProps.indexOf(node.alias) !== -1) {
+        throw new Error('Import alias "' + node.alias + '" is reserved.');
+      }
+      var impdPathJS;
+      if (node.path && typeof node.path === 'object' && typeof node.path.type === 'string') {
+        impdPathJS = exports.emitExpr(node.path);
+      } else {
+        impdPathJS = node.path;
+      }
+      var impdOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
+      out += '_ctx.' + node.alias + ' = (await (await _swig.getTemplate(' + impdPathJS + ', ' + impdOpts + '))(_ctx)).exports;\n';
+      return;
+    }
+    if (node.type === 'FromImportDeferred') {
+      // Phase 3 (#T22): async-codegen counterpart to Twig's `{% from
+      // "file" import a, b as c %}`. Single getTemplate call, then
+      // per-entry bind onto _ctx. Async IIFE keeps `_imp` local so
+      // multiple from-imports in the same template don't collide.
+      var fromdImports = node.imports || [];
+      utils.each(fromdImports, function (entry) {
+        if (_security.dangerousProps.indexOf(entry.name) !== -1) {
+          throw new Error('From-import name "' + entry.name + '" is reserved.');
+        }
+        var bindName = entry.alias || entry.name;
+        if (_security.dangerousProps.indexOf(bindName) !== -1) {
+          throw new Error('From-import binding "' + bindName + '" is reserved.');
+        }
+      });
+      var fromdPathJS;
+      if (node.path && typeof node.path === 'object' && typeof node.path.type === 'string') {
+        fromdPathJS = exports.emitExpr(node.path);
+      } else {
+        fromdPathJS = node.path;
+      }
+      var fromdOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
+      var fromdBindings = '';
+      utils.each(fromdImports, function (entry) {
+        var bindName = entry.alias || entry.name;
+        fromdBindings += '  _ctx.' + bindName + ' = _imp["' + entry.name + '"];\n';
+      });
+      out += 'await (async function () {\n' +
+        '  var _imp = (await (await _swig.getTemplate(' + fromdPathJS + ', ' + fromdOpts + '))(_ctx)).exports;\n' +
+        fromdBindings +
+        '})();\n';
       return;
     }
     if (node.type === 'With') {

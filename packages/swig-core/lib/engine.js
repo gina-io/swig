@@ -144,8 +144,12 @@ exports.getParents = function (tokens, options, deps) {
  * `_ctx`, etc. are referenced by name in emitted code.
  *
  * When `options.codegenMode === 'async'` the body is wrapped with
- * AsyncFunction instead so it returns a Promise<string>; that mode is
- * the consumer of the deferred-resolution IR shapes (IRIncludeDeferred,
+ * AsyncFunction instead so the function returns a
+ * `Promise<{output: string, exports: object}>`. The exports map collects
+ * top-level macros so async importers (`IRImportDeferred` /
+ * `IRFromImportDeferred`) can bind them under their alias at runtime
+ * without parse-time pre-resolution. Async mode is also the consumer
+ * of the deferred-resolution IR shapes (IRIncludeDeferred,
  * IRImportDeferred, IRFromImportDeferred, IRExtendsDeferred) which emit
  * `await` calls into the body. The argument list is unchanged.
  *
@@ -161,13 +165,18 @@ exports.getParents = function (tokens, options, deps) {
  * @return {Function}              Template function (sync) or async template function (Promise-returning).
  */
 exports.buildTemplateFunction = function (tokens, parents, options) {
+  if (options && options.codegenMode === 'async') {
+    var asyncBody = '  var _ext = _swig.extensions,\n' +
+      '    _output = "",\n' +
+      '    _exports = {};\n' +
+      backend.compile(tokens, parents, options) + '\n' +
+      '  return { output: _output, exports: _exports };\n';
+    return new AsyncFunction('_swig', '_ctx', '_filters', '_utils', '_fn', asyncBody);
+  }
   var body = '  var _ext = _swig.extensions,\n' +
     '    _output = "";\n' +
     backend.compile(tokens, parents, options) + '\n' +
     '  return _output;\n';
-  if (options && options.codegenMode === 'async') {
-    return new AsyncFunction('_swig', '_ctx', '_filters', '_utils', '_fn', body);
-  }
   return new Function('_swig', '_ctx', '_filters', '_utils', '_fn', body);
 };
 
@@ -396,18 +405,24 @@ exports.install = function (self, frontend) {
   /**
    * Async-codegen runtime helper. Resolves a template path via the active
    * loader (cb-shape preferred when supported, sync fallback otherwise),
-   * compiles the source in async-codegen mode, and returns a
-   * Promise<TemplateFn>. Called from compiled bodies emitted for
-   * IRIncludeDeferred (and, in subsequent slices, IRImportDeferred /
-   * IRFromImportDeferred / IRExtendsDeferred) when an async-mode template
-   * needs to load a child template at render time.
+   * compiles the source in async-codegen mode, and returns a Promise that
+   * resolves to the compiled async template function. The compiled
+   * function, when called, returns a `Promise<{output: string, exports:
+   * object}>` — `output` is the rendered text, `exports` is the
+   * top-level-macro map used by `IRImportDeferred` /
+   * `IRFromImportDeferred` callers.
    *
-   * Cache semantics — slice 1 bypasses the cache via `options.cache = false`
-   * on the inner compile call. The sync compile cache and the async compile
-   * cache would otherwise share a key (the resolved filename) and serve a
-   * mode-mismatched compiled fn to the wrong caller. Cleaner namespacing
-   * (separate sync/async cache buckets, or a key suffix) is deferred to a
-   * follow-up slice; no consumers besides the slice-1 tests yet.
+   * Called from compiled bodies emitted for `IRIncludeDeferred`,
+   * `IRImportDeferred`, `IRFromImportDeferred` (and, in a subsequent
+   * slice, `IRExtendsDeferred`) when an async-mode template needs to
+   * load a child template at render time.
+   *
+   * Cache semantics — bypasses the cache via `options.cache = false` on
+   * the inner compile call. The sync compile cache and the async compile
+   * cache would otherwise share a key (the resolved filename) and serve
+   * a mode-mismatched compiled fn to the wrong caller. Cleaner
+   * namespacing (separate sync/async cache buckets, or a key suffix) is
+   * deferred to a follow-up slice.
    *
    * @param  {string} pathname    Template path; resolved via the active loader.
    * @param  {object} [options]   Per-call options. Honored: `resolveFrom`,
