@@ -31,6 +31,7 @@
  */
 
 var utils = require('@rhinostone/swig-core/lib/utils');
+var ir = require('@rhinostone/swig-core/lib/ir');
 var backend = require('@rhinostone/swig-core/lib/backend');
 var _dangerousProps = require('@rhinostone/swig-core/lib/security').dangerousProps;
 
@@ -109,11 +110,20 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     utils.throwError('Unexpected token "' + peek().match + '" after alias in "import" tag', line, opts.filename);
   }
 
+  var path = pathTok.match.replace(/^['"]|['"]$/g, '');
+
+  if (opts && opts.codegenMode === 'async') {
+    // Phase 2 (#T22): async mode skips the parse-time parseFile + macro
+    // pre-render. compile() emits IRImportDeferred; runtime resolves the
+    // template via _swig.getTemplate and binds .exports under the alias.
+    token.args = [path, aliasTok.match];
+    return true;
+  }
+
   if (!swig || typeof swig.parseFile !== 'function') {
     utils.throwError('"import" tag requires an engine context with a loader', line, opts.filename);
   }
 
-  var path = pathTok.match.replace(/^['"]|['"]$/g, '');
   var parseOpts = { resolveFrom: opts.filename };
   var compileOpts = utils.extend({}, opts, parseOpts);
   var parsed = swig.parseFile(path, parseOpts);
@@ -145,7 +155,17 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
  * @return {string} JS source that initialises `_ctx.<alias>` and
  *                  assigns every imported macro into it.
  */
-exports.compile = function (compiler, args) {
+exports.compile = function (compiler, args, content, parents, options) {
+  // Phase 2 (#T22): async-codegen branch. Parse stashed `[path, alias]`
+  // in async mode (no macro pre-render); emit IRImportDeferred so the
+  // backend's `_swig.getTemplate` + `.exports` bind happens at runtime.
+  if (options && options.codegenMode === 'async') {
+    return ir.importDeferred(
+      ir.literal('string', args[0]),
+      args[args.length - 1],
+      options.filename || ''
+    );
+  }
   var ctx = args.pop();
   var allMacros = utils.map(args, function (arg) { return arg.name; }).join('|');
   var out = '_ctx.' + ctx + ' = {};\n  var _output = "";\n';

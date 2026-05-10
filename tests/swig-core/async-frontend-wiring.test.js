@@ -274,3 +274,127 @@ describe('Phase 2 frontend wiring — Extends tag (engine.precompile, codegenMod
     });
   });
 });
+
+
+describe('Phase 2 frontend wiring — Import/From tags (codegenMode: "async")', function () {
+
+  describe('native @rhinostone/swig import', function () {
+
+    it('emits IRImportDeferred shape when codegenMode is "async"', function () {
+      var src = '{% import "macros.html" as form %}';
+      var result = swig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/page.html'
+      });
+      var body = result.tpl.toString();
+
+      expect(result.tpl.constructor.name).to.be('AsyncFunction');
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('"macros.html"');
+      expect(body).to.contain('_ctx.form');
+      expect(body).to.contain('.exports');
+      expect(body).to.not.contain('_swig.compileFile');
+    });
+
+    it('rejects __proto__ alias even in async mode (CVE-2023-25345)', function () {
+      var src = '{% import "macros.html" as __proto__ %}';
+      expect(function () {
+        swig.precompile(src, {
+          codegenMode: 'async',
+          filename: '/tmp/page.html'
+        });
+      }).to.throwError(/Unsafe import alias/);
+    });
+  });
+
+  describe('Twig @rhinostone/swig-twig import', function () {
+
+    it('emits IRImportDeferred shape when codegenMode is "async"', function () {
+      var src = '{% import "macros.twig" as form %}';
+      var result = twig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/page.twig'
+      });
+      var body = result.tpl.toString();
+
+      expect(result.tpl.constructor.name).to.be('AsyncFunction');
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('"macros.twig"');
+      expect(body).to.contain('_ctx.form');
+      expect(body).to.contain('.exports');
+      expect(body).to.not.contain('_swig.compileFile');
+    });
+
+    it('rejects __proto__ alias even in async mode (CVE-2023-25345)', function () {
+      var src = '{% import "macros.twig" as __proto__ %}';
+      expect(function () {
+        twig.precompile(src, {
+          codegenMode: 'async',
+          filename: '/tmp/page.twig'
+        });
+      }).to.throwError(/Unsafe import alias/);
+    });
+  });
+
+  describe('Twig @rhinostone/swig-twig from', function () {
+
+    it('emits IRFromImportDeferred shape for a single bare-name entry', function () {
+      var src = '{% from "macros.twig" import field %}';
+      var result = twig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/page.twig'
+      });
+      var body = result.tpl.toString();
+
+      expect(result.tpl.constructor.name).to.be('AsyncFunction');
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('"macros.twig"');
+      expect(body).to.contain('_ctx.field = _imp["field"]');
+      expect(body).to.not.contain('_swig.compileFile');
+    });
+
+    it('emits IRFromImportDeferred shape with aliased entry (origName !== aliasName)', function () {
+      var src = '{% from "macros.twig" import field as widget %}';
+      var result = twig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/page.twig'
+      });
+      var body = result.tpl.toString();
+
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('_ctx.widget = _imp["field"]');
+    });
+
+    it('emits per-entry bindings for multiple imports', function () {
+      var src = '{% from "macros.twig" import input, textarea as box %}';
+      var result = twig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/page.twig'
+      });
+      var body = result.tpl.toString();
+
+      expect(body).to.contain('_ctx.input = _imp["input"]');
+      expect(body).to.contain('_ctx.box = _imp["textarea"]');
+    });
+
+    it('rejects __proto__ as an alias in async mode (CVE-2023-25345)', function () {
+      var src = '{% from "macros.twig" import field as __proto__ %}';
+      expect(function () {
+        twig.precompile(src, {
+          codegenMode: 'async',
+          filename: '/tmp/page.twig'
+        });
+      }).to.throwError(/Unsafe import alias/);
+    });
+
+    it('rejects __proto__ as an origName in async mode (CVE-2023-25345)', function () {
+      var src = '{% from "macros.twig" import __proto__ %}';
+      expect(function () {
+        twig.precompile(src, {
+          codegenMode: 'async',
+          filename: '/tmp/page.twig'
+        });
+      }).to.throwError(/Unsafe macro name/);
+    });
+  });
+});

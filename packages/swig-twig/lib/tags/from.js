@@ -30,6 +30,7 @@
  */
 
 var utils = require('@rhinostone/swig-core/lib/utils');
+var ir = require('@rhinostone/swig-core/lib/ir');
 var backend = require('@rhinostone/swig-core/lib/backend');
 var _dangerousProps = require('@rhinostone/swig-core/lib/security').dangerousProps;
 
@@ -135,11 +136,20 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     consume();
   }
 
+  var path = pathTok.match.replace(/^['"]|['"]$/g, '');
+
+  if (opts && opts.codegenMode === 'async') {
+    // Phase 2 (#T22): async mode skips parse-time parseFile + macro
+    // pre-render. compile() emits IRFromImportDeferred; runtime resolves
+    // the template via _swig.getTemplate and binds each entry on _ctx.
+    token.args = [{ path: path, entries: entries }];
+    return true;
+  }
+
   if (!swig || typeof swig.parseFile !== 'function') {
     utils.throwError('"from" tag requires an engine context with a loader', line, opts.filename);
   }
 
-  var path = pathTok.match.replace(/^['"]|['"]$/g, '');
   var parseOpts = { resolveFrom: opts.filename };
   var compileOpts = utils.extend({}, opts, parseOpts);
   var parsed = swig.parseFile(path, parseOpts);
@@ -195,7 +205,26 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
  *                  `_ctx.<aliasName>`. Backend lifts it into
  *                  `IRLegacyJS`.
  */
-exports.compile = function (compiler, args) {
+exports.compile = function (compiler, args, content, parents, options) {
+  // Phase 2 (#T22): async-codegen branch. Parse stashed a single bundle
+  // `[{path, entries: [{origName, aliasName}, ...]}]` in async mode (no
+  // macro pre-render); emit IRFromImportDeferred so the backend's
+  // `_swig.getTemplate` + per-entry `_ctx.<bind>` assignment happens at
+  // runtime.
+  if (options && options.codegenMode === 'async') {
+    var bundle = args[0];
+    var imports = utils.map(bundle.entries, function (e) {
+      return {
+        name: e.origName,
+        alias: e.aliasName === e.origName ? null : e.aliasName
+      };
+    });
+    return ir.fromImportDeferred(
+      ir.literal('string', bundle.path),
+      imports,
+      options.filename || ''
+    );
+  }
   var allOrigNames = utils.map(args, function (arg) { return arg.origName; }).join('|');
   var replacements = utils.map(args, function (arg) {
     return {
