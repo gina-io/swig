@@ -811,4 +811,356 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       }).catch(done);
     });
   });
+
+  describe('IRExtendsDeferred emit shape', function () {
+
+    it('emits _localChildBlocks declaration even when childBlocks is empty', function () {
+      var node = ir.extendsDeferred(ir.literal('string', 'base.html'), {}, [], '');
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('var _localChildBlocks = {};');
+    });
+
+    it('emits an async function for each childBlock, keyed by block name', function () {
+      var node = ir.extendsDeferred(
+        ir.literal('string', 'base.html'),
+        {
+          A: ir.block('A', [ir.text('child-A')]),
+          B: ir.block('B', [ir.text('child-B')])
+        },
+        [],
+        ''
+      );
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('_localChildBlocks["A"] = async function (_ctx) {');
+      expect(body).to.contain('_localChildBlocks["B"] = async function (_ctx) {');
+      expect(body).to.contain('_output += "child-A"');
+      expect(body).to.contain('_output += "child-B"');
+      expect(body).to.contain('return _output;');
+    });
+
+    it('shadows _output inside each block fn with a local accumulator', function () {
+      var node = ir.extendsDeferred(
+        ir.literal('string', 'base.html'),
+        { A: ir.block('A', [ir.text('hi')]) },
+        [],
+        ''
+      );
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      // The block fn body declares its own var _output = ""; so writes
+      // accumulate locally and don't leak into the outer wrapper's _output.
+      expect(body).to.match(/_localChildBlocks\["A"\] = async function \(_ctx\) \{\s*\n\s*var _output = "";/);
+    });
+
+    it('merges _localChildBlocks with inherited _blocks (child wins)', function () {
+      var node = ir.extendsDeferred(ir.literal('string', 'base.html'), {}, [], '');
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('var _mergedBlocks = _utils.extend({}, _localChildBlocks, _blocks || {});');
+    });
+
+    it('awaits _swig.getTemplate then awaits _parent call with merged blocks', function () {
+      var node = ir.extendsDeferred(ir.literal('string', 'base.html'), {}, [], '');
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('var _parentTpl = await _swig.getTemplate("base.html", {resolveFrom: ""});');
+      expect(body).to.contain('var _parentResult = await _parentTpl(_ctx, _mergedBlocks);');
+    });
+
+    it('takes parent.output but discards parent.exports (sync parity)', function () {
+      var node = ir.extendsDeferred(ir.literal('string', 'base.html'), {}, [], '');
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('_output = _parentResult.output;');
+      expect(body).to.not.contain('_exports = _parentResult.exports');
+      expect(body).to.not.contain('_utils.extend({}, _parentResult.exports');
+      expect(body).to.not.contain('_utils.extend({}, _exports, _parentResult.exports');
+    });
+
+    it('embeds resolveFrom as a JS string literal in the options object', function () {
+      var node = ir.extendsDeferred(ir.literal('string', 'base.html'), {}, [], '/abs/child.html');
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('resolveFrom: "/abs/child.html"');
+    });
+
+    it('emits childIRs preludes BEFORE the _localChildBlocks declaration', function () {
+      // Use a LegacyJS prelude so we can assert ordering by substring index.
+      var node = ir.extendsDeferred(
+        ir.literal('string', 'base.html'),
+        { A: ir.block('A', [ir.text('hi')]) },
+        [ir.legacyJS('/* PRELUDE_MARKER */\n')],
+        ''
+      );
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      var preludeIdx = body.indexOf('PRELUDE_MARKER');
+      var localBlocksIdx = body.indexOf('var _localChildBlocks');
+      expect(preludeIdx).to.be.greaterThan(-1);
+      expect(localBlocksIdx).to.be.greaterThan(-1);
+      expect(preludeIdx).to.be.lessThan(localBlocksIdx);
+    });
+
+    it('emits childIRs preludes via recursive backend.compile (handles real IR)', function () {
+      // A macro IR in childIRs should produce real macro emission, not
+      // be lifted to LegacyJS or dropped silently.
+      var node = ir.extendsDeferred(
+        ir.literal('string', 'base.html'),
+        {},
+        [ir.macro('greet', [ir.macroParam('name')], [ir.legacyJS('_output += "hi " + name;\n')])],
+        ''
+      );
+      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('_ctx.greet = function');
+      expect(body).to.contain('_exports.greet = _ctx.greet;');
+    });
+  });
+
+  describe('IRExtendsDeferred end-to-end with mock _swig.getTemplate', function () {
+
+    function asyncTpl(output, exports) {
+      return function () {
+        return Promise.resolve({ output: output, exports: exports || {} });
+      };
+    }
+
+    it('renders a single-level extends — parent default block when no override', function (done) {
+      // grandparent.html: `<base>{% block A %}DEFAULT-A{% endblock %}</base>`
+      // child.html: `{% extends "grandparent.html" %}` (no block override)
+      var grandparentTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.text('<base>'),
+          ir.block('A', [ir.text('DEFAULT-A')]),
+          ir.text('</base>')
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var childTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.extendsDeferred(ir.literal('string', 'grandparent.html'), {}, [], '')
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var capturedPath;
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function (path) {
+          capturedPath = path;
+          return Promise.resolve(function (ctx, blocks) {
+            return grandparentTpl(mockSwig, ctx, {}, utils, efn, blocks);
+          });
+        }
+      };
+
+      childTpl(mockSwig, {}, {}, utils, efn).then(function (result) {
+        expect(result.output).to.be('<base>DEFAULT-A</base>');
+        expect(capturedPath).to.be('grandparent.html');
+        done();
+      }).catch(done);
+    });
+
+    it('renders single-level extends — override replaces default block', function (done) {
+      var grandparentTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.text('<base>'),
+          ir.block('A', [ir.text('DEFAULT-A')]),
+          ir.text('</base>')
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var childTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.extendsDeferred(
+            ir.literal('string', 'grandparent.html'),
+            { A: ir.block('A', [ir.text('CHILD-A')]) },
+            [],
+            ''
+          )
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function () {
+          return Promise.resolve(function (ctx, blocks) {
+            return grandparentTpl(mockSwig, ctx, {}, utils, efn, blocks);
+          });
+        }
+      };
+
+      childTpl(mockSwig, {}, {}, utils, efn).then(function (result) {
+        expect(result.output).to.be('<base>CHILD-A</base>');
+        done();
+      }).catch(done);
+    });
+
+    it('renders multi-level extends — child override propagates through middle to grandparent', function (done) {
+      // grandparent: `<g>{block A}gA{/}{block B}gB{/}{block C}gC{/}</g>`
+      // middle: extends grandparent; defines block A and block B (overrides both)
+      // child: extends middle; defines block A only (overrides A inherited or own)
+      // Expected: A = child's, B = middle's, C = grandparent's default.
+      var grandparentTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.text('<g>'),
+          ir.block('A', [ir.text('gA')]),
+          ir.block('B', [ir.text('gB')]),
+          ir.block('C', [ir.text('gC')]),
+          ir.text('</g>')
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var middleTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.extendsDeferred(
+            ir.literal('string', 'grandparent.html'),
+            {
+              A: ir.block('A', [ir.text('mA')]),
+              B: ir.block('B', [ir.text('mB')])
+            },
+            [],
+            ''
+          )
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var childTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.extendsDeferred(
+            ir.literal('string', 'middle.html'),
+            { A: ir.block('A', [ir.text('cA')]) },
+            [],
+            ''
+          )
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function (path) {
+          if (path === 'middle.html') {
+            return Promise.resolve(function (ctx, blocks) {
+              return middleTpl(mockSwig, ctx, {}, utils, efn, blocks);
+            });
+          }
+          if (path === 'grandparent.html') {
+            return Promise.resolve(function (ctx, blocks) {
+              return grandparentTpl(mockSwig, ctx, {}, utils, efn, blocks);
+            });
+          }
+          return Promise.reject(new Error('Unknown path: ' + path));
+        }
+      };
+
+      childTpl(mockSwig, {}, {}, utils, efn).then(function (result) {
+        expect(result.output).to.be('<g>cAmBgC</g>');
+        done();
+      }).catch(done);
+    });
+
+    it('child preludes (childIRs containing macros) populate child._exports', function (done) {
+      var grandparentTpl = engine.buildTemplateFunction({
+        tokens: [ir.text('GP')]
+      }, [], { codegenMode: 'async' });
+
+      var childTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.extendsDeferred(
+            ir.literal('string', 'grandparent.html'),
+            {},
+            [ir.macro('childMacro', [], [ir.legacyJS('_output += "hello";\n')])],
+            ''
+          )
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function () {
+          return Promise.resolve(function (ctx, blocks) {
+            return grandparentTpl(mockSwig, ctx, {}, utils, efn, blocks);
+          });
+        }
+      };
+
+      childTpl(mockSwig, {}, {}, utils, efn).then(function (result) {
+        expect(result.output).to.be('GP');
+        // Child's preludes-defined macro is in _exports
+        expect(typeof result.exports.childMacro).to.be('function');
+        done();
+      }).catch(done);
+    });
+
+    it('parent.exports is DISCARDED — sync parity (importer of child sees own only)', function (done) {
+      // Grandparent defines its own macro and surfaces it via _exports.
+      // Child extends grandparent. Result.exports should NOT contain
+      // grandparent's macro.
+      var grandparentTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.macro('grandparentMacro', [], [ir.legacyJS('_output += "g";\n')]),
+          ir.text('GP-output')
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var childTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.extendsDeferred(ir.literal('string', 'grandparent.html'), {}, [], '')
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function () {
+          return Promise.resolve(function (ctx, blocks) {
+            return grandparentTpl(mockSwig, ctx, {}, utils, efn, blocks);
+          });
+        }
+      };
+
+      childTpl(mockSwig, {}, {}, utils, efn).then(function (result) {
+        expect(result.output).to.be('GP-output');
+        // Grandparent's macro is NOT in child's exports (sync parity)
+        expect(result.exports.grandparentMacro).to.be(undefined);
+        done();
+      }).catch(done);
+    });
+
+    it('child preludes share _ctx with parent body (set propagates)', function (done) {
+      // Child sets _ctx.label, then extends parent. Parent's body reads
+      // _ctx.label — should see the child's value.
+      var grandparentTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.text('label='),
+          ir.output(ir.varRef(['label']))
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var childTpl = engine.buildTemplateFunction({
+        tokens: [
+          ir.extendsDeferred(
+            ir.literal('string', 'grandparent.html'),
+            {},
+            [ir.set(ir.varRef(['label']), '=', ir.literal('string', 'fromChild'))],
+            ''
+          )
+        ]
+      }, [], { codegenMode: 'async' });
+
+      var mockSwig = {
+        extensions: {},
+        getTemplate: function () {
+          return Promise.resolve(function (ctx, blocks) {
+            return grandparentTpl(mockSwig, ctx, {}, utils, efn, blocks);
+          });
+        }
+      };
+
+      childTpl(mockSwig, {}, {}, utils, efn).then(function (result) {
+        expect(result.output).to.be('label=fromChild');
+        done();
+      }).catch(done);
+    });
+  });
 });

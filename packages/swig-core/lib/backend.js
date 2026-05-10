@@ -471,6 +471,69 @@ exports.compile = function (template, parents, options, blockName) {
         '})();\n';
       return;
     }
+    if (node.type === 'ExtendsDeferred') {
+      // Phase 3 (#T22): async-codegen counterpart to engine.getParents +
+      // engine.precompile's parse-time block remap. Inverts at runtime
+      // via the _blocks parameter contract:
+      //
+      //   1. childIRs preludes (set / import / macros) emit via recursive
+      //      backend.compile so they populate _ctx and _exports with the
+      //      child's own bindings before the parent runs.
+      //   2. Build _localChildBlocks — each block in node.childBlocks
+      //      becomes an `async function (_ctx) -> Promise<string>` that
+      //      shadows _output to a local accumulator and returns it. The
+      //      block body uses the same shallow Text/Raw/LegacyJS walker as
+      //      the IRBlock branch above.
+      //   3. Merge: _mergedBlocks = _utils.extend({}, _localChildBlocks,
+      //      _blocks || {}). Inherited overrides from a deeper child win
+      //      per "child blocks override parent's wholesale per name"
+      //      (matches sync's remapBlocks). Multi-level chain (child →
+      //      middle → grandparent) propagates correctly: middle merges
+      //      its own block bodies with the inherited child overrides,
+      //      and grandparent sees the merged map.
+      //   4. Resolve parent via _swig.getTemplate (Promise<TemplateFn>),
+      //      then await _parent(_ctx, _mergedBlocks). Parent's body's
+      //      IRBlock branch consults _mergedBlocks and uses overrides
+      //      where present, defaults otherwise.
+      //   5. _output = _parentResult.output. Parent's _exports is
+      //      DISCARDED — _exports stays as the child's own preludes-
+      //      populated map. Matches sync where {% import "child" %}
+      //      exposes child's own top-level macros only and never
+      //      traverses extends. One semantic across sync and async.
+      if (node.childIRs && node.childIRs.length) {
+        out += exports.compile(node.childIRs, parents, options);
+      }
+      out += 'var _localChildBlocks = {};\n';
+      if (node.childBlocks) {
+        utils.each(node.childBlocks, function (block, name) {
+          var blockBodyJS = '';
+          utils.each(block.body, function (b) {
+            if (b.type === 'LegacyJS') { blockBodyJS += b.js; return; }
+            if (b.type === 'Text' || b.type === 'Raw') {
+              blockBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+              return;
+            }
+          });
+          out += '_localChildBlocks[' + JSON.stringify(name) + '] = async function (_ctx) {\n' +
+            '  var _output = "";\n' +
+            blockBodyJS +
+            '  return _output;\n' +
+            '};\n';
+        });
+      }
+      out += 'var _mergedBlocks = _utils.extend({}, _localChildBlocks, _blocks || {});\n';
+      var extPathJS;
+      if (node.path && typeof node.path === 'object' && typeof node.path.type === 'string') {
+        extPathJS = exports.emitExpr(node.path);
+      } else {
+        extPathJS = node.path;
+      }
+      var extOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
+      out += 'var _parentTpl = await _swig.getTemplate(' + extPathJS + ', ' + extOpts + ');\n';
+      out += 'var _parentResult = await _parentTpl(_ctx, _mergedBlocks);\n';
+      out += '_output = _parentResult.output;\n';
+      return;
+    }
     if (node.type === 'With') {
       // Phase 3 Session 12: scoped-context region (Twig's `{% with %}`).
       // Emits an IIFE that shadows `_ctx` for the body's lexical scope;
