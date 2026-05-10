@@ -106,6 +106,32 @@ describe('Regressions', function () {
     expect(function () { s.render('{% import "macros.html" as prototype %}', { filename: '/test.html' }); }).to.throwError(/Unsafe import alias/);
   });
 
+  it('lexer NUMBER rule does not greedy-eat a leading sign in bracket-access expressions', function () {
+    var locals = { arr: [10, 20, 30], idx: 2 };
+    // Without the fix, the lexer matched `-1` as a single NUMBER token,
+    // so `arr[arr.length-1]` lexed VAR + DOTKEY + NUMBER(-1) + `]`,
+    // and the parser then bailed with "Unexpected closing square bracket".
+    expect(swig.render('{% set a = arr[arr.length-1] %}{{ a }}', { locals: locals })).to.equal('30');
+    expect(swig.render('{% set a = arr[arr.length - 1] %}{{ a }}', { locals: locals })).to.equal('30');
+    expect(swig.render('{% set a = arr[idx-1] %}{{ a }}', { locals: locals })).to.equal('20');
+    expect(swig.render('{% set a = arr[idx - 1] %}{{ a }}', { locals: locals })).to.equal('20');
+    // Symmetric `+` shape — same trap, same fix.
+    expect(swig.render('{% set a = arr[idx+0] %}{{ a }}', { locals: locals })).to.equal('30');
+    expect(swig.render('{% set a = arr[idx-2] %}{{ a }}', { locals: locals })).to.equal('10');
+    // The `*` / `/` / `%` operators don't share the trap (the NUMBER regex
+    // never had `*?` / `/?` / `%?` prefix), but assert the round-trip so
+    // a future lexer change can't silently regress them.
+    expect(swig.render('{% set a = arr[idx*1] %}{{ a }}', { locals: locals })).to.equal('30');
+    expect(swig.render('{% set a = arr[idx/1] %}{{ a }}', { locals: locals })).to.equal('30');
+  });
+
+  it('lexer NUMBER fix preserves unary-minus paths the parser folds via parsePrimary', function () {
+    expect(swig.render('{% set x = -5 %}{{ x }}')).to.equal('-5');
+    expect(swig.render('{% set x = -1.5 %}{{ x }}')).to.equal('-1.5');
+    expect(swig.render('{{ a + -5 }}', { locals: { a: 10 } })).to.equal('5');
+    expect(swig.render('{{ a - -5 }}', { locals: { a: 10 } })).to.equal('15');
+  });
+
   it('CVE-2021-44906: optimist is no longer a direct dependency', function () {
     // swig -> optimist@0.6.1 -> minimist@~0.0.1 was vulnerable to
     // prototype pollution. The fix was to replace optimist with yargs,

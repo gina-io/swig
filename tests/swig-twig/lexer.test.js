@@ -49,12 +49,13 @@ describe('@rhinostone/swig-twig — lexer (shared token subset)', function () {
     expect(empty[0].type).to.equal(TYPES.STRING);
   });
 
-  it('lexes integers and decimals as NUMBER', function () {
+  it('lexes unsigned integers and decimals as NUMBER; signed forms emit OPERATOR + NUMBER', function () {
     var tokens = nonWhitespace(lex('42 3.14 -7'));
-    expect(typesOf(tokens)).to.eql([TYPES.NUMBER, TYPES.NUMBER, TYPES.NUMBER]);
+    expect(typesOf(tokens)).to.eql([TYPES.NUMBER, TYPES.NUMBER, TYPES.OPERATOR, TYPES.NUMBER]);
     expect(tokens[0].match).to.equal('42');
     expect(tokens[1].match).to.equal('3.14');
-    expect(tokens[2].match).to.equal('-7');
+    expect(tokens[2].match).to.equal('-');
+    expect(tokens[3].match).to.equal('7');
   });
 
   it('lexes booleans as BOOL with the boolean keyword as match', function () {

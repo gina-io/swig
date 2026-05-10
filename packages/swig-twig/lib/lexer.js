@@ -221,7 +221,7 @@ var rules = [
   {
     type: TYPES.NUMBER,
     regex: [
-      /^[+\-]?\d+(\.\d+)?/
+      /^\d+(\.\d+)?/
     ]
   },
   {

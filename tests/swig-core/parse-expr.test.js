@@ -43,11 +43,17 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
       expect(node.value).to.be(42);
     });
 
-    it('lowers a signed number via the lexer NUMBER rule, not a UnaryOp', function () {
+    // The lexer's NUMBER rule deliberately rejects a leading sign so that
+    // `arr[idx-1]` lexes as VAR + OPERATOR + NUMBER (not VAR + NUMBER(-1)
+    // followed by an unexpected `]`). The unary minus survives via
+    // parsePrimary's OPERATOR branch wrapping it as IRUnaryOp.
+    it('lowers a signed number to IRUnaryOp(-, IRLiteral(number))', function () {
       var node = parse('-1.5');
-      expect(node.type).to.be('Literal');
-      expect(node.kind).to.be('number');
-      expect(node.value).to.be(-1.5);
+      expect(node.type).to.be('UnaryOp');
+      expect(node.op).to.be('-');
+      expect(node.operand.type).to.be('Literal');
+      expect(node.operand.kind).to.be('number');
+      expect(node.operand.value).to.be(1.5);
     });
 
     it('lowers booleans to IRLiteral(bool)', function () {

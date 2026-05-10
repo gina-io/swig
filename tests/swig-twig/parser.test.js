@@ -760,11 +760,13 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
       expect(node.value).to.equal('');
     });
 
-    it('parses a negative numeric literal', function () {
+    it('parses a negative numeric literal as IRUnaryOp(-, IRLiteral(number))', function () {
       var node = parse('-42');
-      expect(node.type).to.equal('Literal');
-      expect(node.kind).to.equal('number');
-      expect(node.value).to.equal(-42);
+      expect(node.type).to.equal('UnaryOp');
+      expect(node.op).to.equal('-');
+      expect(node.operand.type).to.equal('Literal');
+      expect(node.operand.kind).to.equal('number');
+      expect(node.operand.value).to.equal(42);
     });
   });
 

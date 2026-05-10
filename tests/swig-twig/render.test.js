@@ -172,4 +172,26 @@ describe('@rhinostone/swig-twig — render surface', function () {
 
   });
 
+  describe('lexer NUMBER does not greedy-eat sign in bracket access', function () {
+
+    // Without the fix, the lexer matched `-1` as a single NUMBER token,
+    // so `arr[arr.length-1]` lexed VAR + DOTKEY + NUMBER(-1) + `]`,
+    // and the parser bailed with "Unexpected closing square bracket".
+    it('renders bracket-access expressions with unspaced binary arithmetic', function () {
+      var locals = { arr: [10, 20, 30], idx: 2 };
+      expect(twig.render('{% set a = arr[arr.length-1] %}{{ a }}', { locals: locals })).to.equal('30');
+      expect(twig.render('{% set a = arr[arr.length - 1] %}{{ a }}', { locals: locals })).to.equal('30');
+      expect(twig.render('{% set a = arr[idx-1] %}{{ a }}', { locals: locals })).to.equal('20');
+      expect(twig.render('{% set a = arr[idx+0] %}{{ a }}', { locals: locals })).to.equal('30');
+      expect(twig.render('{% set a = arr[idx-2] %}{{ a }}', { locals: locals })).to.equal('10');
+    });
+
+    it('preserves unary-minus paths the parser folds via parsePrimary', function () {
+      expect(twig.render('{% set x = -5 %}{{ x }}')).to.equal('-5');
+      expect(twig.render('{% set x = -1.5 %}{{ x }}')).to.equal('-1.5');
+      expect(twig.render('{{ a + -5 }}', { locals: { a: 10 } })).to.equal('5');
+    });
+
+  });
+
 });
