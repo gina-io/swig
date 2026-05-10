@@ -157,3 +157,120 @@ describe('Phase 2 frontend wiring — Include tag (codegenMode: "async")', funct
     });
   });
 });
+
+
+describe('Phase 2 frontend wiring — Extends tag (engine.precompile, codegenMode: "async")', function () {
+
+  describe('native @rhinostone/swig', function () {
+
+    it('emits IRExtendsDeferred shape at the top of the body when codegenMode is "async"', function () {
+      var src = '{% extends "parent.html" %}{% block content %}child content{% endblock %}';
+      var result = swig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/child.html'
+      });
+      var body = result.tpl.toString();
+
+      expect(result.tpl.constructor.name).to.be('AsyncFunction');
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('"parent.html"');
+      expect(body).to.contain('_localChildBlocks');
+      expect(body).to.contain('_mergedBlocks');
+      expect(body).to.not.contain('_swig.compileFile');
+    });
+
+    it('preserves the child block name as the _localChildBlocks key', function () {
+      var src = '{% extends "parent.html" %}{% block content %}override{% endblock %}';
+      var result = swig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/child.html'
+      });
+      var body = result.tpl.toString();
+
+      expect(body).to.contain('_localChildBlocks["content"]');
+    });
+
+    it('handles multiple child blocks', function () {
+      var src = '{% extends "parent.html" %}{% block head %}h{% endblock %}{% block body %}b{% endblock %}';
+      var result = swig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/child.html'
+      });
+      var body = result.tpl.toString();
+
+      expect(body).to.contain('_localChildBlocks["head"]');
+      expect(body).to.contain('_localChildBlocks["body"]');
+    });
+
+    it('emits child preludes ({% set %}) before the parent call', function () {
+      var src = '{% extends "parent.html" %}{% set foo = "bar" %}{% block content %}{{ foo }}{% endblock %}';
+      var result = swig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/child.html'
+      });
+      var body = result.tpl.toString();
+
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('"parent.html"');
+      expect(body).to.contain('_ctx.foo');
+    });
+
+    it('does NOT emit IRExtendsDeferred shape when the template has no extends', function () {
+      // Even in async mode, a template without {% extends %} should not
+      // trip the IRExtendsDeferred branch. The precompile branch only
+      // fires when tokens.parent is set.
+      var src = '{% block content %}standalone{% endblock %}';
+      var result = swig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/standalone.html'
+      });
+      var body = result.tpl.toString();
+
+      expect(result.tpl.constructor.name).to.be('AsyncFunction');
+      expect(body).to.not.contain('_swig.getTemplate');
+      expect(body).to.not.contain('_localChildBlocks');
+    });
+  });
+
+  describe('Twig @rhinostone/swig-twig', function () {
+
+    it('emits IRExtendsDeferred shape when codegenMode is "async"', function () {
+      var src = '{% extends "parent.twig" %}{% block content %}child{% endblock %}';
+      var result = twig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/child.twig'
+      });
+      var body = result.tpl.toString();
+
+      expect(result.tpl.constructor.name).to.be('AsyncFunction');
+      expect(body).to.contain('_swig.getTemplate');
+      expect(body).to.contain('"parent.twig"');
+      expect(body).to.contain('_localChildBlocks');
+      expect(body).to.contain('_mergedBlocks');
+      expect(body).to.not.contain('_swig.compileFile');
+    });
+
+    it('preserves the child block name as the _localChildBlocks key', function () {
+      var src = '{% extends "parent.twig" %}{% block content %}override{% endblock %}';
+      var result = twig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/child.twig'
+      });
+      var body = result.tpl.toString();
+
+      expect(body).to.contain('_localChildBlocks["content"]');
+    });
+
+    it('handles multiple child blocks', function () {
+      var src = '{% extends "parent.twig" %}{% block head %}h{% endblock %}{% block body %}b{% endblock %}';
+      var result = twig.precompile(src, {
+        codegenMode: 'async',
+        filename: '/tmp/child.twig'
+      });
+      var body = result.tpl.toString();
+
+      expect(body).to.contain('_localChildBlocks["head"]');
+      expect(body).to.contain('_localChildBlocks["body"]');
+    });
+  });
+});

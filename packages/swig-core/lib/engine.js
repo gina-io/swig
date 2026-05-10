@@ -1,4 +1,5 @@
 var utils = require('./utils'),
+  ir = require('./ir'),
   backend = require('./backend'),
   cache = require('./cache');
 
@@ -78,6 +79,72 @@ exports.importNonBlocks = function (blocks, tokens) {
     }
   });
 };
+
+/**
+ * Build an `IRExtendsDeferred` node from a parsed child template.
+ *
+ * Walks `tokens.blocks` (the parser's map of every block-level tag that
+ * appeared at top level — both `{% block %}` overrides and non-block
+ * preludes like `{% set %}`, `{% import %}`, `{% macro %}`) and:
+ *
+ *   - For each `{% block %}` token: invokes its `.compile(...)` with an
+ *     empty parents list to obtain an `IRBlock` (body is one `IRLegacyJS`
+ *     wrapping the recursively-compiled JS source — same shape sync mode
+ *     produces). The IRBlock is keyed under the block name in `childBlocks`.
+ *   - For each non-`block` block-level token: invokes its `.compile(...)`
+ *     and wraps any JS-string return in `IRLegacyJS`. The resulting IR
+ *     node is pushed onto `childIRs` (the prelude list).
+ *
+ * The backend's `IRExtendsDeferred` emit branch handles runtime parent
+ * resolution via `_swig.getTemplate` and the `_blocks` parameter contract
+ * (see `packages/swig-core/lib/backend.js`).
+ *
+ * `tokens.parent` is lifted into an `IRLiteral('string', …)` so the
+ * backend's `emitExpr` path produces a quoted JS string literal. Dynamic
+ * extends paths (`{% extends parent_var %}`) are rejected by the
+ * extends-tag parser today; only literal string paths reach this helper.
+ *
+ * @param  {object} tokens   Parsed child template (must have `.parent`).
+ * @param  {object} options  Per-call Swig options; `options.filename` is
+ *                           used as the deferred resolveFrom.
+ * @return {object}          IRExtendsDeferred node.
+ * @private
+ */
+function buildExtendsDeferred(tokens, options) {
+  var childBlocks = {};
+  var childIRs = [];
+  utils.each(tokens.blocks, function (blockToken) {
+    var args = blockToken.args ? blockToken.args.slice(0) : [];
+    var content = blockToken.content ? blockToken.content.slice(0) : [];
+    if (blockToken.name === 'block') {
+      var blockName = args.join('');
+      var blockIR = blockToken.compile(backend.compile, args, content, [], options, blockName, blockToken);
+      if (blockIR && typeof blockIR === 'object' && typeof blockIR.type === 'string') {
+        childBlocks[blockName] = blockIR;
+      }
+      return;
+    }
+    var result = blockToken.compile(backend.compile, args, content, [], options, undefined, blockToken);
+    if (result === undefined || result === null || result === '') { return; }
+    if (typeof result === 'string') {
+      childIRs.push(ir.legacyJS(result));
+      return;
+    }
+    if (utils.isArray(result)) {
+      utils.each(result, function (n) { childIRs.push(n); });
+      return;
+    }
+    if (typeof result === 'object' && typeof result.type === 'string') {
+      childIRs.push(result);
+    }
+  });
+  return ir.extendsDeferred(
+    ir.literal('string', tokens.parent),
+    childBlocks,
+    childIRs,
+    options.filename || ''
+  );
+}
 
 /**
  * Walk a template's `extends` chain and build the parent token tree.
@@ -307,12 +374,24 @@ exports.install = function (self, frontend) {
 
   self.precompile = function (source, options) {
     var tokens = self.parse(source, options),
-      parents = getParentsInternal(tokens, options),
+      parents,
       tpl;
 
-    if (parents.length) {
-      tokens.tokens = exports.remapBlocks(tokens.blocks, parents[0].tokens);
-      exports.importNonBlocks(tokens.blocks, tokens.tokens);
+    if (options && options.codegenMode === 'async' && tokens.parent) {
+      // Async extends — defer parent walking and block remapping to
+      // runtime via the IRExtendsDeferred emit branch in backend.js.
+      // The deferred node carries the child's blocks + non-block
+      // preludes; the backend resolves the parent via _swig.getTemplate
+      // and threads block overrides through the _blocks parameter
+      // contract.
+      parents = [];
+      tokens.tokens = [buildExtendsDeferred(tokens, options)];
+    } else {
+      parents = getParentsInternal(tokens, options);
+      if (parents.length) {
+        tokens.tokens = exports.remapBlocks(tokens.blocks, parents[0].tokens);
+        exports.importNonBlocks(tokens.blocks, tokens.tokens);
+      }
     }
 
     try {
