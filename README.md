@@ -29,10 +29,22 @@ Features
 * [Express](http://expressjs.com/) compatible.
 * Object-Oriented template inheritance.
 * Apply filters and transformations to output in your templates.
-* Automatically escapes all output for safe HTML rendering.
+* **Hardened against prototype-pollution** — `__proto__` / `constructor` / `prototype` blocked at parser, tag-side, and IR-emission layers. CVE-2023-25345 fully patched. 9 regression cases under [`tests/regressions.test.js`](./tests/regressions.test.js).
+* Automatically escapes all variable output (HTML by default; configurable per-call).
 * Lots of iteration and conditionals supported.
 * Robust without the bloat.
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
+
+Benchmarks
+----------
+
+[`benchmarks/render.js`](./benchmarks/render.js) measures sync-render throughput across five workload shapes against [Nunjucks](https://www.npmjs.com/package/nunjucks).
+
+```bash
+cd benchmarks && npm install && node render.js
+```
+
+In production-typical settings (autoescape on), `@rhinostone/swig` outperforms Nunjucks on iteration-heavy templates by 2–3.5× and ties on simple control flow. See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
 
 Need Help? Have Questions? Comments?
 ------------------------------------
