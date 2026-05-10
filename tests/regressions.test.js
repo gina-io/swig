@@ -132,6 +132,25 @@ describe('Regressions', function () {
     expect(swig.render('{{ a - -5 }}', { locals: { a: 10 } })).to.equal('15');
   });
 
+  it('varStrip / tagStrip do not greedy-eat a leading - of negative-number expressions', function () {
+    // Before the fix, lib/parser.js's varStrip / tagStrip regex used
+    // `^{{-?\s*-?|-?\s*-?}}$` — the second `-?` after `\s*` matched the
+    // leading `-` of a negative-number expression as if it were a
+    // whitespace-control marker. `{{ -5 }}` rendered as "5" (sign eaten
+    // before the lexer ever saw it).
+    expect(swig.render('{{ -5 }}')).to.equal('-5');
+    expect(swig.render('{{ -1.5 }}')).to.equal('-1.5');
+    expect(swig.render('{{ -5.0 }}')).to.equal('-5');
+    // Strip-control still composes with negative-number expressions —
+    // `{{-` and `-}}` consume only the strip marker (immediately adjacent
+    // to the open / close), the expression's `-` survives.
+    expect(swig.render('a\n{{- -5 -}}\nb')).to.equal('a-5b');
+    expect(swig.render('a\n{{- -5 }}\nb')).to.equal('a-5\nb');
+    expect(swig.render('a\n{{ -5 -}}\nb')).to.equal('a\n-5b');
+    // Existing strip-control on regular variables still works.
+    expect(swig.render('a\n{{- x -}}\nb', { locals: { x: 'y' } })).to.equal('ayb');
+  });
+
   it('CVE-2021-44906: optimist is no longer a direct dependency', function () {
     // swig -> optimist@0.6.1 -> minimist@~0.0.1 was vulnerable to
     // prototype pollution. The fix was to replace optimist with yargs,
