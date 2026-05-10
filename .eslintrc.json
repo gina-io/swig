@@ -3,6 +3,9 @@
     "node": true,
     "mocha": true
   },
+  "globals": {
+    "Promise": "readonly"
+  },
   "rules": {
     "max-len": ["error", { "code": 600 }],
     "semi": ["error", "always"],
