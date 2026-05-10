@@ -576,6 +576,18 @@ exports.install = function (self, frontend) {
 
   self.renderFile = function (pathName, locals, cb) {
     if (cb) {
+      // Async loader opt-in: route through getTemplate when
+      // loader.async === true. Explicit flag only — load.length is
+      // not a dispatch signal (the built-in fs + memory loaders are
+      // dual-mode with length 2 and must keep the sync-cb path).
+      if (self.options.loader && self.options.loader.async === true) {
+        self.getTemplate(pathName)
+          .then(function (fn) { return fn(locals); })
+          .then(function (result) { cb(null, result.output); })
+          .catch(cb);
+        return;
+      }
+
       self.compileFile(pathName, {}, function (err, fn) {
         var result;
 
