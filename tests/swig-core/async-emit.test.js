@@ -642,4 +642,173 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       }).catch(done);
     });
   });
+
+  describe('IRBlock async-emit (block override runtime contract)', function () {
+
+    it('AsyncFunction wrapper signature accepts a 6th _blocks positional arg', function () {
+      var template = { tokens: [ir.text('x')] };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+      expect(fn.length).to.be(6);
+    });
+
+    it('sync wrapper signature is unchanged (5 args, no _blocks)', function () {
+      var template = { tokens: [ir.text('x')] };
+      var fn = engine.buildTemplateFunction(template, [], {});
+      expect(fn.length).to.be(5);
+    });
+
+    it('IRBlock sync emit is unchanged — no _blocks check', function () {
+      var blockNode = ir.block('content', [ir.text('default body')]);
+      var body = backend.compile({ tokens: [blockNode] }, [], {});
+
+      expect(body).to.contain('_output += "default body"');
+      expect(body).to.not.contain('_blocks');
+      expect(body).to.not.contain('await');
+    });
+
+    it('IRBlock async emit wraps inline body in _blocks check', function () {
+      var blockNode = ir.block('content', [ir.text('default body')]);
+      var body = backend.compile({ tokens: [blockNode] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('if (_blocks && _blocks["content"]) {');
+      expect(body).to.contain('_output += await _blocks["content"](_ctx);');
+      expect(body).to.contain('} else {');
+      expect(body).to.contain('_output += "default body"');
+    });
+
+    it('IRBlock async emit JSON-stringifies the block name (handles quotes / unicode)', function () {
+      var blockNode = ir.block('weird "name"', [ir.text('body')]);
+      var body = backend.compile({ tokens: [blockNode] }, [], { codegenMode: 'async' });
+
+      expect(body).to.contain('_blocks["weird \\"name\\""]');
+    });
+
+    it('end-to-end: emits inline body when _blocks is undefined', function (done) {
+      var template = {
+        tokens: [
+          ir.text('['),
+          ir.block('A', [ir.text('default-A')]),
+          ir.text(']')
+        ]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      fn({ extensions: {} }, {}, {}, utils, efn /* no _blocks */).then(function (result) {
+        expect(result.output).to.be('[default-A]');
+        done();
+      }).catch(done);
+    });
+
+    it('end-to-end: emits inline body when _blocks is empty object', function (done) {
+      var template = {
+        tokens: [
+          ir.block('A', [ir.text('default-A')])
+        ]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      fn({ extensions: {} }, {}, {}, utils, efn, {}).then(function (result) {
+        expect(result.output).to.be('default-A');
+        done();
+      }).catch(done);
+    });
+
+    it('end-to-end: calls override fn when _blocks contains the block name', function (done) {
+      var template = {
+        tokens: [
+          ir.text('['),
+          ir.block('A', [ir.text('default-A')]),
+          ir.text(']')
+        ]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      var overrideFn = async function (_ctx) {
+        return 'override-A';
+      };
+
+      fn({ extensions: {} }, {}, {}, utils, efn, { A: overrideFn }).then(function (result) {
+        expect(result.output).to.be('[override-A]');
+        done();
+      }).catch(done);
+    });
+
+    it('end-to-end: override receives _ctx and can read locals', function (done) {
+      var template = {
+        tokens: [ir.block('A', [ir.text('default')])]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      var capturedCtx;
+      var overrideFn = async function (_ctx) {
+        capturedCtx = _ctx;
+        return 'name=' + _ctx.name;
+      };
+
+      fn({ extensions: {} }, { name: 'world' }, {}, utils, efn, { A: overrideFn }).then(function (result) {
+        expect(result.output).to.be('name=world');
+        expect(capturedCtx.name).to.be('world');
+        done();
+      }).catch(done);
+    });
+
+    it('end-to-end: override is awaited (Promise return resolves before next emit)', function (done) {
+      var template = {
+        tokens: [
+          ir.text('before:'),
+          ir.block('A', [ir.text('default')]),
+          ir.text(':after')
+        ]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      var overrideFn = async function () {
+        // Force a microtask tick before resolving
+        await new Promise(function (resolve) { setImmediate(resolve); });
+        return 'ASYNC-A';
+      };
+
+      fn({ extensions: {} }, {}, {}, utils, efn, { A: overrideFn }).then(function (result) {
+        expect(result.output).to.be('before:ASYNC-A:after');
+        done();
+      }).catch(done);
+    });
+
+    it('end-to-end: only the matching named block is overridden — other blocks fall back', function (done) {
+      var template = {
+        tokens: [
+          ir.block('A', [ir.text('default-A')]),
+          ir.text('|'),
+          ir.block('B', [ir.text('default-B')])
+        ]
+      };
+      var fn = engine.buildTemplateFunction(template, [], { codegenMode: 'async' });
+
+      var overrideA = async function () { return 'OVERRIDE-A'; };
+
+      fn({ extensions: {} }, {}, {}, utils, efn, { A: overrideA }).then(function (result) {
+        expect(result.output).to.be('OVERRIDE-A|default-B');
+        done();
+      }).catch(done);
+    });
+
+    it('compiled closure forwards blocks param through self.compile -> pre.tpl', function (done) {
+      var instance = new swig.Swig({
+        loader: swig.loaders.memory({
+          '/has-block.html': '{% block A %}default-A{% endblock %}'
+        })
+      });
+
+      // Use getTemplate to build an async-compiled template, then call
+      // it directly with a blocks override to confirm the closure forwards
+      // the 6th arg correctly.
+      instance.getTemplate('/has-block.html').then(function (compiled) {
+        var override = async function () { return 'OVERRIDE'; };
+        return compiled({}, { A: override });
+      }).then(function (resolved) {
+        expect(resolved.output).to.be('OVERRIDE');
+        done();
+      }).catch(done);
+    });
+  });
 });

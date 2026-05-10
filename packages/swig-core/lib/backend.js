@@ -308,6 +308,33 @@ exports.compile = function (template, parents, options, blockName) {
       // block, its body carries whichever generation's content is active.
       // Emit the body verbatim; the block name is carried as metadata for
       // downstream tooling (parent-chain walks happen in the parent tag).
+      //
+      // Phase 3 (#T22) async mode: block remapping happens at runtime
+      // instead of parse time. When _blocks is supplied (by an extending
+      // child via IRExtendsDeferred-emitted `_parent(_ctx, _mergedBlocks)`)
+      // and contains an override for this block name, call the override
+      // async fn and append its return string. Otherwise emit the parent's
+      // own body inline as the default (matches sync behavior). The
+      // override fn closes over the calling template's own _swig / _filters
+      // / _utils / _ext, since it was constructed inside that template's
+      // body wrapper — it does NOT see this template's local _output, which
+      // is correct (the override returns its own string and the outer
+      // _output += await ... appends it here).
+      if (options && options.codegenMode === 'async') {
+        var blockNameJS = JSON.stringify(node.name);
+        out += 'if (_blocks && _blocks[' + blockNameJS + ']) {\n';
+        out += '  _output += await _blocks[' + blockNameJS + '](_ctx);\n';
+        out += '} else {\n';
+        utils.each(node.body, function (b) {
+          if (b.type === 'LegacyJS') { out += b.js; return; }
+          if (b.type === 'Text' || b.type === 'Raw') {
+            out += '_output += "' + escapeTextValue(b.value) + '";\n';
+            return;
+          }
+        });
+        out += '}\n';
+        return;
+      }
       utils.each(node.body, function (b) {
         if (b.type === 'LegacyJS') { out += b.js; return; }
         if (b.type === 'Text' || b.type === 'Raw') {

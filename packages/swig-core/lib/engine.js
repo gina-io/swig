@@ -151,7 +151,12 @@ exports.getParents = function (tokens, options, deps) {
  * without parse-time pre-resolution. Async mode is also the consumer
  * of the deferred-resolution IR shapes (IRIncludeDeferred,
  * IRImportDeferred, IRFromImportDeferred, IRExtendsDeferred) which emit
- * `await` calls into the body. The argument list is unchanged.
+ * `await` calls into the body. The async wrapper takes a 6th positional
+ * `_blocks` parameter — an optional `{name: async fn(_ctx) -> string}`
+ * map of block overrides supplied by an extending child template. The
+ * IRBlock async-emit consults `_blocks[name]` first and falls back to
+ * the parent's inline body when no override is registered. Sync mode
+ * argument list is unchanged.
  *
  * Filename attribution on compile-time failures lives on the frontend
  * per the seam rule (the caller knows which template the body came from
@@ -171,7 +176,7 @@ exports.buildTemplateFunction = function (tokens, parents, options) {
       '    _exports = {};\n' +
       backend.compile(tokens, parents, options) + '\n' +
       '  return { output: _output, exports: _exports };\n';
-    return new AsyncFunction('_swig', '_ctx', '_filters', '_utils', '_fn', asyncBody);
+    return new AsyncFunction('_swig', '_ctx', '_filters', '_utils', '_fn', '_blocks', asyncBody);
   }
   var body = '  var _ext = _swig.extensions,\n' +
     '    _output = "";\n' +
@@ -334,7 +339,7 @@ exports.install = function (self, frontend) {
     contextLength = utils.keys(context).length;
     pre = self.precompile(source, options);
 
-    function compiled(locals) {
+    function compiled(locals, blocks) {
       var lcls;
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
@@ -345,7 +350,13 @@ exports.install = function (self, frontend) {
       } else {
         lcls = {};
       }
-      return pre.tpl(self, lcls, filters, utils, efn);
+      // `blocks` is the optional async-mode block-override map supplied
+      // by an extending child template's IRExtendsDeferred-emitted
+      // `_parent(_ctx, _mergedBlocks)` call. Sync templates ignore the
+      // extra positional arg (regular Function discards unread args);
+      // async wrapper picks it up as `_blocks` and consults it from
+      // IRBlock emits.
+      return pre.tpl(self, lcls, filters, utils, efn, blocks);
     }
 
     utils.extend(compiled, pre.tokens);
