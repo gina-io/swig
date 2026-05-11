@@ -278,26 +278,33 @@ exports.raw.safe = true;
  * @param  {string} [type='html']  Pass `'js'` for JavaScript-safe escaping.
  * @return {string}
  */
+function escapeHtmlRest(ch) {
+  return ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '"' ? '&quot;' : '&#39;';
+}
+
 exports.escape = function (input, type) {
-  var out = iterateFilter.apply(exports.escape, arguments),
-    inp = input,
-    i = 0,
-    code;
+  var t, inp, out, i, code;
 
-  if (out !== undefined) {
-    return out;
-  }
-
-  if (typeof input !== 'string') {
+  if (input === null || input === undefined) {
     return input;
   }
 
-  out = '';
+  t = typeof input;
 
-  switch (type) {
-  case 'js':
-    inp = inp.replace(/\\/g, '\\u005C');
-    for (i; i < inp.length; i += 1) {
+  if (t !== 'string') {
+    if (t === 'object') {
+      out = iterateFilter.apply(exports.escape, arguments);
+      if (out !== undefined) {
+        return out;
+      }
+    }
+    return input;
+  }
+
+  if (type === 'js') {
+    inp = input.replace(/\\/g, '\\u005C');
+    out = '';
+    for (i = 0; i < inp.length; i += 1) {
       code = inp.charCodeAt(i);
       if (code < 32) {
         code = code.toString(16).toUpperCase();
@@ -315,14 +322,10 @@ exports.escape = function (input, type) {
       .replace(/\=/g, '\\u003D')
       .replace(/-/g, '\\u002D')
       .replace(/;/g, '\\u003B');
-
-  default:
-    return inp.replace(/&(?!amp;|lt;|gt;|quot;|#39;)/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
+
+  return input.replace(/&(?!amp;|lt;|gt;|quot;|#39;)/g, '&amp;')
+    .replace(/[<>"']/g, escapeHtmlRest);
 };
 exports.e = exports.escape;
 

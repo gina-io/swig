@@ -1,0 +1,21 @@
+kind: changed
+body: >-
+  Improved the performance of the `escape` / `e` filter in both
+  `@rhinostone/swig` and `@rhinostone/swig-twig`. The HTML default branch
+  now runs a two-pass form — an entity-aware first pass that preserves
+  already-escaped sequences (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&#39;`)
+  followed by a single character-class regex `[<>"']` with a lookup
+  function for the rest — instead of five sequential single-character
+  regex passes. A scalar fast-path also skips `iterateFilter.apply` when
+  input is null, undefined, or a non-object. Output is byte-identical to
+  the previous behavior on every input, including the entity-preservation
+  semantics swig has shipped since the upstream fork. Measured against
+  `benchmarks/render.js` (medians of 5 runs, autoescape on, Node 25),
+  simple-var-output goes from ~2.46M to 3.86M ops/s (+57%, flipping the
+  verdict from `nunjucks 1.32x faster` to `swig 1.18x faster`); filter
+  chain +37%; for-loop (5 items) +54%; if/else branch +71%; nested
+  for+if+filter +56%. The `case 'js'` branch and array-iteration fallback
+  through `iterateFilter` are unchanged. All 1443 tests pass including
+  the 9 CVE regressions.
+custom:
+  Issue: ""
