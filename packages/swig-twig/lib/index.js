@@ -185,6 +185,11 @@ exports.Twig = function (opts) {
    * (<code>{% extends parent_var %}</code>) are not pre-resolved and will
    * throw at render time as they would on the sync path.
    *
+   * @deprecated since 2.2.0 — use {@link Twig#renderFile} with a loader that
+   *   sets <code>loader.async === true</code>. The async-codegen dispatch
+   *   handles dynamic include paths the pre-walker cannot. This method will
+   *   be removed in 3.0.
+   *
    * @example
    * twig.setDefaults({ loader: myAsyncLoader });
    * twig.renderFileAsync('page.twig', { name: 'world' }, function (err, output) {
@@ -244,6 +249,12 @@ exports.Twig = function (opts) {
    * temporarily swaps the loader on each call, so subsequent runtime
    * <code>include</code>s resolve correctly without re-running the
    * pre-walk.
+   *
+   * @deprecated since 2.2.0 — use {@link Twig#compileFile} with
+   *   <code>options.codegenMode === 'async'</code> on a loader that sets
+   *   <code>loader.async === true</code>. The returned compiled function
+   *   yields a <code>Promise&lt;{output, exports}&gt;</code> instead of a
+   *   string. This method will be removed in 3.0.
    *
    * @example
    * twig.compileFileAsync('page.twig', {}, function (err, fn) {
