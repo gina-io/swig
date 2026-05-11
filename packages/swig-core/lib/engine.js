@@ -100,9 +100,19 @@ exports.importNonBlocks = function (blocks, tokens) {
  * (see `packages/swig-core/lib/backend.js`).
  *
  * `tokens.parent` is lifted into an `IRLiteral('string', …)` so the
- * backend's `emitExpr` path produces a quoted JS string literal. Dynamic
- * extends paths (`{% extends parent_var %}`) are rejected by the
- * extends-tag parser today; only literal string paths reach this helper.
+ * backend's `emitExpr` path produces a quoted JS string literal. The
+ * native parser stashes `tokens.parent` as the literal text of the
+ * extends argument after stripping enclosing quotes (lib/parser.js:273),
+ * which works for `{% extends "layout.html" %}` but for a bare
+ * identifier (`{% extends parent_var %}`) yields a pre-lowered JS
+ * source fragment such as `((typeof _ctx.parent_var !== "undefined")
+ * ? _ctx.parent_var : …)`. Embedded here as a string literal it
+ * becomes a garbage template lookup at runtime
+ * (`Template not found: /((typeof _ctx.parent_var …`). Closing the
+ * dynamic-extends gap requires the parser to stash an IRExpr on
+ * `tokens.parent` and this helper to lower it through
+ * `ir.extendsDeferred`'s `parentExpr` slot — already designed as
+ * `<IRExpr>` per the deferred IR contract.
  *
  * @param  {object} tokens   Parsed child template (must have `.parent`).
  * @param  {object} options  Per-call Swig options; `options.filename` is
