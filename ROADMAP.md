@@ -14,12 +14,19 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 | Status | Item |
 | --- | --- |
+| Planned | Async parse path for dynamic targets — full support for `{% extends parent_var %}`, `{% include user_template %}`, and runtime-resolved `import` / `from` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic-target support is on hold pending consumer demand. |
 | Planned | Ship Jinja2 and Django frontends as additional `@rhinostone/swig-*` packages. On demand — when there's concrete user demand. |
 | Planned | Test framework migration. Replace mocha 1.x + expect.js with `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. (The Node engines bump is upstream-driven by gina and is being treated as done.) |
 
 ---
 
 ## Completed
+
+### v2.2.0 (May 2026)
+
+- `renderFile(path, locals, cb)` and `compileFile(path, options, cb)` now automatically route to the async-codegen path when the configured loader signals async support via `loader.async === true`. The async path defers template resolution from parse time to render time via a new `_swig.getTemplate(path, options)` runtime helper that returns `Promise<TemplateFn>`; `extends`, `include`, `import`, and `from` emit deferred IR shapes and the shared backend wraps the compiled body in an `AsyncFunction`. Block overrides thread through the inheritance chain via a sixth `_blocks` positional argument; macro imports pick up exports via a `Promise<{output, exports}>` template-fn return shape. Both `@rhinostone/swig` and `@rhinostone/swig-twig` flavors — parity across the two surfaces. Static template targets (string literals in `extends` / `include` / `import` / `from`) work end-to-end against async loaders; dynamic targets surface a clear runtime error and are tracked as a follow-up. The sync render path is unchanged — loaders without `loader.async === true` continue to use the established sync `_swig.compileFile(...)` resolution, including the built-in `loaders.fs` and `loaders.memory` which remain dual-mode.
+- `renderFileAsync(path, locals, cb)` and `compileFileAsync(path, options, cb)` on both `@rhinostone/swig` and `@rhinostone/swig-twig` are soft-deprecated via JSDoc only — no runtime warning. Use `renderFile` / `compileFile` with an async loader (`loader.async === true`) instead; the dispatch is automatic. The legacy pre-walker entry points remain fully functional in 2.x and will be removed in 3.0.
+- Performance improvement to the `escape` / `e` filter in both flavors. The HTML default branch switched from a five-replace chain to an entity-preserving two-pass form (entity-aware first pass that preserves already-escaped sequences, followed by a single character-class regex with a lookup function). A scalar fast-path skips the array/object iteration when input is null, undefined, or a non-object. Output is byte-identical to the previous behavior on every input. Measured against `benchmarks/render.js` (medians of 5 runs, autoescape on, Node 25): simple-var-output `+57%` (flipping the bench verdict from `nunjucks 1.32x faster` to `swig 1.18x faster`); filter chain `+37%`; for-loop (5 items) `+54%`; if/else branch `+71%`; nested for+if+filter `+56%`.
 
 ### v2.1.0 (May 2026)
 
