@@ -1,3 +1,8 @@
+[2.3.0](https://github.com/gina-io/swig/tree/v2.3.0) / 2026-05-14
+-----------------------------------------------------------------
+
+* **Changed** Drop `yargs` and `terser` from production `dependencies`. CLI argument parsing now uses a small built-in zero-dependency parser; `terser` (used only by `swig compile --minify`) is loaded lazily and moves to `devDependencies`. A library install of `@rhinostone/swig` now pulls in only `@rhinostone/swig-core`.
+
 [2.2.0](https://github.com/gina-io/swig/tree/v2.2.0) / 2026-05-11
 -----------------------------------------------------------------
 

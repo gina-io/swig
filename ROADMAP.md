@@ -22,6 +22,10 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.3.0 (May 2026)
+
+- Reduced `@rhinostone/swig`'s production dependency footprint to a single package. `yargs` and `terser` were CLI-only — the library entry point never loaded them — but sat in production `dependencies`, so every library install pulled in their full dependency trees. The CLI's argument parsing is now handled by a small built-in zero-dependency parser; `terser` (used only by `swig compile --minify`) is loaded lazily and ships as a `devDependency`, with `--minify` printing an install hint instead of crashing if it is absent. A library install of `@rhinostone/swig` now pulls in only `@rhinostone/swig-core`. No change to the CLI surface or rendering behavior.
+
 ### v2.2.0 (May 2026)
 
 - `renderFile(path, locals, cb)` and `compileFile(path, options, cb)` now automatically route to the async-codegen path when the configured loader signals async support via `loader.async === true`. The async path defers template resolution from parse time to render time via a new `_swig.getTemplate(path, options)` runtime helper that returns `Promise<TemplateFn>`; `extends`, `include`, `import`, and `from` emit deferred IR shapes and the shared backend wraps the compiled body in an `AsyncFunction`. Block overrides thread through the inheritance chain via a sixth `_blocks` positional argument; macro imports pick up exports via a `Promise<{output, exports}>` template-fn return shape. Both `@rhinostone/swig` and `@rhinostone/swig-twig` flavors — parity across the two surfaces. Static template targets (string literals in `extends` / `include` / `import` / `from`) work end-to-end against async loaders; dynamic targets surface a clear runtime error and are tracked as a follow-up. The sync render path is unchanged — loaders without `loader.async === true` continue to use the established sync `_swig.compileFile(...)` resolution, including the built-in `loaders.fs` and `loaders.memory` which remain dual-mode.

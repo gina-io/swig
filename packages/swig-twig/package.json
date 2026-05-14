@@ -1,6 +1,6 @@
 {
   "name": "@rhinostone/swig-twig",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Twig-syntax frontend for the @rhinostone/swig-core template engine. Part of the @rhinostone/swig multi-flavor family.",
   "keywords": [
     "template",
@@ -22,7 +22,7 @@
     "node": ">=12"
   },
   "peerDependencies": {
-    "@rhinostone/swig-core": "2.2.0"
+    "@rhinostone/swig-core": "2.3.0"
   },
   "publishConfig": {
     "access": "public"
