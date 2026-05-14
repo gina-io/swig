@@ -8,6 +8,9 @@
 .vscode
 .jshintrc
 
+# Local tool / automation artifacts (debug logs, MCP session output)
+.playwright-mcp/
+
 # CI / GitHub metadata
 .github/
 
@@ -16,6 +19,8 @@ packages/**
 
 # Sources not needed in the published tarball
 # (browser/ source → shipped as dist/*.js; docs/ and examples/ are site/demos only)
+# (.changes/ → changie fragments; the rendered HISTORY.md ships instead)
+.changes/
 *.html
 benchmarks/**
 browser/**
