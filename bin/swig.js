@@ -5,8 +5,7 @@ var swig = require('../index'),
   fs = require('fs'),
   path = require('path'),
   filters = require('../lib/filters'),
-  utils = require('../lib/utils'),
-  terser = require('terser');
+  utils = require('../lib/utils');
 
 var wrapstart = 'var tpl = ',
   wrapend = ';';
@@ -123,7 +122,7 @@ case 'compile':
     r = argv['wrap-start'] + r + argv['wrap-end'];
 
     if (argv.m) {
-      r = terser.minify_sync(r).code;
+      r = loadTerser().minify_sync(r).code;
     }
 
     out(file, r);
@@ -354,6 +353,30 @@ function usage() {
 }
 
 /**
+ * Lazily load the optional <code>terser</code> package, used only by the
+ * <code>--minify</code> flag. terser is a CLI-only dependency — the library
+ * entry point never needs it — so it ships as a devDependency rather than a
+ * runtime one, and a plain <code>npm install @rhinostone/swig</code> does not
+ * pull it in. Print a friendly install hint and exit non-zero if a CLI user
+ * reaches <code>--minify</code> without it.
+ *
+ * @return {object}  The terser module.
+ * @private
+ */
+function loadTerser() {
+  try {
+    return require('terser');
+  } catch (e) {
+    if (e.code !== 'MODULE_NOT_FOUND') {
+      throw e;
+    }
+    console.error('The --minify flag needs the "terser" package, which is not installed.');
+    console.error('Install it with:  npm install terser');
+    process.exit(1);
+  }
+}
+
+/**
  * Walk a directory recursively, returning every regular-file path found.
  * Skips dotfile entries and dot-directories so platform metadata such as
  * <code>.DS_Store</code> never reaches the compiler.
@@ -430,7 +453,7 @@ function bundleRecursive(dir) {
   output = 'module.exports = {\n' + parts.join(',\n') + '\n};\n';
 
   if (argv.m) {
-    output = terser.minify_sync(output).code;
+    output = loadTerser().minify_sync(output).code;
   }
 
   if (argv.o === 'stdout') {
