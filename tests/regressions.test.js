@@ -106,6 +106,17 @@ describe('Regressions', function () {
     expect(function () { s.render('{% import "macros.html" as prototype %}', { filename: '/test.html' }); }).to.throwError(/Unsafe import alias/);
   });
 
+  it('CVE-2023-25345: dangerous props are blocked in ternary branches', function () {
+    // Ternary branches lower through the same parsePrimary path as any
+    // other expression, so the _dangerousProps guard fires on a dangerous
+    // identifier in the condition, the then-branch, or the else-branch.
+    expect(function () { swig.render('{{ x ? __proto__ : "safe" }}', { locals: { x: true } }); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ x ? "safe" : constructor }}', { locals: { x: false } }); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ __proto__ ? "a" : "b" }}'); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ x ? a.__proto__ : "safe" }}', { locals: { x: true, a: {} } }); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{{ x ?: constructor }}', { locals: { x: false } }); }).to.throwError(/Unsafe access/);
+  });
+
   it('lexer NUMBER rule does not greedy-eat a leading sign in bracket-access expressions', function () {
     var locals = { arr: [10, 20, 30], idx: 2 };
     // Without the fix, the lexer matched `-1` as a single NUMBER token,

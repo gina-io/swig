@@ -647,6 +647,37 @@ TokenParser.prototype = {
         var right = parseExpression(info.prec + 1);
         left = ir.binaryOp(info.op, left, right);
       }
+      // Ternary + Elvis — binds looser than every binary op, so it is only
+      // handled at the top-level minPrec === 0 entry. Recursive calls for a
+      // binary op's RHS run at prec + 1 >= 1 and skip this branch, which is
+      // what lets `a + b ? c : d` parse as `(a + b) ? c : d`. Recursive
+      // parseExpression(0) calls (arg-list elements, object-literal values,
+      // grouped sub-expressions) still get ternary via their own entry.
+      //
+      // Elvis shorthand `a ?: b` lowers to Conditional(a, a, b). The `a`
+      // subexpression is evaluated twice by downstream emitters — a
+      // documented consequence of the transliteration.
+      if (minPrec === 0) {
+        var qtok = peek();
+        if (qtok && qtok.type === _t.QMARK) {
+          consume();
+          var afterQ = peek();
+          var elseBranch;
+          if (afterQ && afterQ.type === _t.COLON) {
+            consume();
+            elseBranch = parseExpression(0);
+            left = ir.conditional(left, left, elseBranch);
+          } else {
+            var thenBranch = parseExpression(0);
+            var colon = consume();
+            if (!colon || colon.type !== _t.COLON) {
+              bail('Expected colon in ternary expression');
+            }
+            elseBranch = parseExpression(0);
+            left = ir.conditional(left, thenBranch, elseBranch);
+          }
+        }
+      }
       return left;
     }
 
@@ -706,6 +737,7 @@ TokenParser.prototype = {
     var depth = 0,
       hasTopOp = false,
       hasTopFilter = false,
+      hasTopTernary = false,
       firstTopFilterIdx = -1;
     for (i = 0; i < tokens.length; i += 1) {
       t = tokens[i];
@@ -717,6 +749,9 @@ TokenParser.prototype = {
         if (t.type === _t.FILTER || t.type === _t.FILTEREMPTY) {
           hasTopFilter = true;
           if (firstTopFilterIdx < 0) { firstTopFilterIdx = i; }
+        }
+        if (t.type === _t.QMARK) {
+          hasTopTernary = true;
         }
       }
       if (t.type === _t.PARENOPEN || t.type === _t.FUNCTION ||
@@ -779,7 +814,13 @@ TokenParser.prototype = {
       // trailing FILTER / FILTEREMPTY and wraps the atom in an
       // IRFilterCallExpr at the right tree depth. Autoescape remains
       // a top-level wrap (single `e` filterCall appended).
-      if (hasTopOp && hasTopFilter) {
+      //
+      // A top-level ternary (`{{ a ? b : c }}`) takes the same route:
+      // the prefix/filter-drain path below would slice the stream at
+      // the first top-level filter (e.g. a filter inside a branch,
+      // `{{ x ? a|upper : b }}`) and mis-parse it. Full-stream
+      // parseExpr consumes the whole ternary, branch filters included.
+      if (hasTopTernary || (hasTopOp && hasTopFilter)) {
         var exprPO = self.parseExpr(tokens);
         var fcallsPO = escape ? [ir.filterCall('e')] : [];
         return ir.output(exprPO, fcallsPO.length > 0 ? fcallsPO : undefined);
@@ -874,6 +915,12 @@ TokenParser.prototype = {
 
       return ir.output(expr, filterCalls.length > 0 ? filterCalls : undefined);
     } catch (e) {
+      // A top-level ternary cannot be expressed by the legacy parseToken
+      // path (no QMARK handling), so legacyFallback would only throw a
+      // worse error ("Unexpected colon") or emit garbage. Re-throw
+      // parseExpr's own error — including the CVE-2023-25345 guard
+      // message — instead of masking it.
+      if (hasTopTernary) { throw e; }
       return legacyFallback();
     }
   },

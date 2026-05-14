@@ -73,6 +73,8 @@ module.exports = {
   /** End of a method
    * Currently unused
   METHODEND: 26, */
+  /** Ternary question mark (?) */
+  QMARK: 27,
   /** Unknown type */
   UNKNOWN: 100
 };

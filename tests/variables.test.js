@@ -79,6 +79,26 @@ var cases = {
   ],
   'null objects': [
     { c: '{{ n }}', e: '' }
+  ],
+  'can use the ternary operator': [
+    { c: '{{ true ? "yes" : "no" }}', e: 'yes' },
+    { c: '{{ false ? "yes" : "no" }}', e: 'no' },
+    { c: '{{ a ? "truthy" : "falsy" }}', e: 'truthy' },
+    { c: '{{ n ? "truthy" : "falsy" }}', e: 'falsy' },
+    { c: '{{ a === 1 ? "one" : "other" }}', e: 'one' },
+    { c: '{{ a ? a + 1 : 0 }}', e: '2' },
+    { c: '{{ ap ? ap|upper : "none" }}', e: 'APPLES' }
+  ],
+  'can use the elvis operator': [
+    { c: '{{ ap ?: "fallback" }}', e: 'apples' },
+    { c: '{{ n ?: "fallback" }}', e: 'fallback' }
+  ],
+  'can nest ternary operators': [
+    { c: '{{ a ? (n ? "an" : "a-not-n") : "not-a" }}', e: 'a-not-n' },
+    { c: '{{ n ? "x" : (a ? "not-n-a" : "neither") }}', e: 'not-n-a' }
+  ],
+  'autoescapes the ternary result': [
+    { c: '{{ true ? foo : "safe" }}', e: '&lt;blah&gt;' }
   ]
 };
 
@@ -178,6 +198,12 @@ describe('Variables', function () {
       expect(function () {
         swig.render('{{ === foo }}');
       }).to.throwError(/Unexpected logic on line 1\./);
+    });
+
+    it('with a ternary missing its colon', function () {
+      expect(function () {
+        swig.render('{{ a ? b }}');
+      }).to.throwError(/Expected colon in ternary expression on line 1\./);
     });
   });
 });
