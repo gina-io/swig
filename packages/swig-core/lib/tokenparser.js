@@ -647,6 +647,33 @@ TokenParser.prototype = {
         var right = parseExpression(info.prec + 1);
         left = ir.binaryOp(info.op, left, right);
       }
+      // Nunjucks/Jinja2-style inline ternary: `<expr> if <cond> [else <expr>]`.
+      // Anchored at the loosest precedence level — nested ternaries require
+      // parentheses (Python semantics). The `else` clause is optional: omitted
+      // yields the empty string on the falsy branch, matching Nunjucks render
+      // output for `{{ x if cond }}`.
+      //
+      // `if` and `else` reach this point as VAR tokens (the lexer has no
+      // dedicated keyword rule for them — see lib/lexer.js). parsePrimary's
+      // _reserved check is only hit when one of them appears as the LEAD
+      // token of an expression, which is still rejected. Mid-expression they
+      // are detected by match-string here and consumed as ternary syntax.
+      if (minPrec === 0) {
+        var ifTok = peek();
+        if (ifTok && ifTok.type === _t.VAR && ifTok.match === 'if') {
+          consume();
+          var cond = parseExpression(0);
+          var elseExpr;
+          var elseTok = peek();
+          if (elseTok && elseTok.type === _t.VAR && elseTok.match === 'else') {
+            consume();
+            elseExpr = parseExpression(0);
+          } else {
+            elseExpr = ir.literal('string', '');
+          }
+          return ir.conditional(cond, left, elseExpr);
+        }
+      }
       return left;
     }
 

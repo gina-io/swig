@@ -180,4 +180,65 @@ describe('Variables', function () {
       }).to.throwError(/Unexpected logic on line 1\./);
     });
   });
+
+  describe('inline-if ternary expression', function () {
+    /*
+     * Jinja2/Nunjucks-style ternary inside {{ … }}. Anchored at the loosest
+     * precedence level so nested ternaries require parentheses (Python rules).
+     * The else clause is optional — omitted yields the empty string on the
+     * falsy branch, matching Nunjucks output for `{{ x if cond }}`.
+     */
+    it('renders the truthy branch when condition is truthy', function () {
+      expect(swig.render('{{ "yes" if x else "no" }}', { locals: { x: true } })).to.equal('yes');
+    });
+
+    it('renders the falsy branch when condition is falsy', function () {
+      expect(swig.render('{{ "yes" if x else "no" }}', { locals: { x: false } })).to.equal('no');
+    });
+
+    it('omitted else renders the truthy branch or empty string', function () {
+      expect(swig.render('{{ "checked" if x }}', { locals: { x: true } })).to.equal('checked');
+      expect(swig.render('{{ "checked" if x }}', { locals: { x: false } })).to.equal('');
+    });
+
+    it('common attribute-context pattern: no-else ternary inside an HTML attribute', function () {
+      var tpl = '<input {{ "checked" if isChecked }}>';
+      expect(swig.render(tpl, { locals: { isChecked: true } })).to.equal('<input checked>');
+      expect(swig.render(tpl, { locals: { isChecked: false } })).to.equal('<input >');
+    });
+
+    it('supports `not` and compound conditions', function () {
+      expect(swig.render('{{ "disabled" if not enabled }}', { locals: { enabled: false } })).to.equal('disabled');
+      expect(swig.render('{{ "ok" if a and b else "bad" }}', { locals: { a: true, b: true } })).to.equal('ok');
+      expect(swig.render('{{ "ok" if a or b else "bad" }}', { locals: { a: false, b: true } })).to.equal('ok');
+    });
+
+    it('supports comparisons in the condition', function () {
+      expect(swig.render('{{ "match" if v == 5 else "miss" }}', { locals: { v: 5 } })).to.equal('match');
+      expect(swig.render('{{ "match" if v == 5 else "miss" }}', { locals: { v: 4 } })).to.equal('miss');
+    });
+
+    it('ternary result chains into a filter (parenthesised)', function () {
+      expect(swig.render('{{ ("yes" if x else "no") | upper }}', { locals: { x: true } })).to.equal('YES');
+    });
+
+    it('nested ternaries via parens are right-associative', function () {
+      var tpl = '{{ "A" if x else ("B" if y else "C") }}';
+      expect(swig.render(tpl, { locals: { x: true, y: false } })).to.equal('A');
+      expect(swig.render(tpl, { locals: { x: false, y: true } })).to.equal('B');
+      expect(swig.render(tpl, { locals: { x: false, y: false } })).to.equal('C');
+    });
+
+    it('does not affect block-form {% if %}…{% endif %}', function () {
+      expect(swig.render('{% if x %}yes{% else %}no{% endif %}', { locals: { x: true } })).to.equal('yes');
+      expect(swig.render('{% if x %}yes{% else %}no{% endif %}', { locals: { x: false } })).to.equal('no');
+    });
+
+    it('still rejects `if` / `else` as a lead variable token', function () {
+      expect(function () { swig.render('{{ if }}', { filename: 'if.html' }); })
+        .to.throwError(/Reserved keyword "if"/);
+      expect(function () { swig.render('{{ else }}', { filename: 'else.html' }); })
+        .to.throwError(/Reserved keyword "else"/);
+    });
+  });
 });

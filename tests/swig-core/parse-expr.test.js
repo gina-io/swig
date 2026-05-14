@@ -360,4 +360,68 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
       expect(emit('1 === 2')).to.be('1===2');
     });
   });
+
+  describe('inline-if ternary', function () {
+    /*
+     * Nunjucks/Jinja2-style `<expr> if <cond> [else <expr>]` lowers to an
+     * IRConditional. parseExpression detects the pattern at minPrec=0 after
+     * the binary-op loop. `if` and `else` reach this point as VAR tokens —
+     * the lexer has no dedicated keyword rule for them.
+     */
+    it('lowers `x if y else z` to IRConditional with correct branches', function () {
+      var node = parse('"yes" if x else "no"');
+      expect(node.type).to.be('Conditional');
+      expect(node.test.type).to.be('VarRef');
+      expect(node.test.path).to.eql(['x']);
+      expect(node.then.type).to.be('Literal');
+      expect(node.then.value).to.be('yes');
+      expect(node['else'].type).to.be('Literal');
+      expect(node['else'].value).to.be('no');
+    });
+
+    it('lowers `x if y` (no-else) to IRConditional with empty-string else', function () {
+      var node = parse('"checked" if isChecked');
+      expect(node.type).to.be('Conditional');
+      expect(node.test.path).to.eql(['isChecked']);
+      expect(node.then.value).to.be('checked');
+      expect(node['else'].type).to.be('Literal');
+      expect(node['else'].kind).to.be('string');
+      expect(node['else'].value).to.be('');
+    });
+
+    it('binds looser than binary ops: `a + b if c else d` → conditional(c, a+b, d)', function () {
+      var node = parse('a + b if c else d');
+      expect(node.type).to.be('Conditional');
+      expect(node.test.path).to.eql(['c']);
+      expect(node.then.type).to.be('BinaryOp');
+      expect(node.then.op).to.be('+');
+      expect(node['else'].path).to.eql(['d']);
+    });
+
+    it('binds looser than logic ops: `a if b and c else d`', function () {
+      var node = parse('a if b and c else d');
+      expect(node.type).to.be('Conditional');
+      expect(node.test.type).to.be('BinaryOp');
+      expect(node.test.op).to.be('&&');
+      expect(node.then.path).to.eql(['a']);
+      expect(node['else'].path).to.eql(['d']);
+    });
+
+    it('parenthesised right-associative chains: `a if x else (b if y else c)`', function () {
+      var node = parse('a if x else (b if y else c)');
+      expect(node.type).to.be('Conditional');
+      expect(node.then.path).to.eql(['a']);
+      expect(node['else'].type).to.be('Conditional');
+      expect(node['else'].test.path).to.eql(['y']);
+    });
+
+    it('still rejects `if` as the lead token of an expression', function () {
+      expect(function () { parse('if'); }).to.throwException(/Reserved keyword "if"/);
+      expect(function () { parse('if x'); }).to.throwException(/Reserved keyword "if"/);
+    });
+
+    it('still rejects `else` as a lead token', function () {
+      expect(function () { parse('else'); }).to.throwException(/Reserved keyword "else"/);
+    });
+  });
 });
