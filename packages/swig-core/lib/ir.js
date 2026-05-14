@@ -1,14 +1,14 @@
 /**
  * Swig IR — intermediate representation for the shared backend.
  *
- * Phase 1: typedef stubs only. No runtime code here — Phase 1 keeps the
- * native frontend emitting JS source directly. Phase 2 ports the native
- * frontend to emit IR, at which point `@rhinostone/swig-core/lib/backend.js`
- * walks an IRTemplate and produces the compiled `new Function(...)` body.
+ * Two halves: the `@typedef` schema for every IR node shape, and the
+ * runtime factories (further down) that build them. Every frontend
+ * (native Swig, Twig, and future flavors) lowers its parse tree into
+ * these shapes; `@rhinostone/swig-core/lib/backend.js` then walks an
+ * IRTemplate and produces the compiled `new Function(...)` body.
  *
- * Every frontend (native Swig, Twig, Jinja2, Django) must lower its
- * parse tree into these shapes. Constructs that cannot lower cleanly
- * must throw at parse time — no silent partial behavior.
+ * Constructs that cannot lower cleanly must throw at parse time — no
+ * silent partial behavior.
  */
 
 /**
@@ -103,11 +103,17 @@
 /**
  * For-loop. `emptyBody` supports Twig/Django `{% for … %}{% else %}`.
  *
+ * `iterable` is typed `IRExpr | string` for Phase 2 — the native
+ * frontend still hands in a raw JS-source string (its `for` tag has
+ * not migrated to expression-level IR), while the Twig frontend lowers
+ * to a real {@link IRExpr}. Backends MUST tolerate both shapes — same
+ * transitional widening as {@link IRSet}'s `target`.
+ *
  * @typedef {Object} IRFor
  * @property {'For'} type
  * @property {string} [key]                   Loop key var (second binding).
  * @property {string} value                   Loop value var (first binding).
- * @property {IRExpr} iterable
+ * @property {IRExpr|string} iterable         Transitional — see note above.
  * @property {IRStatement[]} body
  * @property {IRStatement[]} [emptyBody]
  * @property {IRLoc} [loc]
@@ -284,7 +290,8 @@
  * value isn't known until render.
  *
  * The deferred shapes carry the unresolved path expression to render
- * time. The async backend (`compileAsync`) emits cb-shaped or
+ * time. In async codegen mode (`backend.compile` with
+ * `options.codegenMode === 'async'`) the backend emits cb-shaped or
  * AsyncFunction-shaped JS that hits a runtime `_swig.getTemplate(...)`
  * call to resolve and apply the parent / included / imported template.
  *
@@ -511,7 +518,7 @@
  */
 
 /* ------------------------------------------------------------------ *
- * Runtime node factories — Phase 2 scaffold (Session 7, 2026-04-14).
+ * Runtime node factories.
  *
  * Each factory returns a plain JSON-serialisable object matching one
  * of the typedefs above. `loc` is always optional; when omitted it is
@@ -519,9 +526,8 @@
  * `'loc' in node`). All other parameters are required unless documented
  * otherwise on the corresponding typedef.
  *
- * No consumers yet — this commit introduces the schema surface only.
- * Subsequent sessions will migrate the native frontend's token-tree
- * production over to these shapes.
+ * Consumed by every frontend's tag handlers and `tokenparser.js` (which
+ * build the IR) and by `backend.js` (which walks it).
  * ------------------------------------------------------------------ */
 
 /*!
