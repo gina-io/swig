@@ -47,6 +47,15 @@ describe('Tag: elseif, elif', function () {
       .to.equal('pass');
   });
 
+  it('{% if false %}{% elseif foo ? a : b %} (ternary + elvis conditional)', function () {
+    expect(swig.render('{% if false %}{% elseif foo ? true : false %}pass{% endif %}', { locals: { foo: 1 }}))
+      .to.equal('pass');
+    expect(swig.render('{% if false %}{% elseif foo ? false : true %}pass{% endif %}', { locals: { foo: 0 }}))
+      .to.equal('pass');
+    expect(swig.render('{% if false %}{% elif foo ?: false %}pass{% endif %}', { locals: { foo: 1 }}))
+      .to.equal('pass');
+  });
+
   it('must be within an {% if %}', function () {
     expect(function () {
       swig.render('{% elseif true %}foo');

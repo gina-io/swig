@@ -117,6 +117,27 @@ describe('Regressions', function () {
     expect(function () { swig.render('{{ x ?: constructor }}', { locals: { x: false } }); }).to.throwError(/Unsafe access/);
   });
 
+  it('CVE-2023-25345: dangerous props are blocked in ternary branches inside tag arguments', function () {
+    // Tag-argument ternary branches reach parseExpr's parsePrimary guard
+    // via lowerExpr, and the legacy parseToken walk's parseVar guard now
+    // reaches the branch tokens too (the walk no longer aborts on the
+    // ternary colon). Either layer rejects a dangerous identifier in
+    // either branch.
+    // set RHS
+    expect(function () { swig.render('{% set r = c ? __proto__ : "safe" %}', { locals: { c: true } }); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{% set r = c ? "safe" : constructor %}', { locals: { c: false } }); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{% set r = c ?: prototype %}', { locals: { c: false } }); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{% set r = c ? a.__proto__ : "safe" %}', { locals: { c: true, a: {} } }); }).to.throwError(/Unsafe access/);
+    // if condition
+    expect(function () { swig.render('{% if c ? __proto__ : "safe" %}x{% endif %}', { locals: { c: true } }); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{% if c ? "safe" : constructor %}x{% endif %}', { locals: { c: false } }); }).to.throwError(/Unsafe access/);
+    // for iterable
+    expect(function () { swig.render('{% for v in c ? prototype : items %}{{ v }}{% endfor %}', { locals: { c: true, items: [] } }); }).to.throwError(/Unsafe access/);
+    expect(function () { swig.render('{% for v in c ? items : __proto__ %}{{ v }}{% endfor %}', { locals: { c: false, items: [] } }); }).to.throwError(/Unsafe access/);
+    // A dangerous *string literal* as a branch value is data, not access — must NOT be blocked.
+    expect(swig.render('{% set r = c ? "__proto__" : "safe" %}{{ r }}', { locals: { c: true } })).to.equal('__proto__');
+  });
+
   it('lexer NUMBER rule does not greedy-eat a leading sign in bracket-access expressions', function () {
     var locals = { arr: [10, 20, 30], idx: 2 };
     // Without the fix, the lexer matched `-1` as a single NUMBER token,

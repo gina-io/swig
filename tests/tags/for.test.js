@@ -27,7 +27,13 @@ var cases = [
   { input: '{% for a in d|default(["a"]) %}{{ a }}{% endfor %}', out: 'a' },
   { input: '{% for a in q %}hi{% endfor %}', out: '' },
   { input: '{% for a in b %}{% for d in c %}{% for a in b %}{% endfor %}{% endfor %}{% if loop.last %}last happens only once{% endif %}{% endfor %}', out: 'last happens only once' },
-  { input: '{% for a in "foobar"|reverse %}{{ a }}{% endfor %}', out: "raboof" }
+  { input: '{% for a in "foobar"|reverse %}{{ a }}{% endfor %}', out: "raboof" },
+  // ternary + elvis operators as the iterable expression
+  { input: '{% for a in b ? b : c %}{{ a }}{% endfor %}', out: '123' },
+  { input: '{% for a in q ? b : c %}{{ a }}{% endfor %}', out: 'applebanana' },
+  { input: '{% for a in b ?: c %}{{ a }}{% endfor %}', out: '123' },
+  { input: '{% for a in q ?: c %}{{ a }}{% endfor %}', out: 'applebanana' },
+  { input: '{% for k, a in q ? b : c %}{{ a }}{% endfor %}', out: 'applebanana' }
 ];
 
 describe('Tag: for', function () {

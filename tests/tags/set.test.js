@@ -26,7 +26,14 @@ var rightCases = [
   { code: '/= 2', result: '0.5' },
   { code: '= bar|default(1)', result: '1' },
   { code: '= foo === 1', result: 'true' },
-  { code: '= 1 === 1 and not false', result: 'true' }
+  { code: '= 1 === 1 and not false', result: 'true' },
+  // ternary + elvis operators as the assigned value
+  { code: '= foo ? "y" : "n"', result: 'y' },
+  { code: '= bar ? "y" : "n"', result: 'n' },
+  { code: '= foo > 0 ? "pos" : "neg"', result: 'pos' },
+  { code: '= foo ?: "fallback"', result: '1' },
+  { code: '= bar ?: "fallback"', result: 'fallback' },
+  { code: '= foo ? (bar ? "a" : "b") : "c"', result: 'b' }
 ];
 
 describe('Tag: set', function () {

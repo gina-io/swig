@@ -310,12 +310,39 @@ TokenParser.prototype = {
       self.filterApplyIdx.push(self.out.length - 1);
       break;
 
+    case _t.QMARK:
+      // Ternary `?` — emit a flat operator and mark the state stack so
+      // the matching `:` is recognised as the alternative-branch
+      // separator (not an object-literal colon). The lowerExpr ->
+      // parseExpr IR path does the real ternary codegen for built-in
+      // tags; emitting `?`/`:` flat here just keeps the legacy tag-arg
+      // walk from aborting so `args` is built for every tag.
+      self.out.push(' ? ');
+      self.state.push(token.type);
+      self.filterApplyIdx.pop();
+      break;
+
     case _t.COLON:
-      if (lastState !== _t.CURLYOPEN) {
+      if (lastState === _t.CURLYOPEN) {
+        self.state.push(token.type);
+        self.out.push(':');
+      } else if (lastState === _t.QMARK) {
+        // Ternary alternative branch. Pop the QMARK marker the QMARK
+        // case pushed. A full ternary (`a ? b : c`) has a non-empty
+        // then-branch, so the colon emits as a flat operator. The Elvis
+        // shorthand (`a ?: b`) has an empty then-branch — the `?` we
+        // emitted is still the last fragment — so rewrite it to `||`,
+        // the single-evaluation equivalent of `a ? a : b`. A bare
+        // `a ?  : b` would be invalid JS.
+        self.state.pop();
+        if (self.out[self.out.length - 1] === ' ? ') {
+          self.out[self.out.length - 1] = ' || ';
+        } else {
+          self.out.push(' : ');
+        }
+      } else {
         utils.throwError('Unexpected colon', self.line, self.filename);
       }
-      self.state.push(token.type);
-      self.out.push(':');
       self.filterApplyIdx.pop();
       break;
 

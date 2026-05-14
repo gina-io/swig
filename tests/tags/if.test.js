@@ -39,7 +39,16 @@ var cases = [
   { code: '1 === bar',          result: false },
   { code: 'true && false',      result: false },
   { code: '0 || (bar && foo)',  result: false },
-  { code: 'not (2 in baz)',     result: true }
+  { code: 'not (2 in baz)',     result: true },
+  // ternary + elvis operators as the conditional expression
+  { code: 'foo ? true : false', result: true },
+  { code: 'bar ? true : false', result: false },
+  { code: 'foo ? false : true', result: false },
+  { code: 'bar ? false : true', result: true },
+  { code: 'foo > bar ? true : false', result: true },
+  { code: 'foo ?: false',       result: true },
+  { code: 'bar ?: foo',         result: true },
+  { code: 'bar ?: bar',         result: false }
 ];
 
 describe('Tag: if', function () {
