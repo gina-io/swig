@@ -21,9 +21,7 @@
     "Rhinostone <contact@gina.io>"
   ],
   "dependencies": {
-    "@rhinostone/swig-core": "2.2.0",
-    "terser": "^5.46.1",
-    "yargs": "^17.7.2"
+    "@rhinostone/swig-core": "2.2.0"
   },
   "devDependencies": {
     "blanket": "~1.1",
@@ -36,6 +34,7 @@
     "mocha-phantomjs": "~3.1",
     "path-browserify": "^1.0.1",
     "phantomjs": "~1.9.1",
+    "terser": "^5.46.1",
     "travis-cov": "~0.2"
   },
   "license": "MIT",

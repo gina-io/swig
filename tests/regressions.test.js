@@ -153,10 +153,20 @@ describe('Regressions', function () {
 
   it('CVE-2021-44906: optimist is no longer a direct dependency', function () {
     // swig -> optimist@0.6.1 -> minimist@~0.0.1 was vulnerable to
-    // prototype pollution. The fix was to replace optimist with yargs,
-    // which has no minimist dependency. Verify the vulnerable path is gone.
+    // prototype pollution. optimist was first replaced by yargs (v1.4.5),
+    // and yargs in turn by a zero-dependency CLI argument parser. Verify
+    // the vulnerable optimist path is gone.
     var deps = require('../package.json').dependencies;
     expect(deps).to.not.have.property('optimist');
-    expect(deps).to.have.property('yargs');
+  });
+
+  it('keeps the runtime dependency surface to @rhinostone/swig-core only', function () {
+    // CLI-only tooling (argument parsing, the --minify minifier) must not
+    // sit in production `dependencies` — a library install of swig should
+    // pull in nothing but @rhinostone/swig-core. A new runtime dependency
+    // tripping this assertion should be a deliberate decision, not an
+    // unnoticed regression in the supply-chain surface.
+    var deps = require('../package.json').dependencies;
+    expect(Object.keys(deps)).to.eql(['@rhinostone/swig-core']);
   });
 });
