@@ -1,0 +1,4 @@
+kind: added
+body: "Ternary (`a ? b : c`) and Elvis (`a ?: b`) operator support in template expressions, usable in `{{ }}` output and in tag arguments such as `{% if %}`, `{% set %}`, and `{% for %}`."
+custom:
+  Issue: ""
