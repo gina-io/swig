@@ -279,7 +279,7 @@
  * In sync codegen mode the parser pre-resolves `extends` / `include` /
  * `import` / Twig `from` paths via `swig.parseFile(...)` and inlines
  * the resolved tokens at parse-finalization time. That model can't run
- * against an async-only loader (S3 / Redis / fetch-backed), and it
+ * against an async-only loader (S3 / Redis / network-backed), and it
  * can't handle dynamic paths (`{% extends parent_var %}`) since the
  * value isn't known until render.
  *
