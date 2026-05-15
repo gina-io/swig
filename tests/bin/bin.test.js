@@ -92,6 +92,33 @@ describe('bin/swig compile + run', function () {
   });
 });
 
+describe('bin/swig compile -o <existing-dir>', function () {
+  it('writes into an output directory that already exists', function (done) {
+    // Regression: the mkdir guard in bin/swig.js matched the legacy numeric
+    // errno 47 for EEXIST, which no longer identifies EEXIST on modern Node
+    // (e.errno is -17), so `swig compile -o <existing-dir>` re-threw EEXIST
+    // instead of writing into the dir.
+    var outdir = path.normalize(__dirname + '/../tmp'),
+      outfile = path.join(outdir, 'extends_1.test.html'),
+      p = fixPath(casedir + '/extends_1.test.html');
+    try {
+      fs.mkdirSync(outdir);
+    } catch (e) {
+      if (e.code !== 'EEXIST') { throw e; }
+    }
+    try {
+      fs.unlinkSync(outfile);
+    } catch (e) {
+      if (e.code !== 'ENOENT') { throw e; }
+    }
+    exec('node ' + bin + ' compile ' + p + ' -o ' + fixPath(outdir), function (err, stdout, stderr) {
+      expect(err).to.equal(null);
+      expect(fs.existsSync(outfile)).to.equal(true);
+      done();
+    });
+  });
+});
+
 describe('bin/swig compile -m', function () {
   it('minifies output', function (done) {
     var p = fixPath(casedir + '/extends_1.test.html');

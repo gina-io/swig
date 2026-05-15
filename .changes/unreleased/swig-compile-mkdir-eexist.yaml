@@ -1,0 +1,4 @@
+kind: fixed
+body: "`swig compile -o <dir>` no longer re-throws `EEXIST` when the output directory already exists. The mkdir guard matched the legacy numeric errno 47, which no longer identifies EEXIST on modern Node; it now matches `e.code === 'EEXIST'`, the stable cross-version identifier."
+custom:
+  Issue: ""

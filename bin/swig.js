@@ -83,7 +83,9 @@ if (argv.o !== 'stdout' && !argv.r) {
   try {
     fs.mkdirSync(argv.o);
   } catch (e) {
-    if (e.errno !== 47) {
+    // EEXIST (output dir already exists) is expected. Match on e.code; the
+    // legacy numeric errno 47 no longer identifies EEXIST on modern Node.
+    if (e.code !== 'EEXIST') {
       throw e;
     }
   }
