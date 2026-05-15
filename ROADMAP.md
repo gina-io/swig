@@ -22,6 +22,12 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.4.0 (May 2026)
+
+- Native ternary (`a ? b : c`) and Elvis (`a ?: b`) operator support across `@rhinostone/swig` template expressions. Usable in `{{ }}` output and in tag arguments such as `{% if %}`, `{% set %}`, and `{% for %}`. The ternary's `else` branch is required — `{{ x ? "a" }}` throws `Expected colon in ternary expression`. Backend support already existed via `IRConditional` (exercised by `@rhinostone/swig-twig`); this release wires the native parser to produce it.
+- Fixed `swig compile -o <dir>` re-throwing `EEXIST` when the output directory already exists. The mkdir guard matched the legacy numeric `errno 47`, which no longer identifies `EEXIST` on modern Node; the guard now matches `e.code === 'EEXIST'`, the stable cross-version identifier.
+- Fixed `make coverage cov-reporter=travis-cov` silently no-opping the 95% line-coverage gate on Node >= 18. The `coverage:` target invoked the broken `node_modules/.bin/mocha` shim (which exits 0 with no output regardless of pass/fail); it now invokes mocha directly via `node node_modules/mocha/bin/_mocha`, matching the `test:` target.
+
 ### v2.3.0 (May 2026)
 
 - Reduced `@rhinostone/swig`'s production dependency footprint to a single package. `yargs` and `terser` were CLI-only — the library entry point never loaded them — but sat in production `dependencies`, so every library install pulled in their full dependency trees. The CLI's argument parsing is now handled by a small built-in zero-dependency parser; `terser` (used only by `swig compile --minify`) is loaded lazily and ships as a `devDependency`, with `--minify` printing an install hint instead of crashing if it is absent. A library install of `@rhinostone/swig` now pulls in only `@rhinostone/swig-core`. No change to the CLI surface or rendering behavior.
