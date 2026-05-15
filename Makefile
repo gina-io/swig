@@ -90,9 +90,9 @@ out = tests/coverage.html
 cov-reporter = html-cov
 coverage:
 ifeq (${cov-reporter}, travis-cov)
-	@${BIN}/mocha ${opts} ${tests} --require blanket -R ${cov-reporter}
+	@node node_modules/mocha/bin/_mocha ${opts} ${tests} --require blanket -R ${cov-reporter}
 else
-	@${BIN}/mocha ${opts} ${tests} --require blanket -R ${cov-reporter} > ${out}
+	@node node_modules/mocha/bin/_mocha ${opts} ${tests} --require blanket -R ${cov-reporter} > ${out}
 	@sed -i .bak -e "s/${PWD}//g" ${out}
 	@rm ${out}.bak
 	@echo

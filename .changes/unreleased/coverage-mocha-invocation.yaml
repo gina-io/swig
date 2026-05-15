@@ -1,0 +1,4 @@
+kind: fixed
+body: "`make coverage` now invokes mocha directly via `node node_modules/mocha/bin/_mocha` instead of the `node_modules/.bin/mocha` shim, which exits silently with no output on Node >= 18 — the 95% line-coverage gate is enforced again rather than silently passing."
+custom:
+  Issue: ""
