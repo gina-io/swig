@@ -1,0 +1,2 @@
+{% import "./import-nested-base.html" as base %}
+{% macro greet() %}<p>{{ base.hi() }}</p>{% endmacro %}
