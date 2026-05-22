@@ -1,3 +1,8 @@
+[2.4.2](https://github.com/gina-io/swig/tree/v2.4.2) / 2026-05-22
+-----------------------------------------------------------------
+
+* **Fixed** @rhinostone/swig-twig macros now resolve macros that were imported at the top of their own defining file, via either {% import %} or {% from %}. Previously such a call compiled to a binding that was never set up in the caller scope, so it rendered empty. Imports stay local to the template that declares them and are not leaked into the importing template, and resolution works recursively across import depth.
+
 [2.4.1](https://github.com/gina-io/swig/tree/v2.4.1) / 2026-05-22
 -----------------------------------------------------------------
 

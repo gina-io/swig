@@ -22,6 +22,10 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.4.2 (May 2026)
+
+- Fixed the same empty-render bug in `@rhinostone/swig-twig`: a macro that calls a macro imported at the top of its own defining file — via either `{% import %}` or `{% from %}` — now resolves at call time instead of rendering empty. The imported file's own imports stay local to the template that declares them (they are not leaked bare into the importing template's scope), matching Twig's macro/import scoping rule. Resolves recursively across import depth.
+
 ### v2.4.1 (May 2026)
 
 - Fixed macros rendering empty when they call a macro that was imported at the top of their own defining file. The `import` tag now carries the imported file's own `{% import %}` statements through, so those macros resolve at call time. Resolves recursively across import depth.
