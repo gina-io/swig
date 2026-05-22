@@ -1986,6 +1986,43 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
       expect(e.message).to.match(/tpl\.twig/);
     });
   });
+
+  it('carries a nested import and re-homes it under the alias (no bare leak)', function () {
+    // sub imports base and defines a macro that calls base.hi(). The nested
+    // import must be carried through and re-homed under `sub` so the macro
+    // resolves it at call time, WITHOUT the inner alias `base` leaking bare
+    // into the caller scope — Twig keeps imports local to their template.
+    var swig = mockSwig({
+      'base.twig': '{% macro hi() %}HELLO{% endmacro %}',
+      'sub.twig': '{% import "base.twig" as base %}{% macro greet() %}[{{ base.hi() }}]{% endmacro %}'
+    });
+    var tree = parser.parse(swig, '{% import "sub.twig" as sub %}', { filename: 'tpl.twig' }, tags, {});
+    var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
+    expect(out).to.match(/_ctx\.sub\.greet = function/);
+    expect(out).to.match(/_ctx\.sub\.base = \{\}/);
+    expect(out).to.match(/_ctx\.sub\.base\.hi = function/);
+    // no bare leak of the inner alias into the caller scope
+    expect(out).to.not.match(/_ctx\.base = \{\}/);
+    expect(out).to.not.match(/_ctx\.base\.hi = function/);
+  });
+
+  it('re-homes nested imports across depth without leaking any inner alias', function () {
+    // gb <- b (as gb) <- s (as base) <- main (as sub). Every transitively
+    // imported alias must stay namespaced under `sub`; none may leak bare.
+    var swig = mockSwig({
+      'gb.twig': '{% macro g() %}GRAND{% endmacro %}',
+      'b.twig': '{% import "gb.twig" as gb %}{% macro hi() %}{{ gb.g() }}{% endmacro %}',
+      's.twig': '{% import "b.twig" as base %}{% macro greet() %}[{{ base.hi() }}]{% endmacro %}'
+    });
+    var tree = parser.parse(swig, '{% import "s.twig" as sub %}', { filename: 'tpl.twig' }, tags, {});
+    var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
+    expect(out).to.match(/_ctx\.sub\.greet = function/);
+    expect(out).to.match(/_ctx\.sub\.base\.hi = function/);
+    expect(out).to.match(/_ctx\.sub\.base\.gb\.g = function/);
+    // no bare leak of any transitively-imported inner alias
+    expect(out).to.not.match(/_ctx\.base = \{\}/);
+    expect(out).to.not.match(/_ctx\.gb = \{\}/);
+  });
 });
 
 /**
