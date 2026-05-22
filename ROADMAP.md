@@ -22,6 +22,10 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.4.1 (May 2026)
+
+- Fixed macros rendering empty when they call a macro that was imported at the top of their own defining file. The `import` tag now carries the imported file's own `{% import %}` statements through, so those macros resolve at call time. Resolves recursively across import depth.
+
 ### v2.4.0 (May 2026)
 
 - Native ternary (`a ? b : c`) and Elvis (`a ?: b`) operator support across `@rhinostone/swig` template expressions. Usable in `{{ }}` output and in tag arguments such as `{% if %}`, `{% set %}`, and `{% for %}`. The ternary's `else` branch is required — `{{ x ? "a" }}` throws `Expected colon in ternary expression`. Backend support already existed via `IRConditional` (exercised by `@rhinostone/swig-twig`); this release wires the native parser to produce it.

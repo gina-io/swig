@@ -1,3 +1,8 @@
+[2.4.1](https://github.com/gina-io/swig/tree/v2.4.1) / 2026-05-22
+-----------------------------------------------------------------
+
+* **Fixed** Macros now resolve macros that were imported at the top of their own defining file. Previously such a call compiled to a reference that was never set up in the caller scope, so it rendered empty instead of erroring. Resolves recursively across import depth. gh-2
+
 [2.4.0](https://github.com/gina-io/swig/tree/v2.4.0) / 2026-05-15
 -----------------------------------------------------------------
 

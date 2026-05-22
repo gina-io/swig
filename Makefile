@@ -16,7 +16,7 @@ all:
 	browser/comments.js
 
 version:
-	@sed -i.bak 's/${VERSION_REGEX}/${VERSION}/' lib/swig.js
+	@sed -i.bak 's/exports\.version = "${VERSION_REGEX}"/exports.version = "${VERSION}"/' lib/swig.js
 	@rm lib/swig.js.bak
 
 browser/comments.js: FORCE

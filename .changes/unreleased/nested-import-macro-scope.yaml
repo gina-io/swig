@@ -1,4 +1,0 @@
-kind: fixed
-body: "Macros now resolve macros that were imported at the top of their own defining file. Previously such a call compiled to a reference that was never set up in the caller scope, so it rendered empty instead of erroring. Resolves recursively across import depth."
-custom:
-  Issue: "2"
