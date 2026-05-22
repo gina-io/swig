@@ -50,9 +50,12 @@ exports.block = true;
  * for each requested macro, invokes its `compile` to get the IRMacro
  * node and renders that node to JS through `backend.compile`. A
  * macro requested by name but not found in the imported template
- * raises a filename-aware throw. The resulting
- * `[{compiled, origName, aliasName}, ...]` list is stashed on
- * `token.args` for the compile step to rewrite.
+ * raises a filename-aware throw. The imported file's own nested
+ * `{% import %}` / `{% from %}` tokens are carried through (flagged
+ * `isImport`, with `boundNames` + a synthesized private `slot`) so the
+ * requested macros can reference them at call time. The resulting list
+ * (nested entries + `[{compiled, origName, aliasName}, ...]`) is stashed
+ * on `token.args` for the compile step to rewrite.
  *
  * @param  {string} str    Tag body.
  * @param  {number} line   Source line of the opening `{%`.
@@ -157,9 +160,34 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   // Index the imported template's macros by name so we can look up
   // each requested entry once. Raises a filename-aware throw if an
   // entry names a macro that doesn't exist in the imported template.
+  //
+  // The imported file may have its own `{% import %}` / `{% from %}`.
+  // Unlike `{% import %}`, `{% from %}` binds bare names with no namespace
+  // alias to hang those nested imports under, so they re-home under a
+  // synthesized private slot keyed off the path (compile() applies the
+  // rewrite). This keeps the inner names out of the parent's bare scope —
+  // bare `{{ name }}` in the parent stays undefined, matching Twig's rule
+  // that imports are local to the importing template.
+  var privateSlot = '__nsfrom_' + path.replace(/[^a-zA-Z0-9]/g, '_');
+  var nested = [];
   var macroIndex = {};
   utils.each(parsed.tokens, function (tk) {
-    if (!tk || tk.name !== 'macro' || typeof tk.compile !== 'function') {
+    if (!tk || typeof tk.compile !== 'function') {
+      return;
+    }
+    if (tk.name === 'import' || tk.name === 'from') {
+      var bn = (tk.name === 'import')
+        ? [tk.args[tk.args.length - 1]]
+        : utils.map(tk.args, function (a) { return a.aliasName; });
+      nested.push({
+        compiled: tk.compile(null, tk.args.slice(), tk.content, [], compileOpts) + '\n',
+        isImport: true,
+        boundNames: bn,
+        slot: privateSlot
+      });
+      return;
+    }
+    if (tk.name !== 'macro') {
       return;
     }
     macroIndex[tk.args[0]] = tk;
@@ -181,7 +209,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     });
   }
 
-  token.args = resolved;
+  token.args = nested.concat(resolved);
   return true;
 };
 
@@ -200,6 +228,11 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
  * and will either read a user-provided context value or evaluate to
  * `undefined`, matching Twig's "unimported macros are not available"
  * semantic.
+ *
+ * The imported file's own nested imports (flagged `isImport`) are emitted
+ * first, re-homed under a private slot (`_ctx.<boundName>` ->
+ * `_ctx.<slot>.<boundName>`) so they resolve for the imported macros at
+ * call time without leaking into the parent's bare scope.
  *
  * @return {string} JS source that assigns every imported macro into
  *                  `_ctx.<aliasName>`. Backend lifts it into
@@ -225,20 +258,43 @@ exports.compile = function (compiler, args, content, parents, options) {
       options.filename || ''
     );
   }
-  var allOrigNames = utils.map(args, function (arg) { return arg.origName; }).join('|');
-  var replacements = utils.map(args, function (arg) {
+  var macros = [];
+  var nested = [];
+  utils.each(args, function (a) { (a.isImport ? nested : macros).push(a); });
+  var allOrigNames = utils.map(macros, function (arg) { return arg.origName; }).join('|');
+  var replacements = utils.map(macros, function (arg) {
     return {
       ex: new RegExp('_ctx\\.' + arg.origName + '(\\W)(?!' + allOrigNames + ')', 'g'),
       re: '_ctx.' + arg.aliasName + '$1'
     };
   });
+  // The imported file's own nested imports re-home under a private slot so
+  // they never leak into the parent's bare scope: `_ctx.<boundName>` ->
+  // `_ctx.<slot>.<boundName>`, applied to the nested setup JS and to every
+  // imported macro body that references a bound name.
+  var innerReplacements = [];
+  utils.each(nested, function (a) {
+    utils.each(a.boundNames, function (nm) {
+      innerReplacements.push({
+        ex: new RegExp('_ctx\\.' + nm + '(\\W)', 'g'),
+        re: '_ctx.' + a.slot + '.' + nm + '$1'
+      });
+    });
+  });
 
   var out = '  var _output = "";\n';
-  utils.each(args, function (arg) {
+  // Nested imports first (under the private slot), so the imported macros
+  // below resolve them at call time.
+  utils.each(nested, function (a) {
+    out += '_ctx.' + a.slot + ' = _ctx.' + a.slot + ' || {};\n';
+    var c = a.compiled;
+    utils.each(innerReplacements, function (re) { c = c.replace(re.ex, re.re); });
+    out += c;
+  });
+  utils.each(macros, function (arg) {
     var c = arg.compiled;
-    utils.each(replacements, function (re) {
-      c = c.replace(re.ex, re.re);
-    });
+    utils.each(replacements, function (re) { c = c.replace(re.ex, re.re); });
+    utils.each(innerReplacements, function (re) { c = c.replace(re.ex, re.re); });
     out += c;
   });
 

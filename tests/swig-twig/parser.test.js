@@ -2023,6 +2023,20 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
     expect(out).to.not.match(/_ctx\.base = \{\}/);
     expect(out).to.not.match(/_ctx\.gb = \{\}/);
   });
+
+  it('carries a nested {% from %} inside an imported file, under the alias', function () {
+    // sub uses {% from "base" import hi %}; main does {% import "sub" as sub %}.
+    // The nested from binding re-homes under the import alias, never bare.
+    var swig = mockSwig({
+      'base.twig': '{% macro hi() %}HELLO{% endmacro %}',
+      'sub.twig': '{% from "base.twig" import hi %}{% macro greet() %}[{{ hi() }}]{% endmacro %}'
+    });
+    var tree = parser.parse(swig, '{% import "sub.twig" as sub %}', { filename: 'tpl.twig' }, tags, {});
+    var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
+    expect(out).to.match(/_ctx\.sub\.greet = function/);
+    expect(out).to.match(/_ctx\.sub\.hi = function/);
+    expect(out).to.not.match(/_ctx\.hi = function/);
+  });
 });
 
 /**
@@ -2367,6 +2381,34 @@ describe('@rhinostone/swig-twig — parser.parse — {% from import %} tag', fun
     var out = tok.compile(null, tok.args.slice(0));
     expect(out).to.match(/_ctx\.foo = function/);
     expect(out).to.not.match(/_ctx\.bar = function/);
+  });
+
+  it('carries a nested {% import %} under a private slot (no bare leak)', function () {
+    // sub uses {% import "base" as base %}; main pulls greet via {% from %}.
+    // greet binds bare (correct for from); base re-homes under a private
+    // slot so it never leaks bare into the parent.
+    var swig = mockSwig({
+      'base.twig': '{% macro hi() %}HELLO{% endmacro %}',
+      'sub.twig': '{% import "base.twig" as base %}{% macro greet() %}[{{ base.hi() }}]{% endmacro %}'
+    });
+    var tree = parser.parse(swig, '{% from "sub.twig" import greet %}', { filename: 'tpl.twig' }, tags, {});
+    var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
+    expect(out).to.match(/_ctx\.greet = function/);
+    expect(out).to.match(/_ctx\.__nsfrom_[A-Za-z0-9_]+\.base = \{\}/);
+    expect(out).to.not.match(/_ctx\.base = \{\}/);
+  });
+
+  it('carries a nested {% from %} under a private slot (no bare leak)', function () {
+    // sub uses {% from "base" import hi %}; main pulls greet via {% from %}.
+    var swig = mockSwig({
+      'base.twig': '{% macro hi() %}HELLO{% endmacro %}',
+      'sub.twig': '{% from "base.twig" import hi %}{% macro greet() %}[{{ hi() }}]{% endmacro %}'
+    });
+    var tree = parser.parse(swig, '{% from "sub.twig" import greet %}', { filename: 'tpl.twig' }, tags, {});
+    var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
+    expect(out).to.match(/_ctx\.greet = function/);
+    expect(out).to.match(/_ctx\.__nsfrom_[A-Za-z0-9_]+\.hi = function/);
+    expect(out).to.not.match(/_ctx\.hi = function/);
   });
 
   it('supports single-quoted path', function () {
