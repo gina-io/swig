@@ -5,21 +5,21 @@ var utils = require('./utils'),
 /**
  * JS-codegen backend shared across @rhinostone/swig-family frontends.
  *
- * Phase 2 — the template-level walker dispatches on IR node shape. At
+ * The template-level walker dispatches on IR node shape. At
  * entry, each parse-tree token is lifted into an IR node: string tokens
  * become `IRText` (value carried verbatim, escaped at emit time);
  * VarToken / TagToken entries call `token.compile(...)` and the return
  * value is lifted according to its shape: a JS source string becomes
  * `IRLegacyJS` (userland `setTag` contract), a single IR node is spliced
  * in directly, and an array of IR nodes is flattened. The walker then
- * iterates the IR array and dispatches on node shape. Subsequent
- * sessions introduce further real IR emitters (`Autoescape`, `If`,
- * `For`, `Set`, etc.) alongside their matching tag migrations, and each
- * new shape gets its own dispatch branch here.
+ * iterates the IR array and dispatches on node shape. Real IR emitters
+ * (`Autoescape`, `If`, `For`, `Set`, etc.) were introduced alongside
+ * their matching tag migrations, and each new shape gets its own
+ * dispatch branch here.
  *
  * Userland tag `compile` functions keep returning JS source strings —
  * the `(compiler, args, content, parents, options, blockName)` contract
- * is unchanged. Built-in tags migrate per session by returning IR nodes
+ * is unchanged. Built-in tags migrate by returning IR nodes
  * directly. The `new Function(...)` wrapper stays with the native
  * frontend (filename-aware error attribution, per the seam rule).
  */
@@ -101,9 +101,9 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'If') {
-      // Phase 2 Session 14c: multi-branch shape. The native if tag owns
+      // Multi-branch shape. The native if tag owns
       // content scanning and splits at else/elseif marker tokens so each
-      // IRIfBranch carries its own test + body. Session 14b Commit 11
+      // IRIfBranch carries its own test + body. The IR migration
       // widened `test` to `IRExpr | IRLegacyJS | null`: `IRExpr` for
       // clean expressions, `null` for the trailing else, `IRLegacyJS`
       // for the filter-in-test fallback (`if.lowerExpr` bails on
@@ -114,8 +114,7 @@ exports.compile = function (template, parents, options, blockName) {
       //
       // Emission shape matches the pre-carve `} else if (...) {` /
       // `} else {` fragments that else.js and elseif.js used to return
-      // inline — byte-identity held on the session baseline (see
-      // Session 14c notes in roadmap).
+      // inline — byte-identity held on the baseline.
       var ifOut = '';
       utils.each(node.branches, function (br, bi) {
         var bodyJS = '',
@@ -148,7 +147,7 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Set') {
-      // Phase 2 Session 14b Commit 10: target is structured IRVarRef
+      // Target is structured IRVarRef
       // for pure-dot LHS shapes (`foo`, `foo.bar.baz`), emitted as a
       // bare `_ctx.<dot.path>` lvalue with a per-segment _dangerousProps
       // guard. Bracket-touched targets (`foo[bar]`, `foo["bar"]`, mixed
@@ -156,7 +155,7 @@ exports.compile = function (template, parents, options, blockName) {
       // bracket-lvalue contract is a cross-flavor design call and is
       // deferred. The frontend's set-tag parse handler retains its own
       // _dangerousProps guards on every LHS path segment.
-      // `value` is an IRExpr node (Session 14b) — backward-compat string
+      // `value` is an IRExpr node — backward-compat string
       // fallback preserved for userland setTag tags that may still hand
       // in a raw JS fragment. Emits `<target> <op> <value>;`.
       var setTargetJS;
@@ -182,10 +181,10 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'For') {
-      // Phase 2: the full loopcache + _utils.each IIFE scaffolding is
+      // The full loopcache + _utils.each IIFE scaffolding is
       // emitted here; the frontend tag surfaces only (value, key,
       // iterable, body) and the backend owns all JS plumbing. `iterable`
-      // is an IRExpr node (Session 14b) — backward-compat string fallback
+      // is an IRExpr node — backward-compat string fallback
       // preserved for userland setTag tags that may still hand in a raw
       // JS fragment. The loopcache identifier uses `Math.random()`
       // per-occurrence to keep nested loops from clobbering each other's
@@ -231,12 +230,12 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Macro') {
-      // Phase 2: `params` is IRMacroParam[] (Session 14b Commit 8) —
+      // `params` is IRMacroParam[] —
       // structured `{name, default?}` entries. Backend builds the JS
       // function param list via `names.join(', ')` and the _utils.each
       // shadow-delete indexOf list via `names.map(JSON.stringify).join(',')`.
       // A string[] fallback is preserved for userland setTag tags that
-      // may still hand in the pre-Phase-2 raw-token slice (including
+      // may still hand in the legacy raw-token slice (including
       // the `, ` separator quirk). The frontend's macro parse handler
       // has already applied the CVE-2023-25345 guard on the macro name
       // (FUNCTION/FUNCTIONEMPTY) and every param name (VAR).
@@ -273,7 +272,7 @@ exports.compile = function (template, parents, options, blockName) {
         '  return _output;\n' +
         '};\n' +
         '_ctx.' + node.name + '.safe = true;\n';
-      // Phase 3 (#T22): async-codegen mirrors the macro into _exports so
+      // Async-codegen mirrors the macro into _exports so
       // {% import %} / Twig's {% from %} can bind macros across templates
       // at runtime. The macro's closure still references _ctx (not
       // _exports) for outer-ctx lookups — sync-semantics-preserving.
@@ -289,7 +288,7 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Parent') {
-      // Phase 2: the parent tag walks the parents chain at compile time
+      // The parent tag walks the parents chain at compile time
       // and splices the matched block's pre-resolved body into this node.
       // Emit the body verbatim; no wrapper, no `super()`-style runtime
       // plumbing is needed (the lookup is fully resolved at parse time).
@@ -303,13 +302,13 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Block') {
-      // Phase 2: block tokens are resolved at parse time by the engine's
+      // Block tokens are resolved at parse time by the engine's
       // remapBlocks / importNonBlocks — by the time the backend walks a
       // block, its body carries whichever generation's content is active.
       // Emit the body verbatim; the block name is carried as metadata for
       // downstream tooling (parent-chain walks happen in the parent tag).
       //
-      // Phase 3 (#T22) async mode: block remapping happens at runtime
+      // Async mode: block remapping happens at runtime
       // instead of parse time. When _blocks is supplied (by an extending
       // child via IRExtendsDeferred-emitted `_parent(_ctx, _mergedBlocks)`)
       // and contains an override for this block name, call the override
@@ -345,8 +344,8 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Include') {
-      // Phase 2: `path` and `context` are IRExpr nodes (Session 14b
-      // Commit 7) — per-slot dispatch on object-with-.type → emitExpr,
+      // `path` and `context` are IRExpr nodes — per-slot dispatch on
+      // object-with-.type → emitExpr,
       // else verbatim string fallback preserves the userland setTag
       // path (compile functions that still hand in raw JS-source
       // fragments). `resolveFrom` is a plain filesystem path that must
@@ -384,7 +383,7 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'IncludeDeferred') {
-      // Phase 3 (#T22): async-codegen counterpart to Include. Resolves the
+      // Async-codegen counterpart to Include. Resolves the
       // path via `_swig.getTemplate(...)` at render time (Promise<TemplateFn>),
       // then awaits the resolved template fn's call. The double-await flows
       // correctly whether the loaded tpl is sync (returns string) or async-
@@ -419,7 +418,7 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'ImportDeferred') {
-      // Phase 3 (#T22): async-codegen counterpart to the parse-time
+      // Async-codegen counterpart to the parse-time
       // import flow. The imported template is loaded via _swig.getTemplate
       // and called with the parent's _ctx so its body's compiled JS
       // closes over outer-ctx vars (sync-semantics-preserving). Only
@@ -439,7 +438,7 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'FromImportDeferred') {
-      // Phase 3 (#T22): async-codegen counterpart to Twig's `{% from
+      // Async-codegen counterpart to Twig's `{% from
       // "file" import a, b as c %}`. Single getTemplate call, then
       // per-entry bind onto _ctx. Async IIFE keeps `_imp` local so
       // multiple from-imports in the same template don't collide.
@@ -472,7 +471,7 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'ExtendsDeferred') {
-      // Phase 3 (#T22): async-codegen counterpart to engine.getParents +
+      // Async-codegen counterpart to engine.getParents +
       // engine.precompile's parse-time block remap. Inverts at runtime
       // via the _blocks parameter contract:
       //
@@ -535,7 +534,7 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'With') {
-      // Phase 3 Session 12: scoped-context region (Twig's `{% with %}`).
+      // Scoped-context region (Twig's `{% with %}`).
       // Emits an IIFE that shadows `_ctx` for the body's lexical scope;
       // `_output` stays in the outer scope and is mutated via closure, so
       // body writes still flow to the compiled template's output.
@@ -578,8 +577,8 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Output') {
-      // Phase 2: `expr` is typed IRExpr | IRLegacyJS (Session 14b
-      // Commit 9). The frontend's parseVariable falls back to LegacyJS
+      // `expr` is typed IRExpr | IRLegacyJS. The frontend's parseVariable
+      // falls back to LegacyJS
       // for shapes the flat IROutput.filters chain can't represent
       // (per-operand filter precedence, deep filters, partial consumes,
       // string-valued autoescape). LegacyJS carries the complete
@@ -606,7 +605,7 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Filter') {
-      // Phase 2: `args` is IRExpr[] (Session 14b Commit 6) — per-arg
+      // `args` is IRExpr[] — per-arg
       // dispatch on object-with-.type → emitExpr, else verbatim string
       // fallback preserves the userland setTag path (compile functions
       // that still hand in raw JS-source fragments).
@@ -641,7 +640,7 @@ exports.compile = function (template, parents, options, blockName) {
 
 /**
  * Emit a JS-source fragment for a single IR expression node. Round-trip
- * target for the TokenParser → IRExpr migration (#T15 Session 14+): once
+ * target for the TokenParser → IRExpr migration: once
  * the frontend produces real {@link IRExpr} values, every transitional
  * `IRExpr | string` slot in the statement IR (IRFilter.args,
  * IRIfBranch.test, IRFor.iterable, IRSet.target/value, IRInclude.path/

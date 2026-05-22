@@ -428,9 +428,9 @@ TokenParser.prototype = {
    * `parseExpr` emits structured IR that {@link backend.emitExpr}
    * later lowers into an equivalent JS-source fragment. `.parse()` is
    * unchanged and remains the production path; `parseExpr` is the
-   * incoming target shape for Phase 2 (#T15), introduced additively in
-   * Session 14b so the IR grammar can be proven against real lexer
-   * output before consumers are flipped in Commits 3-8.
+   * incoming target shape for the IR migration, introduced additively
+   * so the IR grammar can be proven against real lexer output before
+   * consumers are flipped over to it.
    *
    * The CVE-2023-25345 prototype-chain guards (`_dangerousProps` on
    * VAR segments, DOTKEY matches, STRING-inside-BRACKETOPEN values,

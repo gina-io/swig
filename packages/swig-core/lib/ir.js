@@ -49,8 +49,8 @@
  * Output an expression with optional filter chain.
  * `safe: true` bypasses autoescape.
  *
- * `expr` is typed `IRExpr | IRLegacyJS` for Phase 2 — see Session 14b
- * Commit 9. The IR shape can't represent legacy Swig's per-operand
+ * `expr` is typed `IRExpr | IRLegacyJS`. The IR shape can't represent
+ * legacy Swig's per-operand
  * filter precedence (filter binds to the last operand across binary
  * ops, e.g. `{{ a + b|upper }}` → `a + _filters["upper"](b)`); for
  * those outputs the frontend falls back to the legacy JS-string
@@ -91,8 +91,8 @@
  * lowers cleanly, or an {@link IRLegacyJS} escape-hatch when the test
  * contains a top-level filter chain mixed with a binary op (e.g.
  * `{% if a === b|upper %}`) — per-operand filter precedence cannot be
- * represented in a flat IR, same widening as {@link IROutput.expr} in
- * Session 14b Commit 9. The factory is opaque — it accepts any value
+ * represented in a flat IR, same widening as {@link IROutput.expr}.
+ * The factory is opaque — it accepts any value
  * and stores it — but consumers (backends) dispatch on the shape.
  *
  * @typedef {Object} IRIfBranch
@@ -103,7 +103,7 @@
 /**
  * For-loop. `emptyBody` supports Twig/Django `{% for … %}{% else %}`.
  *
- * `iterable` is typed `IRExpr | string` for Phase 2 — the native
+ * `iterable` is typed `IRExpr | string` — the native
  * frontend still hands in a raw JS-source string (its `for` tag has
  * not migrated to expression-level IR), while the Twig frontend lowers
  * to a real {@link IRExpr}. Backends MUST tolerate both shapes — same
@@ -182,7 +182,7 @@
  */
 
 /**
- * Phase 2 Session 14b Commit 10: pure-dot LHS shapes (`foo`, `foo.bar`,
+ * Pure-dot LHS shapes (`foo`, `foo.bar`,
  * `foo.bar.baz`) are now structured {@link IRVarRef} nodes. The
  * bracket-touched path (`foo[bar]`, `foo["bar"]`, mixed dot+bracket)
  * stays on the transitional `string` form — bracket-lvalue semantics
@@ -213,12 +213,12 @@
 /**
  * Emit the parent block's compiled content (super() / block.super).
  *
- * During Phase 2 (#T15), IRParent optionally carries a `body` slot so
+ * IRParent optionally carries a `body` slot so
  * the native frontend's parent tag can resolve the parent-chain lookup
  * at compile time (emitting the matched block's body) without the
  * backend having to re-walk the parents array. Target shape is a bare
  * marker — the backend resolves parent() by itself — reached once the
- * IR owns the extends/blocks graph directly (post-Phase 2).
+ * IR owns the extends/blocks graph directly.
  *
  * @typedef {Object} IRParent
  * @property {'Parent'} type
@@ -271,7 +271,7 @@
  * functions, and built-in tags not yet migrated to real IR nodes. The
  * backend concatenates `js` verbatim into the compiled template body.
  *
- * Transitional per the Phase 2 layering decision (hybrid / option iii).
+ * Transitional per the layering decision (hybrid / option iii).
  *
  * @typedef {Object} IRLegacyJS
  * @property {'LegacyJS'} type
@@ -626,7 +626,7 @@ exports.ifBranch = function (test, body) {
 /**
  * Build an {@link IRFor} node.
  *
- * `iterable` is typed `IRExpr | string` for Phase 2 — see the IRFor typedef
+ * `iterable` is typed `IRExpr | string` — see the IRFor typedef
  * for the transitional shape. The factory stores `iterable` opaquely and
  * does not inspect it.
  *
@@ -659,7 +659,7 @@ exports.block = function (name, body, loc) {
 /**
  * Build an {@link IRInclude} node.
  *
- * `path` and `context` are {@link IRExpr} nodes (Session 14b Commit 7).
+ * `path` and `context` are {@link IRExpr} nodes.
  * The factory stores both opaquely and does not inspect them — backward-
  * compat string fallback is handled at backend emit time for userland
  * setTag tags that may still hand in raw JS-source fragments.
@@ -735,8 +735,8 @@ exports.call = function (callee, args, loc) {
  * Build an {@link IRSet} node. `target` MUST pass the dangerousProps
  * guard at every path segment at backend emit time.
  *
- * `target` is typed `IRVarRef | string` for Phase 2 — pure-dot LHS
- * shapes are structured {@link IRVarRef} (Session 14b Commit 10);
+ * `target` is typed `IRVarRef | string` — pure-dot LHS
+ * shapes are structured {@link IRVarRef};
  * bracket-touched LHS stays a string fragment until the cross-flavor
  * bracket-lvalue contract lands. The factory stores `target` and
  * `value` opaquely and does not inspect them. `op` is the JS assignment
@@ -765,11 +765,11 @@ exports.raw = function (value, loc) {
 /**
  * Build an {@link IRParent} super()-equivalent node.
  *
- * Phase 2: optional `body` slot carries the pre-resolved parent-block
+ * Optional `body` slot carries the pre-resolved parent-block
  * content as IR statements. Swig's parent tag walks the parents chain
  * at compile time and drops the matched block's body here; backends
  * emit the body as-is. A bare Parent (no body) is valid and means the
- * backend will resolve the lookup itself — reached post-Phase 2.
+ * backend will resolve the lookup itself.
  *
  * @param  {IRStatement[]} [body]
  * @param  {IRLoc}         [loc]

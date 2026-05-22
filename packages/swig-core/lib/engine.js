@@ -24,7 +24,7 @@ function efn() { return ''; }
 /**
  * Runtime engine plumbing shared across @rhinostone/swig-family frontends.
  *
- * Phase 1 carve — owns the `extends`-chain walker and block-remap helpers.
+ * Owns the `extends`-chain walker and block-remap helpers.
  * The native Swig constructor in lib/swig.js delegates here so each frontend
  * inherits the loader-walk + circular-extends detection + block merge logic
  * for free.

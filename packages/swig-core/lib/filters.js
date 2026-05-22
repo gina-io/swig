@@ -3,7 +3,7 @@ var utils = require('./utils');
 /**
  * Filter infrastructure shared across @rhinostone/swig-family frontends.
  *
- * Phase 1 carve — `iterateFilter` and the `.safe` flag convention live
+ * `iterateFilter` and the `.safe` flag convention live
  * here so every flavor's filter catalog (native Swig, Twig, Jinja2,
  * Django) picks up identical recursion + autoescape-bypass semantics.
  * Filter catalogs themselves stay per-flavor.

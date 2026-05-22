@@ -2,7 +2,7 @@
  * @rhinostone/swig-core — shared IR, backend, and runtime for the swig
  * family of template engines.
  *
- * Phase 1 scaffold. Subsequent commits move security guards, loader
+ * Initial scaffold. Subsequent commits move security guards, loader
  * contract, filter infra, cache, and the JS-codegen backend in from
  * @rhinostone/swig.
  */
