@@ -1,3 +1,8 @@
+[2.4.3](https://github.com/gina-io/swig/tree/v2.4.3) / 2026-05-22
+-----------------------------------------------------------------
+
+* **Fixed** Native `import` no longer leaks an imported file's own import aliases into the importing template's context. A file-level `{% import %}` inside an imported file is now re-homed under the importing alias instead of emitted bare, so it cannot clobber a same-named variable in the caller, corrupt a macro when the caller later reassigns that name, or cascade across import depth. Macros still resolve their own file's imports at call time.
+
 [2.4.2](https://github.com/gina-io/swig/tree/v2.4.2) / 2026-05-22
 -----------------------------------------------------------------
 

@@ -22,6 +22,10 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.4.3 (May 2026)
+
+- Fixed native `import` leaking an imported file's own import aliases into the importing template's scope. The `{% import %}` carry-through added in `2.4.1` emitted those nested imports bare into the caller's context, where the leaked alias could clobber a same-named caller variable, corrupt a macro when the caller later reassigned that name (macros read the live context at call time), or cascade across import depth. The nested imports are now re-homed under the importing alias and kept local to the file that declares them — matching `@rhinostone/swig-twig`'s scoping and the Jinja2/Twig import contract. Macros still resolve their own file's imports at call time.
+
 ### v2.4.2 (May 2026)
 
 - Fixed the same empty-render bug in `@rhinostone/swig-twig`: a macro that calls a macro imported at the top of its own defining file — via either `{% import %}` or `{% from %}` — now resolves at call time instead of rendering empty. The imported file's own imports stay local to the template that declares them (they are not leaked bare into the importing template's scope), matching Twig's macro/import scoping rule. Resolves recursively across import depth.
