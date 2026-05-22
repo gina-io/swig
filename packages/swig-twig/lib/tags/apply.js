@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 11 — Twig `{% apply filter %}…{% endapply %}` tag.
+ * Twig `{% apply filter %}…{% endapply %}` tag.
  *
  * Twig apply syntax — pipe the captured body through one or more filters,
  * left-to-right:

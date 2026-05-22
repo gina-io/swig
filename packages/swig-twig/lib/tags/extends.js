@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 9 — Twig `{% extends %}` tag.
+ * Twig `{% extends %}` tag.
  *
  * Declares a parent template for inheritance:
  *

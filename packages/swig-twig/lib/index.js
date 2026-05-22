@@ -1,7 +1,7 @@
 /**
  * @rhinostone/swig-twig — Twig frontend for the @rhinostone/swig family.
  *
- * Phase 3 Session 17: end-to-end render wiring (Path A). The package now
+ * End-to-end render wiring (Path A). The package now
  * exposes a Twig constructor + default instance via `engine.install(self,
  * frontend)` from @rhinostone/swig-core, so callers can `render(source,
  * locals)` / `renderFile(path, locals, cb)` directly against Twig syntax.

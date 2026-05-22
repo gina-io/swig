@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 10 — Twig `{% macro %}` tag.
+ * Twig `{% macro %}` tag.
  *
  * Twig macro syntax:
  *
@@ -17,8 +17,8 @@
  * binding slots reject any `.` in the match before the
  * `_dangerousProps` check.
  *
- * Twig kwargs (`{% macro foo(a=1, b="x") %}`) are deferred — Phase 4 with
- * the rest of the Twig-specific surface.
+ * Twig kwargs (`{% macro foo(a=1, b="x") %}`) are deferred with the
+ * rest of the Twig-specific surface.
  */
 
 var ir = require('@rhinostone/swig-core/lib/ir');

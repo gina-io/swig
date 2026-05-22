@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 9 — Twig `{% block %}` tag.
+ * Twig `{% block %}` tag.
  *
  * Named override point for template inheritance:
  *

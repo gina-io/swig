@@ -517,7 +517,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
   );
   // Twig/Jinja2 whitespace-control. `{{- … -}}` / `{%- … -%}` strip
   // surrounding whitespace; the `-?` lives only adjacent to the open /
-  // close marker (post-#T23 shape — drop the inner `-?` after `\s*` so
+  // close marker (drop the inner `-?` after `\s*` so
   // `{{ -5 }}` doesn't have its expression-`-` eaten as a strip marker).
   var tagStrip = new RegExp('^' + escapeRegExp(tagOpen) + '-?\\s*|\\s*-?' + escapeRegExp(tagClose) + '$', 'g');
   var varStrip = new RegExp('^' + escapeRegExp(varOpen) + '-?\\s*|\\s*-?' + escapeRegExp(varClose) + '$', 'g');

@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 8 — Twig `{% for %}` tag.
+ * Twig `{% for %}` tag.
  *
  * Twig iteration:
  *   {% for <val> in <iterable> %}…{% endfor %}

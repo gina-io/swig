@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 7 — Twig `{% if %}` tag.
+ * Twig `{% if %}` tag.
  *
  * Twig conditional: `{% if <expr> %}…{% endif %}`. The test expression
  * is parsed via `parser.parseExpr` and attached to `token.irExpr`; the
@@ -7,8 +7,8 @@
  * mechanism (parser.js sets `ends: true` so subsequent tokens append to
  * `token.content` until the matching `{% endif %}` arrives).
  *
- * Session 7 ships a single-branch shape — `{% else %}` / `{% elseif %}`
- * are deferred to a later session. The compile path emits one
+ * Ships a single-branch shape — `{% else %}` / `{% elseif %}` are
+ * deferred. The compile path emits one
  * IRIfBranch carrying the test IRExpr and the recursively-compiled
  * body wrapped in IRLegacyJS.
  */

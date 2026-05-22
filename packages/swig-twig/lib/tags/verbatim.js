@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 11 — Twig `{% verbatim %}…{% endverbatim %}` tag.
+ * Twig `{% verbatim %}…{% endverbatim %}` tag.
  *
  * Preserves arbitrary template-like content as literal output. Inside
  * a verbatim block, `{{ … }}`, `{% … %}` (other than `{% endverbatim %}`),

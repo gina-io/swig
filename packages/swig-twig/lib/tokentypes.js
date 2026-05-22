@@ -11,7 +11,7 @@
  * but the cognitive overhead of re-mapping IDs across flavors is not
  * worth the freedom.
  *
- * Twig-only IDs (30–37) are reserved here so Session 3 can add lexer
+ * Twig-only IDs (30–37) are reserved here so later commits can add lexer
  * rules without renumbering. Keeping the layout stable up front avoids
  * silent ID collisions across in-flight flavor work.
  *
@@ -70,7 +70,7 @@ module.exports = {
   /** Method call open — internal */
   METHODOPEN: 25,
 
-  /* ---- Twig-only token IDs (reserved; rules land in Session 3+) ---- */
+  /* ---- Twig-only token IDs (reserved; rules land later) ---- */
 
   /** Twig string-concatenation operator — `~` */
   TILDE: 30,

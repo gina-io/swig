@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 12 — Twig `{% with %}` tag.
+ * Twig `{% with %}` tag.
  *
  * Twig scoped-context region:
  *

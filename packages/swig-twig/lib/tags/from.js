@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 11 — Twig `{% from "file" import a, b as c %}` tag.
+ * Twig `{% from "file" import a, b as c %}` tag.
  *
  * Selective macro import syntax — binds a named subset of an imported
  * template's macros into the current context, optionally renaming each
@@ -142,7 +142,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   var path = pathTok.match.replace(/^['"]|['"]$/g, '');
 
   if (opts && opts.codegenMode === 'async') {
-    // Phase 2 (#T22): async mode skips parse-time parseFile + macro
+    // Async mode skips parse-time parseFile + macro
     // pre-render. compile() emits IRFromImportDeferred; runtime resolves
     // the template via _swig.getTemplate and binds each entry on _ctx.
     token.args = [{ path: path, entries: entries }];
@@ -239,7 +239,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
  *                  `IRLegacyJS`.
  */
 exports.compile = function (compiler, args, content, parents, options) {
-  // Phase 2 (#T22): async-codegen branch. Parse stashed a single bundle
+  // Async-codegen branch. Parse stashed a single bundle
   // `[{path, entries: [{origName, aliasName}, ...]}]` in async mode (no
   // macro pre-render); emit IRFromImportDeferred so the backend's
   // `_swig.getTemplate` + per-entry `_ctx.<bind>` assignment happens at

@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 10 — Twig `{% include %}` tag.
+ * Twig `{% include %}` tag.
  *
  * Twig include syntax:
  *

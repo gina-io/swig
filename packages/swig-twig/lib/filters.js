@@ -800,7 +800,7 @@ exports.merge = function (input, other) {
  *
  * Twig's native `|date` accepts DateTime / DateInterval objects, a
  * timezone string argument, and locale-aware month/day names. Those are
- * Phase 4 concerns — today this filter supports the same surface as
+ * deferred — today this filter supports the same surface as
  * native swig's `date` filter: Date object or epoch-ms number input, a
  * format string, an optional numeric `offset` in minutes from GMT, and
  * an optional `abbr` timezone abbreviation (output-only).

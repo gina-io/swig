@@ -1,6 +1,5 @@
 /*!
- * Phase 3 Session 7 — Twig `{% set %}` tag.
- * Phase 3 Session 11 — extended with body-capture form.
+ * Twig `{% set %}` tag (assignment + body-capture forms).
  *
  * Twig `set` has two forms:
  *

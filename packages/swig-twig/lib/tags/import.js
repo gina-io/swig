@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 10 — Twig `{% import %}` tag.
+ * Twig `{% import %}` tag.
  *
  * Twig import syntax:
  *
@@ -116,7 +116,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   var path = pathTok.match.replace(/^['"]|['"]$/g, '');
 
   if (opts && opts.codegenMode === 'async') {
-    // Phase 2 (#T22): async mode skips the parse-time parseFile + macro
+    // Async mode skips the parse-time parseFile + macro
     // pre-render. compile() emits IRImportDeferred; runtime resolves the
     // template via _swig.getTemplate and binds .exports under the alias.
     token.args = [path, aliasTok.match];
@@ -194,7 +194,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
  *                  imported macro into it.
  */
 exports.compile = function (compiler, args, content, parents, options) {
-  // Phase 2 (#T22): async-codegen branch. Parse stashed `[path, alias]`
+  // Async-codegen branch. Parse stashed `[path, alias]`
   // in async mode (no macro pre-render); emit IRImportDeferred so the
   // backend's `_swig.getTemplate` + `.exports` bind happens at runtime.
   if (options && options.codegenMode === 'async') {

@@ -11,7 +11,7 @@ var TYPES = require('./tokentypes');
  */
 
 /*!
- * Phase 3 Session 2–4 — Twig lexer rule table.
+ * Twig lexer rule table.
  *
  * Covers the swig-shared token subset plus all Twig-only operators
  * including string interpolation (`~` concat, `..` range, `??`
@@ -168,7 +168,7 @@ var rules = [
     // cleanly decomposes into VAR `start` + RANGE `..` + VAR `end`. Native
     // swig-core's VAR rule still uses `\w*` because it has no RANGE token;
     // do not copy this tightening back without also auditing native's path
-    // semantics. Phase 3 Session 6.
+    // semantics.
     type: TYPES.VAR,
     regex: [
       /^[a-zA-Z_$]\w*((\.\$?\w+)+)?/,
@@ -256,7 +256,7 @@ exports.types = TYPES;
  * Match the next token at the start of `str`.
  *
  * Throws via utils.throwError when no rule matches — including every
- * Twig-only operator until Session 3 adds its rules. The throw is
+ * Twig-only operator until its rules land. The throw is
  * opaque (no line / file info); the Twig frontend's onCompileError
  * callback attaches filename + line per the swig-core / frontend seam
  * rule.

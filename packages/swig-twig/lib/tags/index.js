@@ -1,5 +1,5 @@
 /*!
- * Phase 3 Session 7 — Twig per-flavor tag registry.
+ * Twig per-flavor tag registry.
  *
  * Each tag exports `{ parse, compile, ends, block }` with a Twig-tailored
  * shape:
@@ -12,11 +12,8 @@
  * native-swig `parser.on(types.X, fn)` callback indirection — Twig tags own
  * their own arg-parsing path.
  *
- * Session 7 begins with an empty registry; subsequent commits within the
- * session add `set` (assignment) and `if` (flow control) to validate the
- * per-flavor shape. Future sessions add `for`, `block`, `extends`,
- * `include`, `import`, `macro`, `apply`, `verbatim`, `with`,
- * `from … import`.
+ * The registry covers `set`, `if`, `for`, `block`, `extends`, `include`,
+ * `import`, `macro`, `apply`, `verbatim`, `with`, and `from … import`.
  */
 
 module.exports = {
