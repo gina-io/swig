@@ -102,6 +102,9 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     if (tok.type === _t.TILDE) {
       return { op: '~', prec: 7 };
     }
+    if (tok.type === _t.FLOORDIV) {
+      return { op: '//', prec: 8 };
+    }
     return null;
   }
 
@@ -294,7 +297,14 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       if (!info || info.prec < minPrec) { break; }
       consume();
       var right = parseExpression(info.prec + 1);
-      left = ir.binaryOp(info.op, left, right);
+      if (info.op === '//') {
+        // Floor division — JS `a // b` is a line comment, so lower to
+        // Math.floor(a / b). Matches Python `//` for ints and floats,
+        // including negative operands (floors toward negative infinity).
+        left = ir.fnCall(ir.varRef(['Math', 'floor']), [ir.binaryOp('/', left, right)]);
+      } else {
+        left = ir.binaryOp(info.op, left, right);
+      }
     }
     return left;
   }

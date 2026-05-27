@@ -206,6 +206,14 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(ir.right.callee.path).to.eql(['Math', 'pow']);
   });
 
+  it('lowers // to Math.floor of the division', function () {
+    var ir = parse('7 // 2');
+    expect(ir.type).to.equal('FnCall');
+    expect(ir.callee).to.eql({ type: 'VarRef', path: ['Math', 'floor'] });
+    expect(ir.args).to.have.length(1);
+    expect(ir.args[0]).to.eql({ type: 'BinaryOp', op: '/', left: { type: 'Literal', kind: 'number', value: 7 }, right: { type: 'Literal', kind: 'number', value: 2 } });
+  });
+
   /* ---- CVE-2023-25345 guards ----------------------------------- */
 
   it('blocks __proto__ as a bare variable', function () {
