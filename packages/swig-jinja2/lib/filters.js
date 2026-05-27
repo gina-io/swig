@@ -803,3 +803,143 @@ exports.format = function (input) {
   }
   return sprintf(input, Array.prototype.slice.call(arguments, 1));
 };
+
+/**
+ * Count the words in a string. Words are runs of word characters
+ * (`[A-Za-z0-9_]`), matching Jinja2's `wordcount`.
+ *
+ * @example
+ * {{ "one, two; three!"|wordcount }}
+ * // => 3
+ *
+ * @param  {*} input
+ * @return {number}
+ */
+exports.wordcount = function (input) {
+  var m = String(input).match(/\w+/g);
+  return m ? m.length : 0;
+};
+
+/**
+ * Word-wrap a string to a given line width (Jinja2's `wordwrap`). Words are
+ * packed greedily; a word longer than the width is split when
+ * `breakLongWords` is truthy (the default). Lines are joined with
+ * `wrapstring` (default newline).
+ *
+ * @example
+ * {{ "the quick brown fox"|wordwrap(10) }}
+ * // => the quick\nbrown fox
+ *
+ * @param  {*}       input
+ * @param  {number}  [width=79]
+ * @param  {boolean} [breakLongWords=true]
+ * @param  {string}  [wrapstring='\n']
+ * @return {*}
+ */
+exports.wordwrap = function (input, width, breakLongWords, wrapstring) {
+  var words, lines, cur, i, word, space, head;
+  if (typeof input !== 'string') {
+    return input;
+  }
+  if (width === undefined || width === null) { width = 79; }
+  if (breakLongWords === undefined) { breakLongWords = true; }
+  if (wrapstring === undefined || wrapstring === null) { wrapstring = '\n'; }
+  words = input.split(/\s+/);
+  lines = [];
+  cur = '';
+  for (i = 0; i < words.length; i += 1) {
+    word = words[i];
+    if (word === '') { continue; }
+    while (breakLongWords && word.length > width) {
+      space = (cur === '') ? width : width - cur.length - 1;
+      if (space <= 0) {
+        lines.push(cur);
+        cur = '';
+        space = width;
+      }
+      head = word.substr(0, space);
+      cur = (cur === '') ? head : cur + ' ' + head;
+      lines.push(cur);
+      cur = '';
+      word = word.substr(space);
+    }
+    if (word === '') { continue; }
+    if (cur === '') {
+      cur = word;
+    } else if (cur.length + 1 + word.length <= width) {
+      cur += ' ' + word;
+    } else {
+      lines.push(cur);
+      cur = word;
+    }
+  }
+  if (cur !== '') { lines.push(cur); }
+  return lines.join(wrapstring);
+};
+
+/**
+ * Indent every line of a string by `width` spaces (or a literal string).
+ * The first line and blank lines are not indented by default — pass a
+ * truthy `first` to indent the first line and a truthy `blank` to indent
+ * blank lines (Jinja2's `indent`).
+ *
+ * @example
+ * {{ "line1\nline2"|indent(4) }}
+ * // => line1\n    line2
+ *
+ * @param  {*}             input
+ * @param  {number|string} [width=4]
+ * @param  {boolean}       [first=false]
+ * @param  {boolean}       [blank=false]
+ * @return {*}
+ */
+exports.indent = function (input, width, first, blank) {
+  var indent, lines, rv, head;
+  if (width === undefined || width === null) { width = 4; }
+  indent = (typeof width === 'number') ? new Array(width + 1).join(' ') : String(width);
+  lines = (String(input) + '\n').split('\n');
+  if (lines.length && lines[lines.length - 1] === '') {
+    lines.pop();
+  }
+  if (blank) {
+    rv = lines.join('\n' + indent);
+  } else {
+    head = lines.shift();
+    rv = (head === undefined) ? '' : head;
+    if (lines.length) {
+      rv += '\n' + utils.map(lines, function (line) {
+        return line ? indent + line : line;
+      }).join('\n');
+    }
+  }
+  if (first) {
+    rv = indent + rv;
+  }
+  return rv;
+};
+
+/**
+ * Center a string in a field of the given width using spaces (Jinja2's
+ * `center`, which defers to Python `str.center`). When an odd number of
+ * pad characters is needed the extra space goes on the right.
+ *
+ * @example
+ * {{ "foo"|center(9) }}
+ * // => "   foo   "
+ *
+ * @param  {*}      input
+ * @param  {number} [width=80]
+ * @return {*}
+ */
+exports.center = function (input, width) {
+  var marg, left, right;
+  input = String(input);
+  if (width === undefined || width === null) { width = 80; }
+  marg = width - input.length;
+  if (marg <= 0) {
+    return input;
+  }
+  left = Math.floor(marg / 2) + (marg & width & 1);
+  right = marg - left;
+  return new Array(left + 1).join(' ') + input + new Array(right + 1).join(' ');
+};

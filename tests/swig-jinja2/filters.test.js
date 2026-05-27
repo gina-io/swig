@@ -274,4 +274,47 @@ describe('@rhinostone/swig-jinja2 — filters', function () {
     });
   });
 
+  describe('wordcount', function () {
+    it('counts words', function () {
+      expect(render('{{ "foo bar baz"|wordcount }}')).to.equal('3');
+    });
+    it('counts word runs across punctuation', function () {
+      expect(render('{{ s|wordcount }}', { s: 'one, two; three!' })).to.equal('3');
+    });
+  });
+
+  describe('wordwrap', function () {
+    it('wraps text greedily at the given width', function () {
+      expect(render('{{ s|wordwrap(10) }}', { s: 'the quick brown fox jumps' })).to.equal('the quick\nbrown fox\njumps');
+    });
+    it('breaks a word longer than the width', function () {
+      expect(render('{{ s|wordwrap(5) }}', { s: 'abcdefghij k' })).to.equal('abcde\nfghij\nk');
+    });
+  });
+
+  describe('indent', function () {
+    it('indents every line but the first by default', function () {
+      expect(render('{{ s|indent }}', { s: 'line1\nline2\nline3' })).to.equal('line1\n    line2\n    line3');
+    });
+    it('indents the first line too when first is true', function () {
+      expect(render('{{ s|indent(2, true) }}', { s: 'line1\nline2' })).to.equal('  line1\n  line2');
+    });
+    it('leaves blank lines unindented by default', function () {
+      expect(render('{{ s|indent(2, false, false) }}', { s: 'a\n\nb' })).to.equal('a\n\n  b');
+    });
+    it('indents blank lines when blank is true', function () {
+      expect(render('{{ s|indent(2, true, true) }}', { s: 'a\n\nb' })).to.equal('  a\n  \n  b');
+    });
+  });
+
+  describe('center', function () {
+    it('centers within the width, extra space on the right', function () {
+      expect(render('{{ "foo"|center(9) }}')).to.equal('   foo   ');
+      expect(render('{{ "foo"|center(8) }}')).to.equal('  foo   ');
+    });
+    it('returns the input unchanged when wider than the field', function () {
+      expect(render('{{ "foo"|center(2) }}')).to.equal('foo');
+    });
+  });
+
 });
