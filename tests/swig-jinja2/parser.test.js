@@ -288,6 +288,53 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(ir.right).to.eql({ type: 'VarRef', path: ['y'] });
   });
 
+  /* ---- Slice subscripts ---------------------------------------- */
+
+  function sliceArgs(str) {
+    var ir = parse(str);
+    expect(ir.type).to.equal('FnCall');
+    expect(ir.callee).to.eql({ type: 'VarRef', path: ['_utils', 'slice'] });
+    return ir.args;
+  }
+
+  it('lowers [start:stop] to a _utils.slice call', function () {
+    var args = sliceArgs('arr[1:3]');
+    expect(args[0]).to.eql({ type: 'VarRef', path: ['arr'] });
+    expect(args[1]).to.eql({ type: 'Literal', kind: 'number', value: 1 });
+    expect(args[2]).to.eql({ type: 'Literal', kind: 'number', value: 3 });
+    expect(args[3]).to.eql({ type: 'Literal', kind: 'undefined', value: undefined });
+  });
+
+  it('passes an undefined literal for an omitted start ([:5])', function () {
+    var args = sliceArgs('arr[:5]');
+    expect(args[1]).to.eql({ type: 'Literal', kind: 'undefined', value: undefined });
+    expect(args[2]).to.eql({ type: 'Literal', kind: 'number', value: 5 });
+  });
+
+  it('passes an undefined literal for an omitted stop ([2:])', function () {
+    var args = sliceArgs('arr[2:]');
+    expect(args[1]).to.eql({ type: 'Literal', kind: 'number', value: 2 });
+    expect(args[2]).to.eql({ type: 'Literal', kind: 'undefined', value: undefined });
+  });
+
+  it('carries the step ([::2] and [::-1])', function () {
+    var byTwo = sliceArgs('arr[::2]');
+    expect(byTwo[3]).to.eql({ type: 'Literal', kind: 'number', value: 2 });
+
+    var rev = sliceArgs('arr[::-1]');
+    expect(rev[3]).to.eql({ type: 'UnaryOp', op: '-', operand: { type: 'Literal', kind: 'number', value: 1 } });
+  });
+
+  it('handles a negative start ([-3:])', function () {
+    var args = sliceArgs('arr[-3:]');
+    expect(args[1]).to.eql({ type: 'UnaryOp', op: '-', operand: { type: 'Literal', kind: 'number', value: 3 } });
+  });
+
+  it('still lowers a plain [key] to Access, not a slice', function () {
+    var ir = parse('arr[0]');
+    expect(ir.type).to.equal('Access');
+  });
+
   /* ---- CVE-2023-25345 guards ----------------------------------- */
 
   it('blocks __proto__ as a bare variable', function () {

@@ -195,6 +195,68 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     return { name: testName, args: testArgs };
   }
 
+  function expectBracketClose() {
+    var close = consume();
+    if (!close || close.type !== _t.BRACKETCLOSE) {
+      bail('Expected closing square bracket');
+    }
+  }
+
+  function undefinedLiteral() {
+    return ir.literal('undefined', undefined);
+  }
+
+  // Called after the opening `[`. Either a single-key access `[expr]` or a
+  // Python-style slice `[start:stop:step]` with any part omitted. A leading
+  // COLON (omitted start) or a COLON after the first expression signals a
+  // slice, which lowers to `_utils.slice(obj, start, stop, step)` with
+  // undefined literals for omitted bounds. A plain `[expr]` lowers to an
+  // Access (string keys are CVE-guarded, same as before slicing landed).
+  function parseSubscript(obj) {
+    var startExpr = null,
+      stopExpr = null,
+      stepExpr = null,
+      isSlice = false,
+      pk = peek();
+
+    if (pk && pk.type === _t.COLON) {
+      isSlice = true;
+    } else {
+      startExpr = parseExpression(0);
+      pk = peek();
+      if (pk && pk.type === _t.COLON) { isSlice = true; }
+    }
+
+    if (!isSlice) {
+      if (startExpr.type === 'Literal' && startExpr.kind === 'string') {
+        guardBracketString(startExpr.value);
+      }
+      expectBracketClose();
+      return ir.access(obj, startExpr);
+    }
+
+    consume(); // first colon
+    pk = peek();
+    if (pk && pk.type !== _t.COLON && pk.type !== _t.BRACKETCLOSE) {
+      stopExpr = parseExpression(0);
+    }
+    pk = peek();
+    if (pk && pk.type === _t.COLON) {
+      consume(); // second colon
+      pk = peek();
+      if (pk && pk.type !== _t.BRACKETCLOSE) {
+        stepExpr = parseExpression(0);
+      }
+    }
+    expectBracketClose();
+    return ir.fnCall(ir.varRef(['_utils', 'slice']), [
+      obj,
+      startExpr || undefinedLiteral(),
+      stopExpr || undefinedLiteral(),
+      stepExpr || undefinedLiteral()
+    ]);
+  }
+
   function parsePostfix(expr) {
     while (true) {
       var tok = peek();
@@ -209,15 +271,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         }
       } else if (tok.type === _t.BRACKETOPEN) {
         consume();
-        var keyExpr = parseExpression(0);
-        if (keyExpr.type === 'Literal' && keyExpr.kind === 'string') {
-          guardBracketString(keyExpr.value);
-        }
-        var close = consume();
-        if (!close || close.type !== _t.BRACKETCLOSE) {
-          bail('Expected closing square bracket');
-        }
-        expr = ir.access(expr, keyExpr);
+        expr = parseSubscript(expr);
       } else if (tok.type === _t.PARENOPEN) {
         consume();
         expr = ir.fnCall(expr, parseArgList(_t.PARENCLOSE));

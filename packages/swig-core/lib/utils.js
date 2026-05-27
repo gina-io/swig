@@ -218,3 +218,80 @@ exports.range = function (from, to) {
   }
   return out;
 };
+
+/**
+ * Python-style slice for arrays and strings. Mirrors Jinja2's
+ * `seq[start:stop:step]` subscript: negative indices count from the end,
+ * omitted bounds (null/undefined) take their step-direction default, and a
+ * negative step walks backwards (`seq[::-1]` reverses). Returns a string
+ * for string input and an array otherwise. A null/undefined object or a
+ * non-indexable value yields an empty result so compiled templates degrade
+ * silently rather than throwing at render time.
+ *
+ * @param  {Array|string} obj
+ * @param  {?number}      start
+ * @param  {?number}      stop
+ * @param  {?number}      step
+ * @return {Array|string}
+ */
+exports.slice = function (obj, start, stop, step) {
+  var isString = (typeof obj === 'string'),
+    length,
+    lower,
+    upper,
+    s,
+    e,
+    result = [],
+    i;
+
+  function toInt(n) {
+    n = Number(n);
+    if (isNaN(n)) { return NaN; }
+    return n < 0 ? Math.ceil(n) : Math.floor(n);
+  }
+
+  function clamp(v, dflt) {
+    if (v === null || v === undefined) { return dflt; }
+    v = toInt(v);
+    if (isNaN(v)) { return dflt; }
+    if (v < 0) {
+      v += length;
+      if (v < lower) { v = lower; }
+    } else if (v > upper) {
+      v = upper;
+    }
+    return v;
+  }
+
+  if (obj === null || obj === undefined || typeof obj.length !== 'number') {
+    return isString ? '' : [];
+  }
+  length = obj.length;
+
+  if (step === null || step === undefined) {
+    step = 1;
+  } else {
+    step = toInt(step);
+    if (isNaN(step) || step === 0) { step = 1; }
+  }
+
+  // Lower / upper bounds depend on walk direction (CPython slice rules).
+  if (step < 0) {
+    lower = -1;
+    upper = length - 1;
+  } else {
+    lower = 0;
+    upper = length;
+  }
+
+  s = clamp(start, (step < 0) ? upper : lower);
+  e = clamp(stop, (step < 0) ? lower : upper);
+
+  if (step > 0) {
+    for (i = s; i < e; i += step) { result.push(obj[i]); }
+  } else {
+    for (i = s; i > e; i += step) { result.push(obj[i]); }
+  }
+
+  return isString ? result.join('') : result;
+};
