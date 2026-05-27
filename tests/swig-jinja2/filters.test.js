@@ -100,4 +100,96 @@ describe('@rhinostone/swig-jinja2 — filters', function () {
     });
   });
 
+  describe('default / d', function () {
+    it('falls back when the value is missing or empty', function () {
+      expect(render("{{ missing|default('anon') }}")).to.equal('anon');
+      expect(render("{{ x|default('anon') }}", { x: '' })).to.equal('anon');
+    });
+    it('keeps a present value', function () {
+      expect(render("{{ x|default('anon') }}", { x: 'Ada' })).to.equal('Ada');
+    });
+    it('preserves real falsy values (0, false) by default', function () {
+      expect(render("{{ x|default('n/a') }}", { x: 0 })).to.equal('0');
+      expect(render("{{ x|default('n/a') }}", { x: false })).to.equal('false');
+    });
+    it('falls back on any falsy value with the boolean argument', function () {
+      expect(render("{{ x|default('n/a', true) }}", { x: 0 })).to.equal('n/a');
+    });
+    it('d is an alias of default', function () {
+      expect(render("{{ missing|d('x') }}")).to.equal('x');
+    });
+  });
+
+  describe('abs', function () {
+    it('returns the absolute value', function () {
+      expect(render('{{ x|abs }}', { x: -42 })).to.equal('42');
+      expect(render('{{ x|abs }}', { x: -5.5 })).to.equal('5.5');
+      expect(render('{{ (-42)|abs }}')).to.equal('42');
+    });
+  });
+
+  describe('round', function () {
+    it('rounds to the nearest integer by default', function () {
+      expect(render('{{ x|round }}', { x: 2.7 })).to.equal('3');
+    });
+    it('rounds to a precision', function () {
+      expect(render('{{ x|round(1) }}', { x: 42.55 })).to.equal('42.6');
+    });
+    it('supports floor and ceil methods', function () {
+      expect(render("{{ x|round(1, 'floor') }}", { x: 42.55 })).to.equal('42.5');
+      expect(render("{{ x|round(0, 'ceil') }}", { x: 42.1 })).to.equal('43');
+    });
+  });
+
+  describe('int / float', function () {
+    it('int parses an integer, truncating decimals', function () {
+      expect(render("{{ '42.7'|int }}")).to.equal('42');
+    });
+    it('int returns the default on a bad value', function () {
+      expect(render("{{ 'x'|int }}")).to.equal('0');
+      expect(render("{{ 'x'|int(99) }}")).to.equal('99');
+    });
+    it('int honours a non-decimal base', function () {
+      expect(render("{{ '1F'|int(0, 16) }}")).to.equal('31');
+    });
+    it('float parses a float', function () {
+      expect(render("{{ '42.5'|float }}")).to.equal('42.5');
+      expect(render("{{ 'x'|float }}")).to.equal('0');
+    });
+  });
+
+  describe('truncate', function () {
+    it('truncates at a word boundary and appends an ellipsis', function () {
+      expect(render('{{ s|truncate(9) }}', { s: 'foo bar baz qux' })).to.equal('foo...');
+    });
+    it('leaves a short string whole (within leeway)', function () {
+      expect(render('{{ s|truncate(9) }}', { s: 'short' })).to.equal('short');
+    });
+    it('cuts mid-word when killwords is true', function () {
+      // 12 chars exceeds length(5) + default leeway(5), so it truncates;
+      // killwords cuts at length - end.length = 4 chars, then appends "-".
+      expect(render('{{ s|truncate(5, true, "-") }}', { s: 'abcdefghijkl' })).to.equal('abcd-');
+    });
+  });
+
+  describe('tojson', function () {
+    it('serializes a value to JSON', function () {
+      expect(render('{{ d|tojson }}', { d: { a: 1, b: [2, 3] } })).to.equal('{"a":1,"b":[2,3]}');
+    });
+    it('escapes HTML-significant characters and is safe (not re-escaped)', function () {
+      expect(render('{{ d|tojson }}', { d: { x: '<b>' } })).to.equal('{"x":"\\u003cb\\u003e"}');
+    });
+  });
+
+  describe('groupby', function () {
+    it('groups objects by an attribute into { grouper, list } records', function () {
+      var tpl = "{% for g in users|groupby('dept') %}{{ g.grouper }}:{{ g.list|length }} {% endfor %}";
+      expect(render(tpl, { users: [{ dept: 'a' }, { dept: 'b' }, { dept: 'a' }] })).to.equal('a:2 b:1 ');
+    });
+    it('supports a dotted attribute path', function () {
+      var tpl = "{% for g in items|groupby('meta.kind') %}{{ g.grouper }}={{ g.list|length }};{% endfor %}";
+      expect(render(tpl, { items: [{ meta: { kind: 'x' } }, { meta: { kind: 'x' } }, { meta: { kind: 'y' } }] })).to.equal('x=2;y=1;');
+    });
+  });
+
 });

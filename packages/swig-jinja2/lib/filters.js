@@ -310,3 +310,221 @@ exports.sort = function (input, reverse) {
   if (reverse) { arr.reverse(); }
   return isString ? arr.join('') : arr;
 };
+
+/*!
+ * Resolve a possibly-dotted attribute path against an object. Returns
+ * undefined if any segment is missing. @private
+ */
+function resolveAttr(obj, path) {
+  var segs = String(path).split('.'), cur = obj, i;
+  for (i = 0; i < segs.length; i += 1) {
+    if (cur === null || cur === undefined) { return undefined; }
+    cur = cur[segs[i]];
+  }
+  return cur;
+}
+
+/**
+ * Return the input, or a default value when the input is undefined, null,
+ * or the empty string. (A missing variable arrives here as "" because the
+ * engine coerces undefined variable lookups, so the empty string counts as
+ * "needs a default".) Real falsy values 0 and false are preserved. Pass a
+ * truthy second-after argument to fall back on any falsy value instead.
+ * `d` is an alias.
+ *
+ * @example
+ * {{ missing|default("anonymous") }}
+ * // => anonymous
+ *
+ * @example
+ * {{ 0|default("n/a", true) }}
+ * // => n/a
+ *
+ * @param  {*}       input
+ * @param  {*}       [def='']
+ * @param  {boolean} [bool=false]  Fall back on any falsy value when truthy.
+ * @return {*}
+ */
+exports['default'] = function (input, def, bool) {
+  if (def === undefined) { def = ''; }
+  if (bool) {
+    return input ? input : def;
+  }
+  return (input === undefined || input === null || input === '') ? def : input;
+};
+exports.d = exports['default'];
+
+/**
+ * Absolute value of a number.
+ *
+ * @example
+ * {{ -42|abs }}
+ * // => 42
+ *
+ * @param  {number} input
+ * @return {number}
+ */
+exports.abs = function (input) {
+  var n = Number(input);
+  return isNaN(n) ? input : Math.abs(n);
+};
+
+/**
+ * Round a number to a given precision. Method is `"common"` (round half
+ * away from zero, the default), `"ceil"`, or `"floor"`.
+ *
+ * @example
+ * {{ 42.55|round(1) }}
+ * // => 42.6
+ *
+ * @example
+ * {{ 42.55|round(1, "floor") }}
+ * // => 42.5
+ *
+ * @param  {number} input
+ * @param  {number} [precision=0]
+ * @param  {string} [method='common']
+ * @return {number}
+ */
+exports.round = function (input, precision, method) {
+  var n = Number(input);
+  if (isNaN(n)) { return input; }
+  var factor = Math.pow(10, precision || 0);
+  n = n * factor;
+  if (method === 'ceil') {
+    n = Math.ceil(n);
+  } else if (method === 'floor') {
+    n = Math.floor(n);
+  } else {
+    n = (n < 0) ? -Math.round(-n) : Math.round(n);
+  }
+  return n / factor;
+};
+
+/**
+ * Convert the input to an integer, returning a default (0) when the
+ * conversion fails. A non-decimal base may be given as the third argument.
+ *
+ * @example
+ * {{ "42.7"|int }}
+ * // => 42
+ *
+ * @param  {*}      input
+ * @param  {number} [def=0]
+ * @param  {number} [base=10]
+ * @return {number}
+ */
+exports.int = function (input, def, base) {
+  if (def === undefined) { def = 0; }
+  var n = parseInt(input, base || 10);
+  return isNaN(n) ? def : n;
+};
+
+/**
+ * Convert the input to a floating-point number, returning a default (0)
+ * when the conversion fails.
+ *
+ * @example
+ * {{ "42.5"|float }}
+ * // => 42.5
+ *
+ * @param  {*}      input
+ * @param  {number} [def=0]
+ * @return {number}
+ */
+exports.float = function (input, def) {
+  if (def === undefined) { def = 0; }
+  var n = parseFloat(input);
+  return isNaN(n) ? def : n;
+};
+
+/**
+ * Truncate a string to a length, appending an ellipsis when cut. By
+ * default the cut falls back to the last word boundary; pass a truthy
+ * third argument to cut mid-word. Strings within `leeway` characters of
+ * the limit are left whole.
+ *
+ * @example
+ * {{ "foo bar baz qux"|truncate(9) }}
+ * // => foo...
+ *
+ * @param  {*}       input
+ * @param  {number}  [length=255]
+ * @param  {boolean} [killwords=false]
+ * @param  {string}  [end='...']
+ * @param  {number}  [leeway=5]
+ * @return {string}
+ */
+exports.truncate = function (input, length, killwords, end, leeway) {
+  input = String(input);
+  length = length || 255;
+  if (end === undefined) { end = '...'; }
+  if (leeway === undefined) { leeway = 5; }
+  if (input.length <= length + leeway) {
+    return input;
+  }
+  var truncated = input.substr(0, length - end.length);
+  if (!killwords) {
+    var lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace !== -1) {
+      truncated = truncated.substr(0, lastSpace);
+    }
+  }
+  return truncated + end;
+};
+
+/**
+ * Serialize the input to a JSON string, escaping the HTML-significant
+ * characters (`<`, `>`, `&`, `'`) so the result is safe to embed in a
+ * page. Marked `.safe`, so the autoescape tail does not double-escape it.
+ *
+ * @example
+ * {{ {"a": 1}|tojson }}
+ * // => {"a":1}
+ *
+ * @param  {*}      input
+ * @param  {number} [indent]  Spaces of indentation for pretty output.
+ * @return {string}
+ */
+exports.tojson = function (input, indent) {
+  var json = JSON.stringify(input, null, indent || undefined);
+  if (json === undefined) {
+    return '';
+  }
+  return json
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/'/g, '\\u0027');
+};
+exports.tojson.safe = true;
+
+/**
+ * Group a sequence of objects by a (possibly dotted) attribute, returning
+ * a list of `{ grouper, list }` records sorted by grouper.
+ *
+ * @example
+ * {% for g in users|groupby("dept") %}{{ g.grouper }}:{{ g.list|length }} {% endfor %}
+ *
+ * @param  {Array}  input
+ * @param  {string} attribute
+ * @return {Array}  List of `{ grouper, list }`.
+ */
+exports.groupby = function (input, attribute) {
+  if (!utils.isArray(input)) {
+    return input;
+  }
+  var groups = {}, order = [];
+  utils.each(input, function (item) {
+    var key = resolveAttr(item, attribute);
+    if (!groups.hasOwnProperty(key)) {
+      groups[key] = [];
+      order.push(key);
+    }
+    groups[key].push(item);
+  });
+  order.sort();
+  return utils.map(order, function (key) {
+    return { grouper: key, list: groups[key] };
+  });
+};
