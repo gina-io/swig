@@ -214,6 +214,29 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(ir.args[0]).to.eql({ type: 'BinaryOp', op: '/', left: { type: 'Literal', kind: 'number', value: 7 }, right: { type: 'Literal', kind: 'number', value: 2 } });
   });
 
+  it('lowers a full inline-if to a Conditional (then if cond else else)', function () {
+    var ir = parse("'yes' if cond else 'no'");
+    expect(ir.type).to.equal('Conditional');
+    expect(ir.test).to.eql({ type: 'VarRef', path: ['cond'] });
+    expect(ir.then).to.eql({ type: 'Literal', kind: 'string', value: 'yes' });
+    expect(ir['else']).to.eql({ type: 'Literal', kind: 'string', value: 'no' });
+  });
+
+  it('lowers a no-else inline-if to a Conditional with an undefined else', function () {
+    var ir = parse("'yes' if cond");
+    expect(ir.type).to.equal('Conditional');
+    expect(ir.test).to.eql({ type: 'VarRef', path: ['cond'] });
+    expect(ir.then).to.eql({ type: 'Literal', kind: 'string', value: 'yes' });
+    expect(ir['else']).to.eql({ type: 'Literal', kind: 'undefined', value: undefined });
+  });
+
+  it('binds inline-if looser than binary operators', function () {
+    var ir = parse('a + b if c else d');
+    expect(ir.type).to.equal('Conditional');
+    expect(ir.then).to.eql({ type: 'BinaryOp', op: '+', left: { type: 'VarRef', path: ['a'] }, right: { type: 'VarRef', path: ['b'] } });
+    expect(ir.test).to.eql({ type: 'VarRef', path: ['c'] });
+  });
+
   /* ---- CVE-2023-25345 guards ----------------------------------- */
 
   it('blocks __proto__ as a bare variable', function () {

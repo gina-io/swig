@@ -306,6 +306,29 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         left = ir.binaryOp(info.op, left, right);
       }
     }
+    // Inline conditional `<then> if <cond> else <else>` — binds looser than
+    // every binary op, so it's only handled at the top-level minPrec === 0
+    // entry (recursive calls for a binary op's RHS run at prec + 1 >= 1 and
+    // skip this branch). `if` / `else` lex as VAR tokens; matching on
+    // `.match` is safe because both keywords are reserved and so cannot be
+    // bare variables. The condition and else-branch parse at minPrec 0 so a
+    // nested inline-if (or any operator) inside them is grouped correctly.
+    if (minPrec === 0) {
+      var iftok = peek();
+      if (iftok && iftok.type === _t.VAR && iftok.match === 'if') {
+        consume();
+        var cond = parseExpression(0);
+        var etok = peek();
+        if (etok && etok.type === _t.VAR && etok.match === 'else') {
+          consume();
+          left = ir.conditional(cond, left, parseExpression(0));
+        } else {
+          // No `else` — Jinja2 yields undefined (empty in output) when the
+          // condition is false.
+          left = ir.conditional(cond, left, ir.literal('undefined', undefined));
+        }
+      }
+    }
     return left;
   }
 
