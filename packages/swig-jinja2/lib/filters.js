@@ -1095,3 +1095,155 @@ exports.slice = function (input, slices, fill) {
   }
   return out;
 };
+
+/**
+ * Sort a mapping and return a list of `[key, value]` pairs (Jinja2's
+ * `dictsort`). Sorts by key by default; pass `by='value'` to sort by value.
+ * String comparison is case-insensitive unless `caseSensitive` is truthy,
+ * and `reverse` flips the order.
+ *
+ * @example
+ * {% for k, v in {"b":2,"a":1}|dictsort %}{{ k }}={{ v }};{% endfor %}
+ * // => a=1;b=2;
+ *
+ * @param  {object}  input
+ * @param  {boolean} [caseSensitive=false]
+ * @param  {string}  [by='key']  `'key'` or `'value'`.
+ * @param  {boolean} [reverse=false]
+ * @return {Array}   List of `[key, value]` pairs.
+ */
+exports.dictsort = function (input, caseSensitive, by, reverse) {
+  var pairs, idx;
+  if (!input || typeof input !== 'object' || utils.isArray(input)) {
+    return input;
+  }
+  idx = (by === 'value') ? 1 : 0;
+  pairs = utils.map(utils.keys(input), function (k) {
+    return [k, input[k]];
+  });
+  pairs.sort(function (a, b) {
+    var x = a[idx], y = b[idx];
+    if (!caseSensitive && typeof x === 'string') { x = x.toLowerCase(); }
+    if (!caseSensitive && typeof y === 'string') { y = y.toLowerCase(); }
+    if (typeof x === 'number' && typeof y === 'number') {
+      return x - y;
+    }
+    x = String(x);
+    y = String(y);
+    return (x < y) ? -1 : (x > y) ? 1 : 0;
+  });
+  if (reverse) {
+    pairs.reverse();
+  }
+  return pairs;
+};
+
+/**
+ * Sum the items of a sequence (Jinja2's `sum`). An optional `attribute`
+ * (dotted path) sums that attribute of each item; an optional `start` is
+ * added to the total. To pass a start without an attribute, use an empty
+ * attribute string: `sum("", 10)`. (Keyword-calling — `sum(start=10)` — is
+ * not supported, matching the family-wide keyword-argument non-goal.)
+ *
+ * @example
+ * {{ [1, 2, 3]|sum }}
+ * // => 6
+ *
+ * @example
+ * {{ items|sum("price") }}
+ * // sums each item's price
+ *
+ * @param  {*}      input
+ * @param  {string} [attribute]  Dotted path to sum on each item.
+ * @param  {number} [start=0]
+ * @return {number}
+ */
+exports.sum = function (input, attribute, start) {
+  var total, vals;
+  total = (start === undefined || start === null) ? 0 : Number(start);
+  if (isNaN(total)) { total = 0; }
+  if (!utils.isArray(input)) {
+    if (input && typeof input === 'object') {
+      vals = [];
+      utils.each(input, function (v) { vals.push(v); });
+      input = vals;
+    } else {
+      return total;
+    }
+  }
+  utils.each(input, function (item) {
+    var v = (attribute === undefined || attribute === null || attribute === '') ? item : resolveAttr(item, attribute),
+      n = Number(v);
+    total += isNaN(n) ? 0 : n;
+  });
+  return total;
+};
+
+/*!
+ * Shared comparison core for the `min` / `max` filters. String comparison
+ * is case-insensitive unless `caseSensitive` is truthy; numbers compare
+ * numerically. @private
+ */
+function minmax(input, caseSensitive, want) {
+  var best, found = false, vals;
+  if (typeof input === 'string') {
+    input = input.split('');
+  } else if (input && typeof input === 'object' && !utils.isArray(input)) {
+    vals = [];
+    utils.each(input, function (v) { vals.push(v); });
+    input = vals;
+  } else if (!utils.isArray(input)) {
+    return input;
+  }
+  utils.each(input, function (item) {
+    var a, b, cmp;
+    if (!found) { best = item; found = true; return; }
+    a = item;
+    b = best;
+    if (!caseSensitive) {
+      if (typeof a === 'string') { a = a.toLowerCase(); }
+      if (typeof b === 'string') { b = b.toLowerCase(); }
+    }
+    if (typeof a === 'number' && typeof b === 'number') {
+      cmp = a - b;
+    } else {
+      a = String(a);
+      b = String(b);
+      cmp = (a < b) ? -1 : (a > b) ? 1 : 0;
+    }
+    if (want === 'min' ? cmp < 0 : cmp > 0) { best = item; }
+  });
+  return found ? best : undefined;
+}
+
+/**
+ * Return the smallest item of a sequence (Jinja2's `min`). String
+ * comparison is case-insensitive unless `caseSensitive` is truthy.
+ *
+ * @example
+ * {{ [3, 1, 2]|min }}
+ * // => 1
+ *
+ * @param  {*}       input
+ * @param  {boolean} [caseSensitive=false]
+ * @return {*}
+ */
+exports.min = function (input, caseSensitive) {
+  return minmax(input, caseSensitive, 'min');
+};
+
+/**
+ * Return the largest item of a sequence (Jinja2's `max`). String
+ * comparison is case-insensitive unless `caseSensitive` is truthy.
+ *
+ * @example
+ * {{ [3, 1, 2]|max }}
+ * // => 3
+ *
+ * @param  {*}       input
+ * @param  {boolean} [caseSensitive=false]
+ * @return {*}
+ */
+exports.max = function (input, caseSensitive) {
+  return minmax(input, caseSensitive, 'max');
+};

@@ -359,4 +359,45 @@ describe('@rhinostone/swig-jinja2 — filters', function () {
     });
   });
 
+  describe('dictsort', function () {
+    it('sorts a mapping by key into [key, value] pairs', function () {
+      expect(render('{% for p in d|dictsort %}{{ p[0] }}={{ p[1] }};{% endfor %}', { d: { b: 2, a: 1, c: 3 } })).to.equal('a=1;b=2;c=3;');
+    });
+    it('sorts by value when by is "value"', function () {
+      expect(render('{% for p in d|dictsort(false,"value") %}{{ p[0] }}={{ p[1] }};{% endfor %}', { d: { b: 2, a: 3, c: 1 } })).to.equal('c=1;b=2;a=3;');
+    });
+    it('reverses with the reverse flag', function () {
+      expect(render('{% for p in d|dictsort(false,"key",true) %}{{ p[0] }};{% endfor %}', { d: { b: 2, a: 1, c: 3 } })).to.equal('c;b;a;');
+    });
+    it('compares keys case-insensitively by default', function () {
+      expect(render('{% for p in d|dictsort %}{{ p[0] }};{% endfor %}', { d: { B: 2, a: 1, C: 3 } })).to.equal('a;B;C;');
+    });
+  });
+
+  describe('sum', function () {
+    it('sums a list of numbers', function () {
+      expect(render('{{ [1, 2, 3]|sum }}')).to.equal('6');
+    });
+    it('sums a dotted attribute of each item', function () {
+      expect(render('{{ s|sum("v") }}', { s: [{ v: 1 }, { v: 2 }] })).to.equal('3');
+    });
+    it('adds a start value (empty attribute skips attribute lookup)', function () {
+      expect(render('{{ [1, 2, 3]|sum("", 10) }}')).to.equal('16');
+    });
+  });
+
+  describe('min / max', function () {
+    it('returns the smallest / largest number', function () {
+      expect(render('{{ [3, 1, 2]|min }}')).to.equal('1');
+      expect(render('{{ [3, 1, 2]|max }}')).to.equal('3');
+    });
+    it('compares strings case-insensitively by default', function () {
+      expect(render('{{ s|min }}', { s: ['B', 'a'] })).to.equal('a');
+      expect(render('{{ s|max }}', { s: ['B', 'a'] })).to.equal('B');
+    });
+    it('compares exactly when caseSensitive is truthy', function () {
+      expect(render('{{ s|min(true) }}', { s: ['B', 'a'] })).to.equal('B');
+    });
+  });
+
 });
