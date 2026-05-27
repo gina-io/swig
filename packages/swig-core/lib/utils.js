@@ -295,3 +295,19 @@ exports.slice = function (obj, start, stop, step) {
 
   return isString ? result.join('') : result;
 };
+
+/**
+ * Coerce a value for string output: `null` and `undefined` become the
+ * empty string, everything else passes through unchanged. Used by the
+ * backend's `Output` emit when a frontend opts in via `IROutput.coerce`,
+ * so a non-VarRef expression that evaluates to null / undefined renders
+ * as "" rather than the literal word "null" / "undefined". (VarRef
+ * outputs already coerce in `emitVarRef`, so frontends only flag
+ * non-VarRef outputs.)
+ *
+ * @param  {*} v
+ * @return {*} `v`, or "" when `v` is null / undefined.
+ */
+exports.coerceOutput = function (v) {
+  return (v === null || v === undefined) ? '' : v;
+};

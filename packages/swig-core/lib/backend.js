@@ -630,7 +630,16 @@ exports.compile = function (template, parents, options, blockName) {
           outExprJS = '_filters["' + fc.name + '"](' + outExprJS + fcArgsJS + ')';
         });
       }
-      out += '_output += ' + outExprJS + ';\n';
+      // Opt-in null/undefined output coercion. A frontend sets
+      // `node.coerce` on outputs whose expression is not a VarRef (VarRef
+      // already coerces in emitVarRef), so an expression that evaluates to
+      // null / undefined renders as "" instead of the literal word. When
+      // the flag is absent the emit is unchanged.
+      if (node.coerce) {
+        out += '_output += _utils.coerceOutput(' + outExprJS + ');\n';
+      } else {
+        out += '_output += ' + outExprJS + ';\n';
+      }
       return;
     }
     if (node.type === 'Filter') {

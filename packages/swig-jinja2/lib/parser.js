@@ -602,7 +602,15 @@ exports.parse = function (swig, source, opts, tags, filters) {
       }
       tail = [ir.filterCall('e', escapeArgs)];
     }
-    return ir.output(expr, tail);
+    var node = ir.output(expr, tail);
+    // Coerce null / undefined to "" for any non-VarRef output (function
+    // calls, inline-ifs without an else, dynamic bracket access, ...). A
+    // VarRef already coerces inside emitVarRef, so the common `{{ name }}`
+    // path stays wrapper-free.
+    if (expr.type !== 'VarRef') {
+      node.coerce = true;
+    }
+    return node;
   }
 
   /**

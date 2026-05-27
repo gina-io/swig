@@ -68,4 +68,33 @@ describe('@rhinostone/swig-jinja2 — render', function () {
     expect(jinja2.render('{{ s }}', { locals: { s: '<b>' } })).to.equal('&lt;b&gt;');
   });
 
+  describe('null / undefined output coercion', function () {
+
+    it('renders a function returning undefined / null as ""', function () {
+      expect(jinja2.render('[{{ f() }}]', { locals: { f: function () { return undefined; } } })).to.equal('[]');
+      expect(jinja2.render('[{{ f() }}]', { locals: { f: function () { return null; } } })).to.equal('[]');
+    });
+
+    it('coerces even under |safe and with autoescape off', function () {
+      expect(jinja2.render('[{{ f()|safe }}]', { locals: { f: function () { return undefined; } } })).to.equal('[]');
+      var noEscape = new jinja2.Jinja2({ autoescape: false });
+      expect(noEscape.render('[{{ f() }}]', { locals: { f: function () { return undefined; } } })).to.equal('[]');
+    });
+
+    it('renders an inline-if with no else and a false condition as ""', function () {
+      expect(jinja2.render("[{{ 'x' if cond }}]", { locals: { cond: false } })).to.equal('[]');
+    });
+
+    it('preserves real falsy values (0, false)', function () {
+      expect(jinja2.render('{{ f() }}', { locals: { f: function () { return 0; } } })).to.equal('0');
+      expect(jinja2.render('{{ f() }}', { locals: { f: function () { return false; } } })).to.equal('false');
+    });
+
+    it('leaves plain variable output (already coerced) unchanged', function () {
+      expect(jinja2.render('[{{ missing }}]')).to.equal('[]');
+      expect(jinja2.render('{{ name }}', { locals: { name: 'Ada' } })).to.equal('Ada');
+    });
+
+  });
+
 });
