@@ -639,3 +639,167 @@ exports.trim = function (input, chars) {
     .replace(new RegExp('^' + pattern + '+'), '')
     .replace(new RegExp(pattern + '+$'), '');
 };
+
+/**
+ * Replace occurrences of a literal substring with another. Unlike the
+ * native swig `replace` (regex) and the Twig `replace` (mapping), Jinja2's
+ * `replace` is a plain left-to-right literal substitution. An optional
+ * count limits how many occurrences are replaced.
+ *
+ * @example
+ * {{ "Hello World"|replace("Hello", "Goodbye") }}
+ * // => Goodbye World
+ *
+ * @example
+ * {{ "aaa"|replace("a", "b", 2) }}
+ * // => bba
+ *
+ * @param  {*}      input
+ * @param  {string} old        The substring to find.
+ * @param  {string} [neu='']   The replacement.
+ * @param  {number} [count]    Cap on the number of replacements.
+ * @return {*}
+ */
+exports.replace = function (input, old, neu, count) {
+  var limited, max, out, i, n;
+  if (typeof input !== 'string') {
+    return input;
+  }
+  old = String(old);
+  neu = (neu === undefined || neu === null) ? '' : String(neu);
+  if (old === '') {
+    return input;
+  }
+  limited = (count !== undefined && count !== null);
+  max = limited ? Number(count) : Infinity;
+  out = '';
+  i = 0;
+  n = 0;
+  while (i < input.length) {
+    if (n < max && input.substr(i, old.length) === old) {
+      out += neu;
+      i += old.length;
+      n += 1;
+    } else {
+      out += input.charAt(i);
+      i += 1;
+    }
+  }
+  return out;
+};
+
+/*!
+ * printf-style format expansion backing the `format` filter. Supports the
+ * common conversions (s d i u f F e E g G x X o c %) with optional flags
+ * (`-` `+` space `0`), width, and `.precision`. @private
+ */
+function sprintf(fmt, args) {
+  var idx = 0;
+  return fmt.replace(/%([-+ 0]*)(\d+)?(?:\.(\d+))?([sdiufFeEgGxXoc%])/g, function (m, flags, width, prec, conv) {
+    var arg, hasPrec, sign, s, num, pad;
+
+    function withSign(value) {
+      if (value < 0) { sign = '-'; return -value; }
+      if (flags.indexOf('+') !== -1) { sign = '+'; } else if (flags.indexOf(' ') !== -1) { sign = ' '; }
+      return value;
+    }
+
+    if (conv === '%') {
+      return '%';
+    }
+    arg = args[idx];
+    idx += 1;
+    flags = flags || '';
+    hasPrec = (prec !== undefined && prec !== '');
+    width = width ? parseInt(width, 10) : 0;
+    prec = hasPrec ? parseInt(prec, 10) : undefined;
+    sign = '';
+
+    switch (conv) {
+    case 's':
+      s = String(arg);
+      if (hasPrec) { s = s.substring(0, prec); }
+      break;
+    case 'd':
+    case 'i':
+    case 'u':
+      num = parseInt(arg, 10);
+      if (isNaN(num)) { num = 0; }
+      s = String(withSign(num));
+      break;
+    case 'f':
+    case 'F':
+      num = parseFloat(arg);
+      if (isNaN(num)) { num = 0; }
+      s = withSign(num).toFixed(hasPrec ? prec : 6);
+      break;
+    case 'e':
+    case 'E':
+      num = parseFloat(arg);
+      if (isNaN(num)) { num = 0; }
+      s = withSign(num).toExponential(hasPrec ? prec : 6);
+      if (conv === 'E') { s = s.toUpperCase(); }
+      break;
+    case 'g':
+    case 'G':
+      num = parseFloat(arg);
+      if (isNaN(num)) { num = 0; }
+      s = String(withSign(num));
+      if (conv === 'G') { s = s.toUpperCase(); }
+      break;
+    case 'x':
+      s = (parseInt(arg, 10) >>> 0).toString(16);
+      break;
+    case 'X':
+      s = (parseInt(arg, 10) >>> 0).toString(16).toUpperCase();
+      break;
+    case 'o':
+      s = (parseInt(arg, 10) >>> 0).toString(8);
+      break;
+    case 'c':
+      s = String.fromCharCode(parseInt(arg, 10));
+      break;
+    default:
+      return m;
+    }
+
+    pad = width - (sign.length + s.length);
+    if (pad > 0) {
+      if (flags.indexOf('-') !== -1) {
+        s = sign + s + new Array(pad + 1).join(' ');
+      } else if (flags.indexOf('0') !== -1 && conv !== 's') {
+        s = sign + new Array(pad + 1).join('0') + s;
+      } else {
+        s = new Array(pad + 1).join(' ') + sign + s;
+      }
+    } else {
+      s = sign + s;
+    }
+    return s;
+  });
+}
+
+/**
+ * printf-style string formatting (Jinja2's `format`). The `%` placeholders
+ * in the format string are filled from the filter arguments in order.
+ * Supports conversions `s d i u f F e E g G x X o c` and `%%`, with
+ * optional flags (`-` `+` space `0`), a width, and a `.precision`. Use
+ * `%%` for a literal percent sign.
+ *
+ * @example
+ * {{ "%s is %d"|format("age", 42) }}
+ * // => age is 42
+ *
+ * @example
+ * {{ "%.2f"|format(3.14159) }}
+ * // => 3.14
+ *
+ * @param  {string} input  The format string.
+ * @return {*}
+ */
+exports.format = function (input) {
+  if (typeof input !== 'string') {
+    return input;
+  }
+  return sprintf(input, Array.prototype.slice.call(arguments, 1));
+};

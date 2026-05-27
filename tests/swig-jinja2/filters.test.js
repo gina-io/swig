@@ -238,4 +238,40 @@ describe('@rhinostone/swig-jinja2 — filters', function () {
     });
   });
 
+  describe('replace', function () {
+    it('replaces all occurrences of a literal substring', function () {
+      expect(render('{{ s|replace("Hello", "Goodbye") }}', { s: 'Hello World Hello' })).to.equal('Goodbye World Goodbye');
+    });
+    it('honours an occurrence count', function () {
+      expect(render('{{ s|replace("o", "0", 1) }}', { s: 'foo boo' })).to.equal('f0o boo');
+    });
+    it('replaces non-overlapping multi-character matches', function () {
+      expect(render('{{ "aaaa"|replace("aa", "b") }}')).to.equal('bb');
+    });
+    it('defaults the replacement to empty when omitted', function () {
+      expect(render('{{ "abc"|replace("b") }}')).to.equal('ac');
+    });
+  });
+
+  describe('format', function () {
+    it('substitutes %s and %d placeholders in order', function () {
+      expect(render('{{ "%s is %d"|format("age", 42) }}')).to.equal('age is 42');
+    });
+    it('honours width, precision, and zero-pad flags', function () {
+      expect(render('{{ "%05.2f"|format(n) }}', { n: 3.14159 })).to.equal('03.14');
+      expect(render('{{ "%.2f"|format(n) }}', { n: 3.14159 })).to.equal('3.14');
+      expect(render('{{ "%5d"|format(42) }}')).to.equal('   42');
+    });
+    it('left-justifies with the - flag and signs with +', function () {
+      expect(render('{{ "%-5s|"|format("ab") }}')).to.equal('ab   |');
+      expect(render('{{ "%+d"|format(5) }}')).to.equal('+5');
+    });
+    it('formats hexadecimal with %x', function () {
+      expect(render('{{ "%x"|format(255) }}')).to.equal('ff');
+    });
+    it('emits a literal percent for %%', function () {
+      expect(render('{{ "100%%"|format() }}')).to.equal('100%');
+    });
+  });
+
 });
