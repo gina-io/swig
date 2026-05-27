@@ -1,0 +1,1 @@
+{% for g in people|groupby("city") %}{{ g.grouper }}:{{ g.list|length }};{% endfor %}
