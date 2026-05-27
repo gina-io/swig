@@ -317,4 +317,46 @@ describe('@rhinostone/swig-jinja2 — filters', function () {
     });
   });
 
+  describe('list', function () {
+    it('converts a string to a list of characters', function () {
+      expect(render('{{ "abc"|list|join("-") }}')).to.equal('a-b-c');
+    });
+    it('copies an array', function () {
+      expect(render('{{ s|list|join("-") }}', { s: [1, 2, 3] })).to.equal('1-2-3');
+    });
+    it('lists a mapping by its keys', function () {
+      expect(render('{{ s|list|join("-") }}', { s: { x: 1, y: 2 } })).to.equal('x-y');
+    });
+  });
+
+  describe('unique', function () {
+    it('removes duplicates preserving first-seen order', function () {
+      expect(render('{{ s|unique|join(",") }}', { s: [1, 2, 2, 3, 1] })).to.equal('1,2,3');
+    });
+    it('compares strings case-insensitively by default', function () {
+      expect(render('{{ s|unique|join(",") }}', { s: ['a', 'A', 'b', 'a'] })).to.equal('a,b');
+    });
+    it('compares exactly when caseSensitive is truthy', function () {
+      expect(render('{{ s|unique(true)|join(",") }}', { s: ['a', 'A', 'a'] })).to.equal('a,A');
+    });
+  });
+
+  describe('batch', function () {
+    it('batches items into rows of the given size', function () {
+      expect(render('{% for row in s|batch(2) %}[{{ row|join(",") }}]{% endfor %}', { s: [1, 2, 3, 4, 5] })).to.equal('[1,2][3,4][5]');
+    });
+    it('pads the last row with a fill value', function () {
+      expect(render('{% for row in s|batch(2,"x") %}[{{ row|join(",") }}]{% endfor %}', { s: [1, 2, 3, 4, 5] })).to.equal('[1,2][3,4][5,x]');
+    });
+  });
+
+  describe('slice (column batcher)', function () {
+    it('distributes items across columns, extras in front', function () {
+      expect(render('{% for c in s|slice(3) %}[{{ c|join(",") }}]{% endfor %}', { s: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] })).to.equal('[1,2,3,4][5,6,7][8,9,10]');
+    });
+    it('pads shorter columns with a fill value', function () {
+      expect(render('{% for c in s|slice(3,"x") %}[{{ c|join(",") }}]{% endfor %}', { s: [1, 2, 3, 4, 5, 6, 7] })).to.equal('[1,2,3][4,5,x][6,7,x]');
+    });
+  });
+
 });

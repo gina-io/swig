@@ -943,3 +943,155 @@ exports.center = function (input, width) {
   right = marg - left;
   return new Array(left + 1).join(' ') + input + new Array(right + 1).join(' ');
 };
+
+/**
+ * Convert the input into a list (Jinja2's `list`). A string becomes a list
+ * of its characters, an array is copied, and a mapping yields its keys. A
+ * scalar is wrapped in a single-element list (Jinja2 would raise; this
+ * degrades gracefully); null / undefined yields an empty list.
+ *
+ * @example
+ * {{ "abc"|list|join("-") }}
+ * // => a-b-c
+ *
+ * @param  {*} input
+ * @return {Array}
+ */
+exports.list = function (input) {
+  if (typeof input === 'string') {
+    return input.split('');
+  }
+  if (utils.isArray(input)) {
+    return utils.extend([], input);
+  }
+  if (input && typeof input === 'object') {
+    return utils.keys(input);
+  }
+  return (input === null || input === undefined) ? [] : [input];
+};
+
+/**
+ * Return the unique items of a sequence, preserving first-seen order
+ * (Jinja2's `unique`). String comparison is case-insensitive by default;
+ * pass a truthy `caseSensitive` to compare exactly.
+ *
+ * @example
+ * {{ [1, 2, 2, 3, 1]|unique|join(",") }}
+ * // => 1,2,3
+ *
+ * @param  {*}       input
+ * @param  {boolean} [caseSensitive=false]
+ * @return {*}
+ */
+exports.unique = function (input, caseSensitive) {
+  var seen = [], out = [];
+  if (typeof input === 'string') {
+    input = input.split('');
+  } else if (!utils.isArray(input)) {
+    return input;
+  }
+  utils.each(input, function (item) {
+    var key = (!caseSensitive && typeof item === 'string') ? item.toLowerCase() : item;
+    if (seen.indexOf(key) === -1) {
+      seen.push(key);
+      out.push(item);
+    }
+  });
+  return out;
+};
+
+/**
+ * Batch items into rows of `size` (Jinja2's `batch`). The last row holds
+ * the remainder; an optional `fill` pads the last row up to `size`. A
+ * mapping batches its values.
+ *
+ * @example
+ * {% for row in [1,2,3,4,5]|batch(2) %}[{{ row|join(",") }}]{% endfor %}
+ * // => [1,2][3,4][5]
+ *
+ * @param  {*}      input
+ * @param  {number} size
+ * @param  {*}      [fill]  Pad the last row up to `size` with this value.
+ * @return {Array}
+ */
+exports.batch = function (input, size, fill) {
+  var items, n, out, i, last;
+  if (utils.isArray(input)) {
+    items = input;
+  } else if (input && typeof input === 'object') {
+    items = [];
+    utils.each(input, function (v) { items.push(v); });
+  } else {
+    return [];
+  }
+  n = Number(size);
+  if (!isFinite(n) || n <= 0) {
+    return [];
+  }
+  n = Math.ceil(n);
+  out = [];
+  i = 0;
+  while (i < items.length) {
+    out.push(items.slice(i, i + n));
+    i += n;
+  }
+  if (fill !== undefined && out.length > 0) {
+    last = out[out.length - 1];
+    while (last.length < n) {
+      last.push(fill);
+    }
+  }
+  return out;
+};
+
+/**
+ * Distribute items across `slices` columns (Jinja2's `slice` filter — the
+ * inverse of `batch`, and distinct from the `seq[start:stop:step]`
+ * subscript). The first columns receive the extra items when the count
+ * does not divide evenly; an optional `fill` pads the shorter columns.
+ *
+ * @example
+ * {% for col in [1,2,3,4,5,6,7,8,9,10]|slice(3) %}[{{ col|join(",") }}]{% endfor %}
+ * // => [1,2,3,4][5,6,7][8,9,10]
+ *
+ * @param  {*}      input
+ * @param  {number} slices  Number of columns.
+ * @param  {*}      [fill]  Pad the shorter columns with this value.
+ * @return {Array}
+ */
+exports.slice = function (input, slices, fill) {
+  var seq, length, perSlice, withExtra, out, offset, n, start, end, tmp, i;
+  if (utils.isArray(input)) {
+    seq = input;
+  } else if (typeof input === 'string') {
+    seq = input.split('');
+  } else if (input && typeof input === 'object') {
+    seq = [];
+    utils.each(input, function (v) { seq.push(v); });
+  } else {
+    return [];
+  }
+  n = Number(slices);
+  if (!isFinite(n) || n <= 0) {
+    return [];
+  }
+  n = Math.ceil(n);
+  length = seq.length;
+  perSlice = Math.floor(length / n);
+  withExtra = length % n;
+  out = [];
+  offset = 0;
+  for (i = 0; i < n; i += 1) {
+    start = offset + i * perSlice;
+    if (i < withExtra) {
+      offset += 1;
+    }
+    end = offset + (i + 1) * perSlice;
+    tmp = seq.slice(start, end);
+    if (fill !== undefined && i >= withExtra) {
+      tmp.push(fill);
+    }
+    out.push(tmp);
+  }
+  return out;
+};
