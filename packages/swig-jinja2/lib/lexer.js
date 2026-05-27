@@ -191,6 +191,12 @@ var rules = [
     ]
   },
   {
+    type: TYPES.TILDE,
+    regex: [
+      /^~/
+    ]
+  },
+  {
     type: TYPES.OPERATOR,
     regex: [
       /^(\+|\-|\/|\*|%)/

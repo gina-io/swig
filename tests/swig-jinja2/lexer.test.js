@@ -179,6 +179,14 @@ describe('@rhinostone/swig-jinja2 — lexer (shared token subset)', function () 
     ]);
   });
 
+  /* ---- Jinja2-only operators ----------------------------------- */
+
+  it('lexes the ~ string-concatenation operator as TILDE', function () {
+    var tokens = nonWhitespace(lex('a ~ b'));
+    expect(typesOf(tokens)).to.eql([TYPES.VAR, TYPES.TILDE, TYPES.VAR]);
+    expect(tokens[1].match).to.equal('~');
+  });
+
   /* ---- Fail-close ---------------------------------------------- */
 
   it('throws on an unrecognised character', function () {
