@@ -291,4 +291,72 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% import %}', function () {
+
+    function instance(templates) {
+      return new jinja2.Jinja2({ loader: jinja2.loaders.memory(templates) });
+    }
+
+    it('imports a file\'s macros into a namespace and calls one', function () {
+      var mj = instance({
+        'forms.html': '{% macro label(name) %}[{{ name }}]{% endmacro %}',
+        'page.html': '{% import "forms.html" as f %}{{ f.label("email") }}'
+      });
+      expect(mj.renderFile('page.html', {})).to.equal('[email]');
+    });
+
+    it('resolves a sibling-macro reference inside the imported file', function () {
+      var mj = instance({
+        'forms.html': '{% macro a() %}A{% endmacro %}{% macro b() %}[{{ a() }}]{% endmacro %}',
+        'page.html': '{% import "forms.html" as f %}{{ f.b() }}'
+      });
+      expect(mj.renderFile('page.html', {})).to.equal('[A]');
+    });
+
+    it('re-homes a nested import under the alias without leaking it bare', function () {
+      // sub imports base and defines greet() calling base.hi(). The nested
+      // import is carried through and re-homed under `sub`; the inner alias
+      // `base` must not leak bare into the caller scope.
+      var mj = instance({
+        'base.html': '{% macro hi() %}HELLO{% endmacro %}',
+        'sub.html': '{% import "base.html" as base %}{% macro greet() %}[{{ base.hi() }}]{% endmacro %}',
+        'page.html': '{% import "sub.html" as sub %}{{ sub.greet() }}|{{ base }}'
+      });
+      expect(mj.renderFile('page.html', {})).to.equal('[HELLO]|');
+    });
+
+    it('re-homes nested imports across depth without leaking any inner alias', function () {
+      var mj = instance({
+        'gb.html': '{% macro g() %}GRAND{% endmacro %}',
+        'b.html': '{% import "gb.html" as gb %}{% macro hi() %}{{ gb.g() }}{% endmacro %}',
+        's.html': '{% import "b.html" as base %}{% macro greet() %}[{{ base.hi() }}]{% endmacro %}',
+        'page.html': '{% import "s.html" as sub %}{{ sub.greet() }}|{{ base }}|{{ gb }}'
+      });
+      expect(mj.renderFile('page.html', {})).to.equal('[GRAND]||');
+    });
+
+    it('rejects a dynamic import path', function () {
+      expect(function () {
+        render('{% import dyn as f %}', { dyn: 'forms.html' });
+      }).to.throwError(/Dynamic "import" is not supported/);
+    });
+
+    it('rejects a dangerous import alias', function () {
+      var mj = instance({
+        'forms.html': '{% macro a() %}A{% endmacro %}',
+        'page.html': '{% import "forms.html" as __proto__ %}'
+      });
+      expect(function () { mj.renderFile('page.html', {}); }).to.throwError(/CVE-2023-25345/);
+    });
+
+    it('rejects a dotted import alias', function () {
+      var mj = instance({
+        'forms.html': '{% macro a() %}A{% endmacro %}',
+        'page.html': '{% import "forms.html" as a.b %}'
+      });
+      expect(function () { mj.renderFile('page.html', {}); }).to.throwError(/must be a bare identifier/);
+    });
+
+  });
+
 });
