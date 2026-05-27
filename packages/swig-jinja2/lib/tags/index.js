@@ -20,5 +20,6 @@ module.exports = {
   'else': require('./else'),
   'for': require('./for'),
   'block': require('./block'),
-  'extends': require('./extends')
+  'extends': require('./extends'),
+  'include': require('./include')
 };

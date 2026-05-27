@@ -198,4 +198,46 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% include %}', function () {
+
+    function instance(templates) {
+      return new jinja2.Jinja2({ loader: jinja2.loaders.memory(templates) });
+    }
+
+    it('includes a partial that sees the caller context by default', function () {
+      var mj = instance({
+        'page.html': 'A{% include "p.html" %}B',
+        'p.html': '[{{ x }}]'
+      });
+      expect(mj.renderFile('page.html', { x: 'hi' })).to.equal('A[hi]B');
+    });
+
+    it('isolates the partial with `without context`', function () {
+      var mj = instance({
+        'page.html': '{% include "p.html" without context %}',
+        'p.html': '[{{ x }}]'
+      });
+      expect(mj.renderFile('page.html', { x: 'hi' })).to.equal('[]');
+    });
+
+    it('passes context explicitly with `with context`', function () {
+      var mj = instance({
+        'page.html': '{% include "p.html" with context %}',
+        'p.html': '[{{ x }}]'
+      });
+      expect(mj.renderFile('page.html', { x: 'hi' })).to.equal('[hi]');
+    });
+
+    it('swallows a missing template with `ignore missing`', function () {
+      var mj = instance({ 'page.html': 'A{% include "nope.html" ignore missing %}B' });
+      expect(mj.renderFile('page.html', {})).to.equal('AB');
+    });
+
+    it('throws on a missing template without `ignore missing`', function () {
+      var mj = instance({ 'page.html': 'A{% include "nope.html" %}B' });
+      expect(function () { mj.renderFile('page.html', {}); }).to.throwError();
+    });
+
+  });
+
 });
