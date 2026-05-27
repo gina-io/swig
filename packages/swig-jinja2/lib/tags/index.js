@@ -27,5 +27,6 @@ module.exports = {
   'from': require('./from'),
   'raw': require('./raw'),
   'filter': require('./filter'),
-  'with': require('./with')
+  'with': require('./with'),
+  'autoescape': require('./autoescape')
 };

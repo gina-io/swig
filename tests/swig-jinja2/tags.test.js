@@ -535,4 +535,45 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% autoescape %}', function () {
+
+    var h = { html: '<b>x</b>' };
+
+    it('disables escaping for its region with false', function () {
+      expect(render('{% autoescape false %}{{ html }}{% endautoescape %}', h)).to.equal('<b>x</b>');
+    });
+
+    it('forces escaping for its region with true', function () {
+      expect(render('{% autoescape true %}{{ html }}{% endautoescape %}', h)).to.equal('&lt;b&gt;x&lt;/b&gt;');
+    });
+
+    it('confines the override to its region', function () {
+      expect(render('{{ html }}|{% autoescape false %}{{ html }}{% endautoescape %}|{{ html }}', h))
+        .to.equal('&lt;b&gt;x&lt;/b&gt;|<b>x</b>|&lt;b&gt;x&lt;/b&gt;');
+    });
+
+    it('nests, restoring the outer setting on close', function () {
+      expect(render('{% autoescape false %}{{ html }}{% autoescape true %}{{ html }}{% endautoescape %}{{ html }}{% endautoescape %}', h))
+        .to.equal('<b>x</b>&lt;b&gt;x&lt;/b&gt;<b>x</b>');
+    });
+
+    it('requires a true/false literal', function () {
+      expect(function () { render('{% autoescape foo %}x{% endautoescape %}'); }).to.throwError(/Expected "true" or "false"/);
+      expect(function () { render('{% autoescape %}x{% endautoescape %}'); }).to.throwError(/Expected "true" or "false"/);
+    });
+
+  });
+
+  describe('non-goal tags', function () {
+
+    it('rejects {% call %} (not supported)', function () {
+      expect(function () { render('{% call foo() %}x{% endcall %}'); }).to.throwError(/Unexpected tag "call"/);
+    });
+
+    it('rejects {% do %} (not supported)', function () {
+      expect(function () { render('{% do x %}'); }).to.throwError(/Unexpected tag "do"/);
+    });
+
+  });
+
 });

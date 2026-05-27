@@ -512,6 +512,12 @@ exports.parse = function (swig, source, opts, tags, filters) {
 
   var escape = opts.autoescape;
   if (typeof escape === 'undefined') { escape = true; }
+  // Region-scoped autoescape. `escape` is the template-level default;
+  // `{% autoescape true/false %}` pushes a new value for the duration of
+  // its body and `{% endautoescape %}` pops it, mirroring the inRaw flag
+  // below. parseVariable reads the current top, so the `e` filter tail is
+  // baked per-region at parse time (the backend IRAutoescape node is inert).
+  var escapeStack = [escape];
 
   var tagOpen = tagControls[0];
   var tagClose = tagControls[1];
@@ -588,10 +594,11 @@ exports.parse = function (swig, source, opts, tags, filters) {
     });
     var expr = exports.parseExpr(lexed, filters);
     var tail;
-    if (escape && !sawSafe) {
+    var esc = escapeStack[escapeStack.length - 1];
+    if (esc && !sawSafe) {
       var escapeArgs;
-      if (typeof escape === 'string') {
-        escapeArgs = [ir.literal('string', escape)];
+      if (typeof esc === 'string') {
+        escapeArgs = [ir.literal('string', esc)];
       }
       tail = [ir.filterCall('e', escapeArgs)];
     }
@@ -620,6 +627,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
       last = stack[stack.length - 1];
       if (last && last.name === openName && last.ends) {
         if (openName === 'raw') { inRaw = false; }
+        if (openName === 'autoescape') { escapeStack.pop(); }
         stack.pop();
         return;
       }
@@ -658,6 +666,9 @@ exports.parse = function (swig, source, opts, tags, filters) {
 
     if (tagName === 'raw') {
       inRaw = true;
+    }
+    if (tagName === 'autoescape') {
+      escapeStack.push(token.escapeValue);
     }
 
     return token;
