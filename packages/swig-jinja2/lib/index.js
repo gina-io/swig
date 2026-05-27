@@ -13,7 +13,8 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
   dateformatter = require('@rhinostone/swig-core/lib/dateformatter'),
   parser = require('./parser'),
   _tags = require('./tags'),
-  _filters = require('./filters');
+  _filters = require('./filters'),
+  _tests = require('./tests');
 
 exports.name = 'jinja2';
 
@@ -138,6 +139,7 @@ exports.setDefaultTZOffset = function (offset) {
  * @return {object}           New Jinja2 environment.
  */
 exports.Jinja2 = function (opts) {
+  var self = this;
   validateOptions(opts);
   this.options = utils.extend({}, defaultOptions, opts || {});
   this.cache = {};
@@ -151,6 +153,14 @@ exports.Jinja2 = function (opts) {
     onCompileError: function (err, options) {
       utils.throwError(err, null, options.filename);
     }
+  });
+
+  // Register Jinja2 `is <name>` runtime helpers as `_ext._test_<name>`.
+  // setExtension attaches them to this instance's `extensions` map, so a
+  // consumer can override any test per-instance with their own
+  // `setExtension('_test_<name>', fn)` after construction.
+  utils.each(_tests, function (fn, name) {
+    self.setExtension('_test_' + name, fn);
   });
 };
 
