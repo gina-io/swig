@@ -1,4 +1,5 @@
-var iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter;
+var utils = require('@rhinostone/swig-core/lib/utils'),
+  iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter;
 
 /**
  * Jinja2 filter catalog.
@@ -139,3 +140,173 @@ exports.escape = function (input, type) {
     .replace(/[<>"']/g, escapeHtmlRest);
 };
 exports.e = exports.escape;
+
+/**
+ * Return the number of items in a sequence (array, string) or the number
+ * of keys in a mapping (object). `count` is an alias.
+ *
+ * @example
+ * {{ "Tacos"|length }}
+ * // => 5
+ *
+ * @param  {*} input
+ * @return {number|string} The length, or "" when the input has none.
+ */
+exports.length = function (input) {
+  if (typeof input === 'object' && input !== null && !utils.isArray(input)) {
+    return utils.keys(input).length;
+  }
+  if (input && input.hasOwnProperty('length')) {
+    return input.length;
+  }
+  return '';
+};
+
+/**
+ * Alias of `length`.
+ *
+ * @example
+ * {{ items|count }}
+ * // => 3
+ *
+ * @param  {*} input
+ * @return {number|string}
+ */
+exports.count = exports.length;
+
+/**
+ * Return the first item of an array, the first character of a string, or
+ * the first value of an object.
+ *
+ * @example
+ * {{ ["a", "b", "c"]|first }}
+ * // => a
+ *
+ * @param  {*} input
+ * @return {*}
+ */
+exports.first = function (input) {
+  if (typeof input === 'object' && input !== null && !utils.isArray(input)) {
+    var keys = utils.keys(input);
+    return input[keys[0]];
+  }
+  if (typeof input === 'string') {
+    return input.substr(0, 1);
+  }
+  if (utils.isArray(input)) {
+    return input[0];
+  }
+  return input;
+};
+
+/**
+ * Return the last item of an array, the last character of a string, or
+ * the last value of an object.
+ *
+ * @example
+ * {{ ["a", "b", "c"]|last }}
+ * // => c
+ *
+ * @param  {*} input
+ * @return {*}
+ */
+exports.last = function (input) {
+  if (typeof input === 'object' && input !== null && !utils.isArray(input)) {
+    var keys = utils.keys(input);
+    return input[keys[keys.length - 1]];
+  }
+  if (typeof input === 'string') {
+    return input.charAt(input.length - 1);
+  }
+  if (utils.isArray(input)) {
+    return input[input.length - 1];
+  }
+  return input;
+};
+
+/**
+ * Join a sequence with a string glue. The default glue is the empty
+ * string (Jinja2 default), not a comma. A mapping joins its keys.
+ *
+ * @example
+ * {{ ["foo", "bar", "baz"]|join(", ") }}
+ * // => foo, bar, baz
+ *
+ * @example
+ * {{ [1, 2, 3]|join }}
+ * // => 123
+ *
+ * @param  {*}      input
+ * @param  {string} [glue='']
+ * @return {string}
+ */
+exports.join = function (input, glue) {
+  if (glue === undefined) { glue = ''; }
+  if (utils.isArray(input)) {
+    return input.join(glue);
+  }
+  if (input && typeof input === 'object') {
+    return utils.keys(input).join(glue);
+  }
+  return input;
+};
+
+/**
+ * Reverse an array or string. Does not sort — items come out in reverse
+ * input order.
+ *
+ * @example
+ * {{ [1, 2, 3]|reverse|join(",") }}
+ * // => 3,2,1
+ *
+ * @param  {array|string} input
+ * @return {array|string}
+ */
+exports.reverse = function (input) {
+  if (utils.isArray(input)) {
+    return utils.extend([], input).reverse();
+  }
+  if (typeof input === 'string') {
+    return input.split('').reverse().join('');
+  }
+  return input;
+};
+
+/**
+ * Sort an array ascending, returning a copy (does not mutate the input).
+ * Numbers sort numerically; everything else compares case-insensitively.
+ * A string sorts its characters; an object sorts its keys. Pass a truthy
+ * first argument to sort descending.
+ *
+ * @example
+ * {{ [3, 1, 2]|sort|join(",") }}
+ * // => 1,2,3
+ *
+ * @example
+ * {{ [3, 1, 2]|sort(true)|join(",") }}
+ * // => 3,2,1
+ *
+ * @param  {*}       input
+ * @param  {boolean} [reverse=false]  Sort descending when truthy.
+ * @return {*}
+ */
+exports.sort = function (input, reverse) {
+  var arr, isString = false;
+  if (utils.isArray(input)) {
+    arr = utils.extend([], input);
+  } else if (typeof input === 'string') {
+    arr = input.split('');
+    isString = true;
+  } else if (input && typeof input === 'object') {
+    arr = utils.keys(input);
+  } else {
+    return input;
+  }
+  arr.sort(function (a, b) {
+    if (typeof a === 'number' && typeof b === 'number') { return a - b; }
+    var sa = String(a).toLowerCase(), sb = String(b).toLowerCase();
+    return sa < sb ? -1 : sa > sb ? 1 : 0;
+  });
+  if (reverse) { arr.reverse(); }
+  return isString ? arr.join('') : arr;
+};
