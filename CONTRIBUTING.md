@@ -20,12 +20,12 @@ Here's an example of a great pull request that followed the above checklist: [Pu
 Documentation
 -------------
 
-User-facing documentation lives in the [Gina Docusaurus site](https://gina.io/docs/swig), maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/swig/`. The [JSDoc](https://jsdoc.app) blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored by hand into the Docusaurus pages.
+User-facing documentation lives in the [Gina Docusaurus site](https://gina.io/docs/swig), maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/templating/swig/`. The [JSDoc](https://jsdoc.app) blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored by hand into the Docusaurus pages.
 
 To update the documentation:
 
 1. Open a PR against `develop` in this repo for any changes to JSDoc in `lib/*.js`.
-2. Open a separate PR against `develop` in [gina-io/docs](https://github.com/gina-io/docs) for user-facing changes under `docs/swig/`.
+2. Open a separate PR against `develop` in [gina-io/docs](https://github.com/gina-io/docs) for user-facing changes under `docs/templating/swig/`.
 3. Reference the paired PR in both descriptions so reviewers can follow the round-trip.
 
 See [docs/README.md](./docs/README.md) for more detail on the docs workflow.

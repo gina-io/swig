@@ -3,7 +3,7 @@
 The user-facing documentation for `@rhinostone/swig` lives in the Gina
 Docusaurus site, under `/swig/`:
 
-- Source: [gina-io/docs](https://github.com/gina-io/docs) → `docs/swig/`
+- Source: [gina-io/docs](https://github.com/gina-io/docs) → `docs/templating/swig/`
 - Published: the `Swig Template Engine` section of the Gina documentation site
 
 Historical context: this directory previously held a hand-written HTML site
@@ -18,7 +18,7 @@ public API and are mirrored (by hand) into the Docusaurus pages.
 ## Updating the docs
 
 1. Clone `gina-io/docs`.
-2. Edit the relevant MDX under `docs/swig/`.
+2. Edit the relevant MDX under `docs/templating/swig/`.
 3. Submit a PR against `develop` in that repo.
 
 ## Reporting doc issues

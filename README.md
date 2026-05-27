@@ -64,7 +64,7 @@ For Twig syntax:
 Documentation
 -------------
 
-User-facing documentation lives in the Gina Docusaurus site under the [Swig Template Engine](https://gina.io/docs/swig) section, maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/swig/`. The JSDoc blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored into the Docusaurus pages.
+User-facing documentation lives in the Gina Docusaurus site under the [Swig Template Engine](https://gina.io/docs/swig) section, maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/templating/swig/`. The JSDoc blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored into the Docusaurus pages.
 
 Basic Example
 -------------
