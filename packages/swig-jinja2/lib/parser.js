@@ -2,7 +2,18 @@ var ir = require('@rhinostone/swig-core/lib/ir'),
   utils = require('@rhinostone/swig-core/lib/utils'),
   _dangerousProps = require('@rhinostone/swig-core/lib/security').dangerousProps;
 
+var lexer = require('./lexer');
 var _t = require('./tokentypes');
+
+/**
+ * Make a string safe for embedding into a regular expression.
+ * @param  {string} str
+ * @return {string}
+ * @private
+ */
+function escapeRegExp(str) {
+  return str.replace(/[\-\/\\\^$*+?.()|\[\]{}]/g, '\\$&');
+}
 
 /**
  * Reserved JS keywords that cannot be used as variable names.
@@ -451,4 +462,283 @@ exports.parseExpr = function (tokens, filters, _posOut) {
   }
 
   return result;
+};
+
+
+/**
+ * Parse a Jinja2 source string into a parse tree of pre-built IR nodes
+ * and tag tokens, ready for swig-core's backend walker.
+ *
+ * Mirrors the shape of the native swig `parser.parse` so the same
+ * `engine.install(self, frontend)` plumbing works for both frontends:
+ *
+ *   - Plain text chunks → `IRText` nodes (spliced through by the backend).
+ *   - `{{ … }}` chunks  → `IROutput` nodes built via parseExpr; if
+ *     autoescape is on, the IROutput.filters slot carries an `e`
+ *     filterCall tail unless one of the chained filters is `.safe`.
+ *   - `{% … %}` chunks  → TagToken from the registered tag's `parse`.
+ *   - `{# … #}` chunks  → dropped.
+ *
+ * Jinja2 tags own their argument parsing directly via `parseExpr`; there
+ * is no `parser.on(types.X, fn)` callback model. The `parser` argument
+ * passed to a tag's `parse(str, line, parser, _t, stack, opts, swig,
+ * token)` is this module itself (`exports`), which exposes `parseExpr`
+ * and `lexer`.
+ *
+ * @param  {object}  swig    The Swig instance (or undefined when called
+ *                           outside an engine context).
+ * @param  {string}  source  Jinja2 template source.
+ * @param  {object}  opts    Per-call options. Honors `varControls`,
+ *                           `tagControls`, `cmtControls`, `autoescape`,
+ *                           `filename`.
+ * @param  {object}  tags    Tag registry (`{ name: { parse, compile,
+ *                           ends, block } }`).
+ * @param  {object}  filters Filter catalog. Only used for `.safe` lookup
+ *                           at autoescape time.
+ * @return {object}  `{ name, parent, tokens, blocks }` tree consumed by
+ *                   `engine.compile`.
+ * @throws {Error}   On unknown tag, mismatched end tag, or any parseExpr
+ *                   error inside a `{{ … }}` chunk.
+ */
+exports.parse = function (swig, source, opts, tags, filters) {
+  source = String(source).replace(/\r\n/g, '\n');
+  opts = opts || {};
+  tags = tags || {};
+  filters = filters || {};
+
+  var varControls = opts.varControls || ['{{', '}}'];
+  var tagControls = opts.tagControls || ['{%', '%}'];
+  var cmtControls = opts.cmtControls || ['{#', '#}'];
+
+  var escape = opts.autoescape;
+  if (typeof escape === 'undefined') { escape = true; }
+
+  var tagOpen = tagControls[0];
+  var tagClose = tagControls[1];
+  var varOpen = varControls[0];
+  var varClose = varControls[1];
+  var cmtOpen = cmtControls[0];
+  var cmtClose = cmtControls[1];
+
+  var anyChar = '[\\s\\S]*?';
+  var splitter = new RegExp(
+    '(' +
+      escapeRegExp(tagOpen) + anyChar + escapeRegExp(tagClose) + '|' +
+      escapeRegExp(varOpen) + anyChar + escapeRegExp(varClose) + '|' +
+      escapeRegExp(cmtOpen) + anyChar + escapeRegExp(cmtClose) +
+      ')'
+  );
+  // Jinja2 whitespace-control. `{{- … -}}` / `{%- … -%}` strip surrounding
+  // whitespace; the `-?` lives only adjacent to the open / close marker
+  // (no inner `-?` after `\s*`, so `{{ -5 }}` doesn't have its
+  // expression-`-` eaten as a strip marker).
+  var tagStrip = new RegExp('^' + escapeRegExp(tagOpen) + '-?\\s*|\\s*-?' + escapeRegExp(tagClose) + '$', 'g');
+  var varStrip = new RegExp('^' + escapeRegExp(varOpen) + '-?\\s*|\\s*-?' + escapeRegExp(varClose) + '$', 'g');
+  var tagStripBefore = new RegExp('^' + escapeRegExp(tagOpen) + '-');
+  var tagStripAfter = new RegExp('-' + escapeRegExp(tagClose) + '$');
+  var varStripBefore = new RegExp('^' + escapeRegExp(varOpen) + '-');
+  var varStripAfter = new RegExp('-' + escapeRegExp(varClose) + '$');
+
+  var line = 1;
+  var stack = [];
+  var parent = null;
+  var tokens = [];
+  var blocks = {};
+  var inRaw = false;
+  // Carries `-}}` / `-%}` strip-after intent across the chunk boundary.
+  // Consumed by the next text chunk (leading whitespace stripped, flag
+  // reset).
+  var stripNext = false;
+
+  /**
+   * If the previous token is a Text IR node, strip its trailing
+   * whitespace in-place. No-op for non-Text tokens. One-level-deep: a
+   * `{%- endif %}` only strips the trailing whitespace of the last child
+   * of the immediately enclosing tag, not deeper.
+   *
+   * @param  {object} token IR node (typed), possibly a Text node.
+   * @return {object}       Same node; mutated when `type === 'Text'`.
+   * @private
+   */
+  function stripPrevToken(token) {
+    if (token && token.type === 'Text' && typeof token.value === 'string') {
+      token.value = token.value.replace(/\s*$/, '');
+    }
+    return token;
+  }
+
+  /**
+   * Build an IROutput node for a `{{ … }}` chunk. The autoescape `e`
+   * filter tail is appended unless a `.safe` filter appears in the chain.
+   *
+   * @param  {string} str   Inner expression text (controls already stripped).
+   * @param  {number} _line Source line of the opening control.
+   * @return {object}       IROutput IR node.
+   * @private
+   */
+  function parseVariable(str, _line) {
+    var lexed = lexer.read(utils.strip(str));
+    var sawSafe = false;
+    utils.each(lexed, function (tok) {
+      if (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY) {
+        if (filters.hasOwnProperty(tok.match) && filters[tok.match].safe === true) {
+          sawSafe = true;
+        }
+      }
+    });
+    var expr = exports.parseExpr(lexed, filters);
+    var tail;
+    if (escape && !sawSafe) {
+      var escapeArgs;
+      if (typeof escape === 'string') {
+        escapeArgs = [ir.literal('string', escape)];
+      }
+      tail = [ir.filterCall('e', escapeArgs)];
+    }
+    return ir.output(expr, tail);
+  }
+
+  /**
+   * Dispatch a `{% … %}` chunk to its registered tag. Handles `end<name>`
+   * close-tag matching against the open-tag stack (filename-aware throws
+   * are routed via utils.throwError so the frontend can wrap them via
+   * onCompileError).
+   *
+   * @param  {string} str   Inner tag text (controls already stripped).
+   * @param  {number} _line Source line of the opening control.
+   * @return {?object}      TagToken, or undefined for end-tag close.
+   * @private
+   */
+  function parseTag(str, _line) {
+    var chunks = str.split(/\s+(.+)?/);
+    var tagName = chunks.shift();
+    var tagArgs = chunks[0] || '';
+    var last;
+
+    if (tagName.indexOf('end') === 0) {
+      var openName = tagName.replace(/^end/, '');
+      last = stack[stack.length - 1];
+      if (last && last.name === openName && last.ends) {
+        if (openName === 'raw') { inRaw = false; }
+        stack.pop();
+        return;
+      }
+      if (!inRaw) {
+        utils.throwError('Unexpected end of tag "' + openName + '"', _line, opts.filename);
+      }
+    }
+
+    // Inside a raw block, non-matching tag chunks fall through to the
+    // splitter's chunk-as-text path. The `endraw` close has already been
+    // handled above; everything else returns undefined so the splitter
+    // wraps the raw chunk via `ir.text`.
+    if (inRaw) {
+      return;
+    }
+
+    if (!tags.hasOwnProperty(tagName)) {
+      utils.throwError('Unexpected tag "' + tagName + '"', _line, opts.filename);
+    }
+
+    var tag = tags[tagName];
+    var token = {
+      block: !!tag.block,
+      compile: tag.compile,
+      args: [],
+      content: [],
+      ends: !!tag.ends,
+      name: tagName,
+      irExpr: undefined
+    };
+
+    var ok = tag.parse(tagArgs, _line, exports, _t, stack, opts, swig, token);
+    if (!ok) {
+      utils.throwError('Unexpected tag "' + tagName + '"', _line, opts.filename);
+    }
+
+    if (tagName === 'raw') {
+      inRaw = true;
+    }
+
+    return token;
+  }
+
+  utils.each(source.split(splitter), function (chunk) {
+    var token, lines, stripPrev, prevToken, prevChildToken;
+
+    if (!chunk) { return; }
+
+    if (!inRaw && utils.startsWith(chunk, varOpen) && utils.endsWith(chunk, varClose)) {
+      stripPrev = varStripBefore.test(chunk);
+      stripNext = varStripAfter.test(chunk);
+      token = parseVariable(chunk.replace(varStrip, ''), line);
+    } else if (utils.startsWith(chunk, tagOpen) && utils.endsWith(chunk, tagClose)) {
+      stripPrev = tagStripBefore.test(chunk);
+      stripNext = tagStripAfter.test(chunk);
+      token = parseTag(chunk.replace(tagStrip, ''), line);
+      if (token) {
+        if (token.name === 'extends') {
+          parent = token.args.length ? String(token.args[0]) : null;
+        } else if (token.block && !stack.length) {
+          blocks[token.args.join('')] = token;
+        }
+      }
+      // parseTag returns undefined for non-`endraw` tag chunks while
+      // inRaw is true. Wrap the original chunk as literal text so the
+      // content inside `{% raw %}` renders verbatim.
+      if (inRaw && !token) {
+        token = ir.text(chunk);
+      }
+    } else if (!inRaw && utils.startsWith(chunk, cmtOpen) && utils.endsWith(chunk, cmtClose)) {
+      lines = chunk.match(/\n/g);
+      line += lines ? lines.length : 0;
+      return;
+    } else {
+      if (stripNext) {
+        chunk = chunk.replace(/^\s*/, '');
+        stripNext = false;
+      }
+      token = ir.text(chunk);
+    }
+
+    // `{{-` / `{%-` strips the previous text chunk's trailing whitespace.
+    // Pop tokens.last; if it's a Text node strip it directly, else if it
+    // carries `.content` (a tag with body) drill one level into its last
+    // child. One-level-deep.
+    if (stripPrev && tokens.length) {
+      prevToken = tokens.pop();
+      if (prevToken && prevToken.type === 'Text') {
+        prevToken = stripPrevToken(prevToken);
+      } else if (prevToken && prevToken.content && prevToken.content.length) {
+        prevChildToken = stripPrevToken(prevToken.content.pop());
+        prevToken.content.push(prevChildToken);
+      }
+      tokens.push(prevToken);
+    }
+
+    if (token) {
+      if (stack.length) {
+        stack[stack.length - 1].content.push(token);
+      } else {
+        tokens.push(token);
+      }
+      if (token.name && token.ends) {
+        stack.push(token);
+      }
+    }
+
+    lines = chunk.match(/\n/g);
+    line += lines ? lines.length : 0;
+  });
+
+  if (stack.length) {
+    utils.throwError('Missing end tag for "' + stack[stack.length - 1].name + '"', line, opts.filename);
+  }
+
+  return {
+    name: opts.filename,
+    parent: parent,
+    tokens: tokens,
+    blocks: blocks
+  };
 };
