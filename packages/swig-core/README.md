@@ -3,7 +3,7 @@
 
 [![NPM version](http://img.shields.io/npm/v/@rhinostone/swig-core.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig-core) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig-core)](https://socket.dev/npm/package/@rhinostone/swig-core)
 
-> **Shared runtime** for the `@rhinostone/swig` family of template engines. Not intended for direct consumption unless you are building a custom frontend. Install [@rhinostone/swig](https://www.npmjs.com/package/@rhinostone/swig) for the default Swig (Jinja2/Django-inspired) flavor, or [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig) for the Twig flavor — both pull this package in pinned to the matching version.
+> **Shared runtime** for the `@rhinostone/swig` family of template engines. Not intended for direct consumption unless you are building a custom frontend. Install [@rhinostone/swig](https://www.npmjs.com/package/@rhinostone/swig) for the default Swig (Jinja2/Django-inspired) flavor, [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig) for the Twig flavor, or [@rhinostone/swig-jinja2](https://www.npmjs.com/package/@rhinostone/swig-jinja2) for the Python Jinja2 flavor — they all pull this package in pinned to the matching version.
 
 Extracted from `@rhinostone/swig@1.6.0` during the `2.0.0-alpha.1` multi-flavor carve. See [ROADMAP.md](https://github.com/gina-io/swig/blob/develop/ROADMAP.md) for the release narrative.
 
@@ -21,6 +21,7 @@ Consumers
 
 * [@rhinostone/swig](https://www.npmjs.com/package/@rhinostone/swig) — default Swig flavor.
 * [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig) — Twig parity frontend.
+* [@rhinostone/swig-jinja2](https://www.npmjs.com/package/@rhinostone/swig-jinja2) — Python Jinja2 frontend.
 
 Versioning
 ----------
