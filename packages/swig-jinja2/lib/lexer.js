@@ -205,6 +205,15 @@ var rules = [
     ]
   },
   {
+    // Above OPERATOR so `//` wins over a bare `/`. Note JS has no
+    // floor-division operator (`a // b` is a comment), so the parser
+    // lowers FLOORDIV to Math.floor(a / b) rather than emitting `//`.
+    type: TYPES.FLOORDIV,
+    regex: [
+      /^\/\//
+    ]
+  },
+  {
     type: TYPES.OPERATOR,
     regex: [
       /^(\+|\-|\/|\*|%)/

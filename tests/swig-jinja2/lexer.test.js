@@ -199,6 +199,18 @@ describe('@rhinostone/swig-jinja2 — lexer (shared token subset)', function () 
     expect(tokens[1].match).to.equal('*');
   });
 
+  it('lexes the // floor-division operator as FLOORDIV, not two OPERATOR slashes', function () {
+    var tokens = nonWhitespace(lex('7 // 2'));
+    expect(typesOf(tokens)).to.eql([TYPES.NUMBER, TYPES.FLOORDIV, TYPES.NUMBER]);
+    expect(tokens[1].match).to.equal('//');
+  });
+
+  it('still lexes a single / as OPERATOR', function () {
+    var tokens = nonWhitespace(lex('7 / 2'));
+    expect(typesOf(tokens)).to.eql([TYPES.NUMBER, TYPES.OPERATOR, TYPES.NUMBER]);
+    expect(tokens[1].match).to.equal('/');
+  });
+
   /* ---- Fail-close ---------------------------------------------- */
 
   it('throws on an unrecognised character', function () {
