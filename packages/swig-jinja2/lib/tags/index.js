@@ -21,5 +21,6 @@ module.exports = {
   'for': require('./for'),
   'block': require('./block'),
   'extends': require('./extends'),
-  'include': require('./include')
+  'include': require('./include'),
+  'macro': require('./macro')
 };

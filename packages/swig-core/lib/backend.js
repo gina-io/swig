@@ -264,10 +264,23 @@ exports.compile = function (template, parents, options, blockName) {
       });
       var macroParams = node.params || [],
         macroSigJS,
-        macroIndexOfJS;
+        macroIndexOfJS,
+        macroDefaultsJS = '';
       if (macroParams.length && typeof macroParams[0] === 'object' && macroParams[0] !== null && typeof macroParams[0].name === 'string') {
         var macroNames = [];
-        utils.each(macroParams, function (p) { macroNames.push(p.name); });
+        utils.each(macroParams, function (p) {
+          macroNames.push(p.name);
+          // Parameter defaults — `{% macro foo(a, b='x') %}` carries an
+          // IRExpr on `p.default`. Emit `if (b === undefined) { b = <expr>; }`
+          // at the top of the macro body, before the _ctx shadow-delete, so a
+          // default expression reads the incoming context (and earlier
+          // parameters) consistently with the macro model. Missing args
+          // arrive as `undefined`, so the guard applies the default while
+          // leaving an explicit falsy value (`0`, `false`, `''`) alone.
+          if (p['default']) {
+            macroDefaultsJS += '  if (' + p.name + ' === undefined) { ' + p.name + ' = ' + exports.emitExpr(p['default']) + '; }\n';
+          }
+        });
         macroSigJS = macroNames.join(', ');
         var macroJsonNames = [];
         utils.each(macroNames, function (n) { macroJsonNames.push(JSON.stringify(n)); });
@@ -279,6 +292,7 @@ exports.compile = function (template, parents, options, blockName) {
       out += '_ctx.' + node.name + ' = function (' + macroSigJS + ') {\n' +
         '  var _output = "",\n' +
         '    __ctx = _utils.extend({}, _ctx);\n' +
+        macroDefaultsJS +
         '  _utils.each(_ctx, function (v, k) {\n' +
         '    if ([' + macroIndexOfJS + '].indexOf(k) !== -1) { delete _ctx[k]; }\n' +
         '  });\n' +

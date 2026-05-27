@@ -240,4 +240,55 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% macro %}', function () {
+
+    it('defines and calls a no-argument macro', function () {
+      expect(render('{% macro hi() %}hello{% endmacro %}{{ hi() }}')).to.equal('hello');
+    });
+
+    it('defines and calls a macro with positional parameters', function () {
+      expect(render('{% macro greet(name) %}Hi {{ name }}{% endmacro %}{{ greet("Ada") }}')).to.equal('Hi Ada');
+    });
+
+    it('applies a parameter default when the argument is omitted', function () {
+      var tpl = '{% macro greet(name, punct="!") %}Hi {{ name }}{{ punct }}{% endmacro %}';
+      expect(render(tpl + '{{ greet("Ada") }}')).to.equal('Hi Ada!');
+    });
+
+    it('lets an explicit argument override a parameter default', function () {
+      var tpl = '{% macro greet(name, punct="!") %}Hi {{ name }}{{ punct }}{% endmacro %}';
+      expect(render(tpl + '{{ greet("Ada", "?") }}')).to.equal('Hi Ada?');
+    });
+
+    it('preserves an explicit falsy argument over the default', function () {
+      var tpl = '{% macro tag(n, show=true) %}{% if show %}{{ n }}{% endif %}{% endmacro %}';
+      expect(render(tpl + '{{ tag("x", false) }}')).to.equal('');
+      expect(render(tpl + '{{ tag("x") }}')).to.equal('x');
+    });
+
+    it('allows a default that references an earlier parameter', function () {
+      var tpl = '{% macro pair(a, b=a) %}{{ a }}-{{ b }}{% endmacro %}';
+      expect(render(tpl + '{{ pair(5) }}')).to.equal('5-5');
+      expect(render(tpl + '{{ pair(5, 9) }}')).to.equal('5-9');
+    });
+
+    it('allows a default that is a full expression', function () {
+      var tpl = '{% macro box(w, area=w * w) %}{{ area }}{% endmacro %}';
+      expect(render(tpl + '{{ box(4) }}')).to.equal('16');
+    });
+
+    it('rejects a dangerous macro name', function () {
+      expect(function () { render('{% macro __proto__() %}x{% endmacro %}'); }).to.throwError(/CVE-2023-25345/);
+    });
+
+    it('rejects a dangerous parameter name', function () {
+      expect(function () { render('{% macro f(constructor) %}x{% endmacro %}'); }).to.throwError(/CVE-2023-25345/);
+    });
+
+    it('rejects a dotted macro name', function () {
+      expect(function () { render('{% macro a.b() %}x{% endmacro %}'); }).to.throwError(/must be a bare identifier/);
+    });
+
+  });
+
 });

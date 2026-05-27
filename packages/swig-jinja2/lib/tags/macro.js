@@ -1,0 +1,174 @@
+/*!
+ * Jinja2 `{% macro %}` tag.
+ *
+ * Jinja2 macro syntax:
+ *
+ *   {% macro name() %}…{% endmacro %}
+ *   {% macro name(a, b, c) %}…{% endmacro %}
+ *   {% macro name(a, b='x', c=a) %}…{% endmacro %}   (parameter defaults)
+ *
+ * Defines a reusable function bound to `_ctx.<name>`. The backend emits the
+ * full IIFE (`_utils.extend` snapshot, shadow-delete of param names from
+ * `_ctx`, default-application, body, restore) — see backend.js Macro branch.
+ * The tag ships only semantic IR: name, params (`IRMacroParam[]`), body.
+ *
+ * A parameter default is any Jinja2 expression and is lowered via
+ * `parser.parseExpr`. Defaults are applied at the top of the macro body
+ * (before the `_ctx` shadow-delete), so a default may reference an earlier
+ * parameter or an incoming context variable. Keyword-style CALLING
+ * (`foo(a=1)`) is a non-goal.
+ *
+ * Param names and the macro name are bare identifiers — dotted paths
+ * (`foo.bar`) and CVE-2023-25345 prototype-chain names (`__proto__`,
+ * `constructor`, `prototype`) are rejected at parse time. Single-name
+ * binding slots reject any `.` in the match before the `_dangerousProps`
+ * check.
+ */
+
+var ir = require('@rhinostone/swig-core/lib/ir');
+var utils = require('@rhinostone/swig-core/lib/utils');
+var _dangerousProps = require('@rhinostone/swig-core/lib/security').dangerousProps;
+
+var lexer = require('../lexer');
+
+exports.ends = true;
+exports.block = true;
+
+/**
+ * Parse the `{% macro %}` tag body. Extracts the macro name and the
+ * optional comma-separated parameter list (each parameter optionally
+ * carrying a `= <default>` expression). Both name and params are validated
+ * against the bare-identifier rule and the CVE-2023-25345 `_dangerousProps`
+ * blocklist.
+ *
+ * Accepts both shapes:
+ *   `name` + FUNCTION/FUNCTIONEMPTY (idiomatic)
+ *   `name(a, b)` lexed as FUNCTION token whose `match` is the name
+ *
+ * Stashes `[name, IRMacroParam, IRMacroParam, ...]` on `token.args`. Compile
+ * lifts the name off the head and passes the remaining param objects
+ * straight to `ir.macro` — the backend handles the IIFE.
+ *
+ * @param  {string} str    Tag body.
+ * @param  {number} line   Source line of the opening `{%`.
+ * @param  {object} parser The Jinja2 parser module (exposes `parseExpr`,
+ *                         used to lower parameter defaults).
+ * @param  {object} types  Jinja2 lexer token-type enum.
+ * @param  {Array}  stack  Open-tag stack (unused — parser.js manages push).
+ * @param  {object} opts   Per-call options (honors `opts.filename`).
+ * @param  {object} swig   Swig instance (unused).
+ * @param  {object} token  In-progress TagToken. `token.args` gets the
+ *                         macro name + IRMacroParam objects.
+ * @return {boolean}       Always `true` on success. Throws otherwise.
+ */
+exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
+  var tokens = lexer.read(utils.strip(str));
+  var pos = 0;
+
+  function peek() {
+    while (pos < tokens.length && tokens[pos].type === types.WHITESPACE) { pos += 1; }
+    return pos < tokens.length ? tokens[pos] : null;
+  }
+  function consume() {
+    var t = peek();
+    if (t) { pos += 1; }
+    return t;
+  }
+
+  function checkName(name, role) {
+    if (name.indexOf('.') !== -1) {
+      utils.throwError(role + ' "' + name + '" must be a bare identifier in "macro" tag', line, opts.filename);
+    }
+    if (_dangerousProps.indexOf(name) !== -1) {
+      utils.throwError('Unsafe ' + role.toLowerCase() + ' "' + name + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+    }
+  }
+
+  var head = consume();
+  if (!head) {
+    utils.throwError('Expected macro name in "macro" tag', line, opts.filename);
+  }
+
+  var name;
+  var params = [];
+
+  if (head.type === types.FUNCTIONEMPTY) {
+    name = head.match;
+    checkName(name, 'Macro name');
+  } else if (head.type === types.FUNCTION) {
+    name = head.match;
+    checkName(name, 'Macro name');
+    var first = true;
+    while (true) {
+      var tk = peek();
+      if (!tk) {
+        utils.throwError('Unclosed parameter list in "macro" tag', line, opts.filename);
+      }
+      if (tk.type === types.PARENCLOSE) {
+        consume();
+        break;
+      }
+      if (!first) {
+        if (tk.type !== types.COMMA) {
+          utils.throwError('Expected "," between parameters in "macro" tag', line, opts.filename);
+        }
+        consume();
+      }
+      first = false;
+      var pTok = consume();
+      if (!pTok || pTok.type !== types.VAR) {
+        utils.throwError('Expected parameter name in "macro" tag', line, opts.filename);
+      }
+      checkName(pTok.match, 'Parameter');
+      var defaultExpr;
+      if (peek() && peek().type === types.ASSIGNMENT) {
+        if (peek().match !== '=') {
+          utils.throwError('Parameter default must use "=" in "macro" tag', line, opts.filename);
+        }
+        consume();
+        // Parse a single default expression from the cursor. parseExpr stops
+        // at the next COMMA / PARENCLOSE (neither is part of an expression);
+        // the out-param reports how many slice tokens it consumed so the
+        // local cursor can resume at the next parameter.
+        var posOut = {};
+        defaultExpr = parser.parseExpr(tokens.slice(pos), {}, posOut);
+        pos += posOut.pos;
+      }
+      params.push(ir.macroParam(pTok.match, defaultExpr));
+    }
+  } else if (head.type === types.VAR) {
+    name = head.match;
+    checkName(name, 'Macro name');
+  } else {
+    utils.throwError('Expected macro name in "macro" tag', line, opts.filename);
+  }
+
+  if (peek()) {
+    utils.throwError('Unexpected token "' + peek().match + '" after macro signature in "macro" tag', line, opts.filename);
+  }
+
+  token.args = [name].concat(params);
+  return true;
+};
+
+/**
+ * Emit an IRMacro node. The backend's `Macro` branch owns the
+ * `_ctx.<name> = function(...) { … }` IIFE, the `_utils.extend` snapshot,
+ * the default-application lines, and the shadow-delete of param names from
+ * `_ctx`.
+ *
+ * @param  {Function} compiler   Backend walker (recurses into `content`).
+ * @param  {Array}    args       `[name, IRMacroParam, ...]`.
+ * @param  {Array}    content    Child tokens between `{% macro %}` and
+ *                               `{% endmacro %}`.
+ * @param  {Array}    parents    Parent template chain (passed through).
+ * @param  {object}   options    Compile options (passed through).
+ * @param  {?string}  blockName  Enclosing block name (passed through).
+ * @return {object}   IRMacro node.
+ */
+exports.compile = function (compiler, args, content, parents, options, blockName) {
+  var name = args[0];
+  var params = args.slice(1);
+  var bodyJS = compiler(content, parents, options, blockName);
+  return ir.macro(name, params, [ir.legacyJS(bodyJS)]);
+};
