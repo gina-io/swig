@@ -237,6 +237,57 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(ir.test).to.eql({ type: 'VarRef', path: ['c'] });
   });
 
+  it('lowers a generic `is <test>` to an _ext._test_<name> call', function () {
+    var ir = parse('x is odd');
+    expect(ir.type).to.equal('FnCall');
+    expect(ir.callee).to.eql({ type: 'VarRef', path: ['_ext', '_test_odd'] });
+    expect(ir.args[0]).to.eql({ type: 'VarRef', path: ['x'] });
+  });
+
+  it('passes test arguments through (`is divisibleby(3)`)', function () {
+    var ir = parse('x is divisibleby(3)');
+    expect(ir.callee.path).to.eql(['_ext', '_test_divisibleby']);
+    expect(ir.args).to.have.length(2);
+    expect(ir.args[1]).to.eql({ type: 'Literal', kind: 'number', value: 3 });
+  });
+
+  it('routes `is defined` on a VarRef through VarRefExists', function () {
+    expect(parse('x is defined')).to.eql({ type: 'VarRefExists', path: ['x'] });
+  });
+
+  it('routes `is not defined` through a negated VarRefExists', function () {
+    var ir = parse('x is not defined');
+    expect(ir).to.eql({ type: 'UnaryOp', op: '!', operand: { type: 'VarRefExists', path: ['x'] } });
+  });
+
+  it('treats `is none` like a negated existence check on a VarRef', function () {
+    var ir = parse('x is none');
+    expect(ir).to.eql({ type: 'UnaryOp', op: '!', operand: { type: 'VarRefExists', path: ['x'] } });
+  });
+
+  it('wraps `is not <test>` in a unary !', function () {
+    var ir = parse('x is not odd');
+    expect(ir.type).to.equal('UnaryOp');
+    expect(ir.op).to.equal('!');
+    expect(ir.operand.type).to.equal('FnCall');
+    expect(ir.operand.callee.path).to.eql(['_ext', '_test_odd']);
+  });
+
+  it('falls through to the generic helper for a non-VarRef subject', function () {
+    var ir = parse('items|first is defined');
+    expect(ir.type).to.equal('FnCall');
+    expect(ir.callee.path).to.eql(['_ext', '_test_defined']);
+    expect(ir.args[0].type).to.equal('FilterCall');
+  });
+
+  it('binds `is` tighter than `and`', function () {
+    var ir = parse('x is defined and y');
+    expect(ir.type).to.equal('BinaryOp');
+    expect(ir.op).to.equal('&&');
+    expect(ir.left).to.eql({ type: 'VarRefExists', path: ['x'] });
+    expect(ir.right).to.eql({ type: 'VarRef', path: ['y'] });
+  });
+
   /* ---- CVE-2023-25345 guards ----------------------------------- */
 
   it('blocks __proto__ as a bare variable', function () {

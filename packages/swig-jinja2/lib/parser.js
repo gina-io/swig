@@ -94,6 +94,12 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       }
       return { op: m, prec: 4 };
     }
+    if (tok.type === _t.IS) {
+      return { op: 'is', prec: 3 };
+    }
+    if (tok.type === _t.ISNOT) {
+      return { op: 'is not', prec: 3 };
+    }
     if (tok.type === _t.OPERATOR) {
       m = tok.match;
       if (m === '+' || m === '-') { return { op: m, prec: 6 }; }
@@ -162,6 +168,31 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       if (next.type !== _t.COMMA) { bail('Expected comma or closing curly brace'); }
     }
     return ir.objectLiteral(props);
+  }
+
+  function parseTest() {
+    var nameTok = consume();
+    if (!nameTok) { bail('Expected test name after "is" / "is not"'); }
+    var testName;
+    var testArgs = [];
+    if (nameTok.type === _t.VAR) {
+      if (nameTok.match.indexOf('.') !== -1) {
+        bail('Dotted names are not valid test names');
+      }
+      testName = nameTok.match;
+    } else if (nameTok.type === _t.FUNCTIONEMPTY) {
+      testName = nameTok.match;
+    } else if (nameTok.type === _t.FUNCTION) {
+      testName = nameTok.match;
+      testArgs = parseArgList(_t.PARENCLOSE);
+    } else {
+      bail('Unexpected token "' + nameTok.match + '" after "is" / "is not"');
+    }
+    if (_reserved.indexOf(testName) !== -1) {
+      bail('Reserved keyword "' + testName + '" attempted to be used as a test name');
+    }
+    guardSegment(testName);
+    return { name: testName, args: testArgs };
   }
 
   function parsePostfix(expr) {
@@ -296,6 +327,28 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       var info = getBinaryOpInfo(tok);
       if (!info || info.prec < minPrec) { break; }
       consume();
+      // `is` / `is not` — the RHS is a constrained test name + optional arg
+      // list, not a full expression. Lower to `_ext._test_<name>(subject,
+      // ...args)`; `is not` wraps the call in a unary `!`. `defined` /
+      // `none` / `undefined` on a VarRef subject route through
+      // IRVarRefExists instead, because emitVarRef coerces a missing or
+      // null lookup to "" and so loses the defined/undefined signal those
+      // tests depend on. Non-VarRef subjects evaluate to a concrete value
+      // (no coercion) and fall through to the generic `_ext._test_<name>`
+      // helper registered by the engine.
+      if (info.op === 'is' || info.op === 'is not') {
+        var test = parseTest();
+        var testCall;
+        if (test.args.length === 0 && left.type === 'VarRef' && test.name === 'defined') {
+          testCall = ir.varRefExists(left.path, left.loc);
+        } else if (test.args.length === 0 && left.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
+          testCall = ir.unaryOp('!', ir.varRefExists(left.path, left.loc));
+        } else {
+          testCall = ir.fnCall(ir.varRef(['_ext', '_test_' + test.name]), [left].concat(test.args));
+        }
+        left = info.op === 'is not' ? ir.unaryOp('!', testCall) : testCall;
+        continue;
+      }
       var right = parseExpression(info.prec + 1);
       if (info.op === '//') {
         // Floor division — JS `a // b` is a line comment, so lower to
