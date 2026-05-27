@@ -422,4 +422,25 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% raw %}', function () {
+
+    it('emits variable and tag syntax verbatim', function () {
+      expect(render('{% raw %}{{ x }} and {% if y %}{% endraw %}', { x: 'V' })).to.equal('{{ x }} and {% if y %}');
+    });
+
+    it('preserves comment syntax verbatim', function () {
+      expect(render('{% raw %}{# note #}{% endraw %}')).to.equal('{# note #}');
+    });
+
+    it('renders surrounding content normally', function () {
+      expect(render('a{% raw %}{{ b }}{% endraw %}c', { b: 'B' })).to.equal('a{{ b }}c');
+      expect(render('{% raw %}{{ a }}{% endraw %}-{{ a }}', { a: 'Z' })).to.equal('{{ a }}-Z');
+    });
+
+    it('rejects tokens after the raw keyword', function () {
+      expect(function () { render('{% raw extra %}x{% endraw %}'); }).to.throwError(/Unexpected token "extra" after "raw"/);
+    });
+
+  });
+
 });

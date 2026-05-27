@@ -24,5 +24,6 @@ module.exports = {
   'include': require('./include'),
   'macro': require('./macro'),
   'import': require('./import'),
-  'from': require('./from')
+  'from': require('./from'),
+  'raw': require('./raw')
 };
