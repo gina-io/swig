@@ -443,4 +443,39 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% filter %}', function () {
+
+    it('pipes the body through a single filter', function () {
+      expect(render('{% filter upper %}hello{% endfilter %}')).to.equal('HELLO');
+    });
+
+    it('pipes the body through a left-to-right filter chain', function () {
+      expect(render('{% filter lower|upper %}MixEd{% endfilter %}')).to.equal('MIXED');
+    });
+
+    it('filters interpolated body content', function () {
+      expect(render('{% filter upper %}hi {{ n }}{% endfilter %}', { n: 'bob' })).to.equal('HI BOB');
+    });
+
+    it('passes arguments to a filter', function () {
+      var mj = new jinja2.Jinja2();
+      mj.setFilter('repeat', function (input, n) {
+        var s = '';
+        for (var i = 0; i < n; i += 1) { s += input; }
+        return s;
+      });
+      expect(mj.render('{% filter repeat(3) %}ab{% endfilter %}')).to.equal('ababab');
+      expect(mj.render('{% filter repeat(2)|upper %}xy{% endfilter %}')).to.equal('XYXY');
+    });
+
+    it('requires a filter name', function () {
+      expect(function () { render('{% filter %}x{% endfilter %}'); }).to.throwError(/Expected filter name/);
+    });
+
+    it('rejects a dangerous filter name', function () {
+      expect(function () { render('{% filter __proto__ %}x{% endfilter %}'); }).to.throwError(/CVE-2023-25345/);
+    });
+
+  });
+
 });
