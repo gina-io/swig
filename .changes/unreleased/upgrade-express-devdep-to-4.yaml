@@ -1,0 +1,4 @@
+kind: changed
+body: "Upgraded the example/development express dependency from the abandoned 3.x line to 4.x, dropping the vulnerable transitive morgan (CVE-2019-5413) and the legacy connect subtree from the dev dependency tree. The Express view-engine example runs unchanged. The published package is unaffected; its only runtime dependency remains @rhinostone/swig-core."
+custom:
+  Issue: ""
