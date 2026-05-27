@@ -478,4 +478,45 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% with %}', function () {
+
+    it('binds a single variable in the inner scope', function () {
+      expect(render('{% with x = 5 %}{{ x }}{% endwith %}')).to.equal('5');
+    });
+
+    it('binds multiple variables', function () {
+      expect(render('{% with a = 1, b = 2 %}{{ a }}{{ b }}{% endwith %}')).to.equal('12');
+    });
+
+    it('evaluates assignment values against the enclosing scope', function () {
+      expect(render('{% with y = base + 1 %}{{ y }}{% endwith %}', { base: 10 })).to.equal('11');
+      expect(render('{% with t = name|upper %}{{ t }}{% endwith %}', { name: 'bob' })).to.equal('BOB');
+    });
+
+    it('keeps the outer context visible inside the block', function () {
+      expect(render('{% with x = 1 %}{{ x }}{{ outer }}{% endwith %}', { outer: 'O' })).to.equal('1O');
+    });
+
+    it('does not leak inner bindings past endwith', function () {
+      expect(render('{% with x = 9 %}{{ x }}{% endwith %}|{{ x }}', {})).to.equal('9|');
+    });
+
+    it('supports a bare with (new scope, no assignments)', function () {
+      expect(render('{% with %}{{ v }}{% endwith %}', { v: 'V' })).to.equal('V');
+    });
+
+    it('rejects a dangerous assignment target', function () {
+      expect(function () { render('{% with __proto__ = 1 %}{% endwith %}'); }).to.throwError(/CVE-2023-25345/);
+    });
+
+    it('rejects a dotted assignment target', function () {
+      expect(function () { render('{% with a.b = 1 %}{% endwith %}'); }).to.throwError(/must be a bare identifier/);
+    });
+
+    it('requires "=" after an assignment name', function () {
+      expect(function () { render('{% with x 1 %}{% endwith %}'); }).to.throwError(/Expected "=" after "x"/);
+    });
+
+  });
+
 });
