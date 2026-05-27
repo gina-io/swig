@@ -159,4 +159,43 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% extends %} / inheritance', function () {
+
+    function instance(templates) {
+      return new jinja2.Jinja2({ loader: jinja2.loaders.memory(templates) });
+    }
+
+    it('overrides a parent block', function () {
+      var mj = instance({
+        'layout.html': 'A{% block content %}default{% endblock %}B',
+        'child.html': '{% extends "layout.html" %}{% block content %}over{% endblock %}'
+      });
+      expect(mj.renderFile('child.html', {})).to.equal('AoverB');
+    });
+
+    it('keeps the parent block when not overridden', function () {
+      var mj = instance({
+        'layout.html': 'A{% block content %}default{% endblock %}B',
+        'child.html': '{% extends "layout.html" %}'
+      });
+      expect(mj.renderFile('child.html', {})).to.equal('AdefaultB');
+    });
+
+    it('resolves a multi-level inheritance chain', function () {
+      var mj = instance({
+        'base.html': '[{% block body %}base{% endblock %}]',
+        'mid.html': '{% extends "base.html" %}{% block body %}mid{% endblock %}',
+        'leaf.html': '{% extends "mid.html" %}{% block body %}leaf{% endblock %}'
+      });
+      expect(mj.renderFile('leaf.html', {})).to.equal('[leaf]');
+    });
+
+    it('rejects dynamic extends', function () {
+      expect(function () {
+        render('{% extends parent_var %}', { parent_var: 'x' });
+      }).to.throwError(/Dynamic "extends" is not supported/);
+    });
+
+  });
+
 });

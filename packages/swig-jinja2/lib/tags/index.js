@@ -19,5 +19,6 @@ module.exports = {
   'elif': require('./elif'),
   'else': require('./else'),
   'for': require('./for'),
-  'block': require('./block')
+  'block': require('./block'),
+  'extends': require('./extends')
 };
