@@ -160,6 +160,20 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(function () { parse('x|bad', { bad: 42 }); }).to.throwError(/Invalid filter/);
   });
 
+  /* ---- Jinja2-only operators ----------------------------------- */
+
+  it('lowers ~ to a BinaryOp(~) string-concatenation', function () {
+    var ir = parse('a ~ b');
+    expect(ir).to.eql({ type: 'BinaryOp', op: '~', left: { type: 'VarRef', path: ['a'] }, right: { type: 'VarRef', path: ['b'] } });
+  });
+
+  it('binds ~ tighter than + (Jinja2/Python precedence)', function () {
+    var ir = parse('a ~ b + c');
+    expect(ir.op).to.equal('+');
+    expect(ir.left.op).to.equal('~');
+    expect(ir.right).to.eql({ type: 'VarRef', path: ['c'] });
+  });
+
   /* ---- CVE-2023-25345 guards ----------------------------------- */
 
   it('blocks __proto__ as a bare variable', function () {

@@ -99,6 +99,9 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       if (m === '+' || m === '-') { return { op: m, prec: 6 }; }
       if (m === '*' || m === '/' || m === '%') { return { op: m, prec: 8 }; }
     }
+    if (tok.type === _t.TILDE) {
+      return { op: '~', prec: 7 };
+    }
     return null;
   }
 
