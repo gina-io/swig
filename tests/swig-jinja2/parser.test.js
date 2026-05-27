@@ -174,6 +174,38 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(ir.right).to.eql({ type: 'VarRef', path: ['c'] });
   });
 
+  it('lowers ** to a Math.pow call', function () {
+    var ir = parse('2 ** 3');
+    expect(ir.type).to.equal('FnCall');
+    expect(ir.callee).to.eql({ type: 'VarRef', path: ['Math', 'pow'] });
+    expect(ir.args[0]).to.eql({ type: 'Literal', kind: 'number', value: 2 });
+    expect(ir.args[1]).to.eql({ type: 'Literal', kind: 'number', value: 3 });
+  });
+
+  it('parses ** right-associatively', function () {
+    var ir = parse('2 ** 3 ** 2');
+    expect(ir.callee.path).to.eql(['Math', 'pow']);
+    expect(ir.args[0]).to.eql({ type: 'Literal', kind: 'number', value: 2 });
+    expect(ir.args[1].type).to.equal('FnCall');
+    expect(ir.args[1].callee.path).to.eql(['Math', 'pow']);
+  });
+
+  it('groups a leading minus outside ** (Python -(2 ** 2))', function () {
+    var ir = parse('-2 ** 2');
+    expect(ir.type).to.equal('UnaryOp');
+    expect(ir.op).to.equal('-');
+    expect(ir.operand.type).to.equal('FnCall');
+    expect(ir.operand.callee.path).to.eql(['Math', 'pow']);
+  });
+
+  it('binds ** tighter than *', function () {
+    var ir = parse('2 * 3 ** 2');
+    expect(ir.type).to.equal('BinaryOp');
+    expect(ir.op).to.equal('*');
+    expect(ir.right.type).to.equal('FnCall');
+    expect(ir.right.callee.path).to.eql(['Math', 'pow']);
+  });
+
   /* ---- CVE-2023-25345 guards ----------------------------------- */
 
   it('blocks __proto__ as a bare variable', function () {

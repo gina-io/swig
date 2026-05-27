@@ -218,15 +218,6 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       return parsePostfix(ir.literal('number', parseFloat(tok.match)));
     case _t.BOOL:
       return parsePostfix(ir.literal('bool', tok.match === 'true'));
-    case _t.NOT:
-      return ir.unaryOp('!', parseUnary());
-    case _t.OPERATOR:
-      m = tok.match;
-      if (m === '+' || m === '-') {
-        return ir.unaryOp(m, parseUnary());
-      }
-      bail('Unexpected operator "' + m + '"');
-      break;
     case _t.PARENOPEN:
       var grouped = parseExpression(0);
       var close = consume();
@@ -264,7 +255,34 @@ exports.parseExpr = function (tokens, filters, _posOut) {
   }
 
   function parseUnary() {
-    return parsePrimary();
+    var tok = peek();
+    if (tok && tok.type === _t.NOT) {
+      consume();
+      return ir.unaryOp('!', parseUnary());
+    }
+    if (tok && tok.type === _t.OPERATOR && (tok.match === '+' || tok.match === '-')) {
+      consume();
+      return ir.unaryOp(tok.match, parseUnary());
+    }
+    return parsePower();
+  }
+
+  function parsePower() {
+    var left = parsePrimary();
+    var next = peek();
+    if (next && next.type === _t.POWER) {
+      consume();
+      // Right-associative (2 ** 3 ** 2 === 2 ** (3 ** 2)); the exponent is a
+      // full unary so `2 ** -3` parses. Lowered to Math.pow because the emit
+      // is parenthesis-safe — a bare `a ** b` emission would mis-group when an
+      // operand is itself a binary op and would SyntaxError when the base is a
+      // unary (`-2 ** 3`). The base is a parsePrimary (not parseUnary), so a
+      // leading minus stays with the caller: `-2 ** 2` groups as `-(2 ** 2)`,
+      // matching Jinja2/Python.
+      var right = parseUnary();
+      return ir.fnCall(ir.varRef(['Math', 'pow']), [left, right]);
+    }
+    return left;
   }
 
   function parseExpression(minPrec) {
