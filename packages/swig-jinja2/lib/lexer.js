@@ -137,6 +137,22 @@ var rules = [
     idx: 1
   },
   {
+    // ISNOT above IS above VAR — the `is` keyword would otherwise be
+    // gobbled by VAR's `^[a-zA-Z_$]\w*` pattern. ISNOT above IS because
+    // `is not` must be consumed as a single token, not IS + NOT. The `\b`
+    // word boundary keeps identifiers like `island` from matching.
+    type: TYPES.ISNOT,
+    regex: [
+      /^is\s+not\b/
+    ]
+  },
+  {
+    type: TYPES.IS,
+    regex: [
+      /^is\b/
+    ]
+  },
+  {
     // The dotted-path interior segment uses `\w+` (not `\w*`) so a future
     // operator whose first char is `.` cannot be absorbed as a zero-width
     // interior segment. Jinja2 has no `..` range today, but the tighter

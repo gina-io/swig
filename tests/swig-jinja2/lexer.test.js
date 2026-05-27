@@ -211,6 +211,25 @@ describe('@rhinostone/swig-jinja2 — lexer (shared token subset)', function () 
     expect(tokens[1].match).to.equal('/');
   });
 
+  it('lexes the `is` test keyword as IS', function () {
+    var tokens = nonWhitespace(lex('x is odd'));
+    expect(typesOf(tokens)).to.eql([TYPES.VAR, TYPES.IS, TYPES.VAR]);
+    expect(tokens[1].match).to.equal('is');
+  });
+
+  it('lexes `is not` as a single ISNOT token', function () {
+    var tokens = nonWhitespace(lex('x is not even'));
+    expect(typesOf(tokens)).to.eql([TYPES.VAR, TYPES.ISNOT, TYPES.VAR]);
+    expect(tokens[1].match).to.equal('is not');
+  });
+
+  it('does not gobble an identifier that merely starts with "is"', function () {
+    var tokens = nonWhitespace(lex('island'));
+    expect(tokens).to.have.length(1);
+    expect(tokens[0].type).to.equal(TYPES.VAR);
+    expect(tokens[0].match).to.equal('island');
+  });
+
   /* ---- Fail-close ---------------------------------------------- */
 
   it('throws on an unrecognised character', function () {
