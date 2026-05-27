@@ -16,7 +16,7 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 | --- | --- |
 | Planned | Async parse path for dynamic targets — full support for `{% extends parent_var %}`, `{% include user_template %}`, and runtime-resolved `import` / `from` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic-target support is on hold pending consumer demand. |
 | Planned | Ship a Django frontend as an additional `@rhinostone/swig-*` package. On demand — when there's concrete user demand. (The Jinja2 frontend shipped in `2.5.0`.) |
-| Planned | Test framework migration. Replace mocha 1.x + expect.js with `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. (The Node engines bump is upstream-driven by gina and is being treated as done.) |
+| Planned | Test framework migration. Replace mocha 1.x + expect.js with `node:test` + `node:assert/strict`, add a modern browser-test harness (the legacy phantomjs runner has been removed), swap blanket for `c8`. (The Node engines bump is upstream-driven by gina and is being treated as done.) |
 
 ---
 

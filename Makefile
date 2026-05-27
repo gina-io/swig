@@ -79,9 +79,6 @@ opts =
 test:
 	@node node_modules/mocha/bin/_mocha --check-leaks --reporter ${reporter} ${opts} ${tests}
 
-test-browser: FORCE clean browser/test/tests.js
-	@${BIN}/mocha-phantomjs browser/test/index.html --reporter ${reporter}
-
 files := $(shell find . -name '*.js' ! -path "./node_modules/*" ! -path "./dist/*" ! -path "./browser*" ! -path "./docs*" ! -path "./tmp*")
 lint:
 	@${BIN}/eslint ${files}
@@ -104,4 +101,4 @@ FORCE:
 
 .PHONY: all version \
 	build \
-	test test-browser lint coverage
+	test lint coverage
