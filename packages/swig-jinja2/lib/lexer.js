@@ -197,6 +197,14 @@ var rules = [
     ]
   },
   {
+    // Above OPERATOR so `**` wins over a bare `*`; first-match-wins would
+    // otherwise lex `**` as two OPERATOR tokens.
+    type: TYPES.POWER,
+    regex: [
+      /^\*\*/
+    ]
+  },
+  {
     type: TYPES.OPERATOR,
     regex: [
       /^(\+|\-|\/|\*|%)/
