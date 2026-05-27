@@ -17,5 +17,6 @@ module.exports = {
   'set': require('./set'),
   'if': require('./if'),
   'elif': require('./elif'),
-  'else': require('./else')
+  'else': require('./else'),
+  'for': require('./for')
 };

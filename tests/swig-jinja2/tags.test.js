@@ -97,4 +97,46 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% for %}', function () {
+
+    it('iterates an array', function () {
+      expect(render('{% for n in items %}{{ n }}{% endfor %}', { items: [1, 2, 3] })).to.equal('123');
+    });
+
+    it('iterates a literal array', function () {
+      expect(render('{% for n in [1, 2, 3] %}{{ n }};{% endfor %}')).to.equal('1;2;3;');
+    });
+
+    it('exposes loop.index / loop.first / loop.last / loop.length', function () {
+      expect(render('{% for n in items %}{{ loop.index }}{% endfor %}', { items: ['a', 'b', 'c'] })).to.equal('123');
+      expect(render('{% for n in items %}{{ loop.index0 }}{% endfor %}', { items: ['a', 'b', 'c'] })).to.equal('012');
+      expect(render('{% for n in items %}{% if loop.first %}[{% endif %}{{ n }}{% if loop.last %}]{% endif %}{% endfor %}', { items: ['a', 'b', 'c'] })).to.equal('[abc]');
+      expect(render('{% for n in items %}{{ loop.length }}{% endfor %}', { items: ['a', 'b'] })).to.equal('22');
+    });
+
+    it('binds key, value over an object', function () {
+      expect(render('{% for k, v in obj %}{{ k }}={{ v }};{% endfor %}', { obj: { a: 1, b: 2 } })).to.equal('a=1;b=2;');
+    });
+
+    it('runs the else branch when the iterable is empty', function () {
+      expect(render('{% for n in items %}{{ n }}{% else %}empty{% endfor %}', { items: [] })).to.equal('empty');
+      expect(render('{% for n in items %}{{ n }}{% else %}empty{% endfor %}', { items: [1] })).to.equal('1');
+      expect(render('{% for n in missing %}{{ n }}{% else %}empty{% endfor %}')).to.equal('empty');
+    });
+
+    it('restores the outer loop state after a nested loop', function () {
+      var tpl = '{% for i in outer %}{% for j in inner %}{{ i }}{{ j }}{% endfor %}|{% endfor %}';
+      expect(render(tpl, { outer: [1, 2], inner: ['a', 'b'] })).to.equal('1a1b|2a2b|');
+    });
+
+    it('rejects a dangerous loop variable', function () {
+      expect(function () { render('{% for __proto__ in items %}x{% endfor %}'); }).to.throwError(/CVE-2023-25345/);
+    });
+
+    it('rejects a dotted loop variable', function () {
+      expect(function () { render('{% for a.b in items %}x{% endfor %}'); }).to.throwError(/must be a bare identifier/);
+    });
+
+  });
+
 });

@@ -208,9 +208,24 @@ exports.compile = function (template, parents, options, blockName) {
           return;
         }
       });
+      // `emptyBody` (Twig/Jinja2/Django `{% for … %}{% else %}`) runs when
+      // the iterable is absent or has no items. When unset, the early-return
+      // guard stays byte-identical to the no-else shape.
+      var forEmptyCheck = '  if (!__l) { return; }\n';
+      if (node.emptyBody) {
+        var forEmptyJS = '';
+        utils.each(node.emptyBody, function (b) {
+          if (b.type === 'LegacyJS') { forEmptyJS += b.js; return; }
+          if (b.type === 'Text' || b.type === 'Raw') {
+            forEmptyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+            return;
+          }
+        });
+        forEmptyCheck = '  if (!__l || !__len) {\n' + forEmptyJS + '  return;\n  }\n';
+      }
       out += '(function () {\n' +
         '  var __l = ' + forIterable + ', __len = (_utils.isArray(__l) || typeof __l === "string") ? __l.length : _utils.keys(__l).length;\n' +
-        '  if (!__l) { return; }\n' +
+        forEmptyCheck +
         '    var ' + ctxloopcache + ' = { loop: ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + ', ' + forKey + ': ' + ctx + forKey + ' };\n' +
         '    ' + ctxloop + ' = { first: false, index: 1, index0: 0, revindex: __len, revindex0: __len - 1, length: __len, last: false };\n' +
         '  _utils.each(__l, function (' + forVal + ', ' + forKey + ') {\n' +
