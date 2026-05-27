@@ -32,6 +32,22 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
       expect(render('{% set greeting %}hello{% endset %}{{ greeting }}')).to.equal('hello');
     });
 
+    it('body-capture form interpolates inside the captured block', function () {
+      expect(render('{% set greeting %}Hi {{ n }}{% endset %}[{{ greeting }}]', { n: 'Ada' })).to.equal('[Hi Ada]');
+    });
+
+    it('body-capture form captures rendered tag output', function () {
+      expect(render('{% set list %}{% for i in items %}{{ i }};{% endfor %}{% endset %}{{ list }}', { items: [1, 2, 3] })).to.equal('1;2;3;');
+    });
+
+    it('body-capture form assigns to a dotted target', function () {
+      expect(render('{% set obj.k %}V{% endset %}{{ obj.k }}', { obj: {} })).to.equal('V');
+    });
+
+    it('body-capture result is reusable', function () {
+      expect(render('{% set g %}X{% endset %}{{ g }}{{ g }}')).to.equal('XX');
+    });
+
     it('rejects bracket-notation assignment', function () {
       expect(function () {
         render('{% set x["a"] = 1 %}');
