@@ -192,4 +192,50 @@ describe('@rhinostone/swig-jinja2 — filters', function () {
     });
   });
 
+  describe('title', function () {
+    it('title-cases each word', function () {
+      expect(render('{{ s|title }}', { s: 'hello world' })).to.equal('Hello World');
+    });
+    it('treats hyphens and brackets as word boundaries', function () {
+      expect(render('{{ s|title }}', { s: 'foo-bar baz' })).to.equal('Foo-Bar Baz');
+      expect(render('{{ s|title }}', { s: '(parenthetical) [bracket]' })).to.equal('(Parenthetical) [Bracket]');
+    });
+    it('does not split on an apostrophe (escaped on output by autoescape)', function () {
+      expect(render('{{ s|title }}', { s: "don't stop me" })).to.equal('Don&#39;t Stop Me');
+    });
+    it('lowercases the rest of each word', function () {
+      expect(render('{{ s|title }}', { s: 'this is soME text' })).to.equal('This Is Some Text');
+    });
+    it('maps over arrays', function () {
+      expect(render('{{ items|title|join("|") }}', { items: ['foo bar', 'baz qux'] })).to.equal('Foo Bar|Baz Qux');
+    });
+  });
+
+  describe('capitalize', function () {
+    it('uppercases the first character and lowercases the rest', function () {
+      expect(render('{{ s|capitalize }}', { s: 'hello WORLD' })).to.equal('Hello world');
+      expect(render('{{ s|capitalize }}', { s: 'i like Burritos' })).to.equal('I like burritos');
+    });
+  });
+
+  describe('striptags', function () {
+    it('strips tags and collapses whitespace', function () {
+      expect(render('{{ "<p>hi</p>"|striptags }}')).to.equal('hi');
+      expect(render('{{ s|striptags }}', { s: '<p>a</p>   <b>b</b>' })).to.equal('a b');
+    });
+    it('collapses newlines and trims the ends', function () {
+      expect(render('{{ s|striptags }}', { s: '<p>line1\n\n  line2</p>' })).to.equal('line1 line2');
+      expect(render('{{ s|striptags }}', { s: '  <x>foo</x>  ' })).to.equal('foo');
+    });
+  });
+
+  describe('trim', function () {
+    it('strips surrounding whitespace by default', function () {
+      expect(render('{{ s|trim }}', { s: '  hi  ' })).to.equal('hi');
+    });
+    it('strips a custom character set from both ends', function () {
+      expect(render('{{ "xxhixx"|trim("x") }}')).to.equal('hi');
+    });
+  });
+
 });

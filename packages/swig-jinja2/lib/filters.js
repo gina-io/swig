@@ -528,3 +528,114 @@ exports.groupby = function (input, attribute) {
     return { grouper: key, list: groups[key] };
   });
 };
+
+/**
+ * Title-case the input: every word starts with an uppercase letter and the
+ * rest are lowercased. Word boundaries are whitespace and any of
+ * `- ( [ { <` (matching Jinja2's `title`), so `foo-bar` becomes `Foo-Bar`
+ * but an apostrophe does not split a word (`don't` => `Don't`). Recurses
+ * into arrays / objects.
+ *
+ * @example
+ * {{ "hello world"|title }}
+ * // => Hello World
+ *
+ * @param  {*} input
+ * @return {*}
+ */
+exports.title = function (input) {
+  var out = iterateFilter.apply(exports.title, arguments),
+    parts,
+    res,
+    item,
+    i;
+  if (out !== undefined) {
+    return out;
+  }
+  parts = String(input).split(/([-\s(\[{<]+)/);
+  res = '';
+  for (i = 0; i < parts.length; i += 1) {
+    item = parts[i];
+    if (!item) {
+      continue;
+    }
+    res += item.charAt(0).toUpperCase() + item.substr(1).toLowerCase();
+  }
+  return res;
+};
+
+/**
+ * Capitalize the input: uppercase the first character, lowercase the rest.
+ * Recurses into arrays / objects.
+ *
+ * @example
+ * {{ "hello WORLD"|capitalize }}
+ * // => Hello world
+ *
+ * @param  {*} input
+ * @return {*}
+ */
+exports.capitalize = function (input) {
+  var out = iterateFilter.apply(exports.capitalize, arguments);
+  if (out !== undefined) {
+    return out;
+  }
+  input = input.toString();
+  return input.charAt(0).toUpperCase() + input.substr(1).toLowerCase();
+};
+
+/**
+ * Strip SGML/XML tags (and HTML comments) from the input, then collapse
+ * runs of whitespace to a single space and trim the ends — matching
+ * Jinja2's `striptags`. Recurses into arrays / objects.
+ *
+ * @example
+ * {{ "<p>hello   world</p>"|striptags }}
+ * // => hello world
+ *
+ * @param  {*} input
+ * @return {*}
+ */
+exports.striptags = function (input) {
+  var out = iterateFilter.apply(exports.striptags, arguments);
+  if (out !== undefined) {
+    return out;
+  }
+  return String(input)
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^\s+|\s+$/g, '');
+};
+
+/**
+ * Strip leading and trailing characters from a string. With no argument
+ * the stripped set is whitespace; pass a string of characters to strip
+ * those instead (Jinja2's `trim`). Both ends are always stripped.
+ *
+ * @example
+ * {{ "  hello  "|trim }}
+ * // => hello
+ *
+ * @example
+ * {{ "xxhixx"|trim("x") }}
+ * // => hi
+ *
+ * @param  {*}      input
+ * @param  {string} [chars]  Characters to strip; defaults to whitespace.
+ * @return {*}
+ */
+exports.trim = function (input, chars) {
+  var pattern;
+  if (typeof input !== 'string') {
+    return input;
+  }
+  if (chars === undefined || chars === null || chars === '') {
+    pattern = '\\s';
+  } else {
+    pattern = '[' + String(chars).replace(/[\\\[\]\^\-]/g, '\\$&') + ']';
+  }
+  return input
+    .replace(new RegExp('^' + pattern + '+'), '')
+    .replace(new RegExp(pattern + '+$'), '');
+};
