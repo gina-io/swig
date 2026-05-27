@@ -24,12 +24,26 @@ var out = swig.render('Hello, {{ name|upper }}!', {
 // => Hello, WORLD!
 ```
 
-Supported surface
------------------
+Supported surface (as of 2.5.0)
+-------------------------------
 
-Documented at release time. The full tag / operator / filter / test catalog
-is enumerated in the [Jinja2 templating docs](https://github.com/gina-io/docs)
-and in `lib/` once the carve lands.
+A near-subset of Python Jinja2 — everything below was cross-checked against Jinja2 3.x.
+
+* **Tags** — `set`, `if` / `elif` / `else`, `for` (with `else`), `block`, `extends`, `include`, `macro`, `import`, `from`, `raw`, `filter`, `with`, `autoescape`.
+* **Operators** — `**` power, `//` floor-division, `~` string concat, inline-if (`a if c else b`), Python slicing (`seq[start:stop:step]`), `is <test>` / `is not <test>`, plus `{{- … -}}` / `{%- … -%}` whitespace control.
+* **Built-in `is` tests** — `defined`, `undefined`, `none`, `even`, `odd`, `divisibleby`, `iterable`, `mapping`, `sequence`, `string`, `number`, `boolean`, `callable`, `lower`, `upper`, `sameas`.
+* **Filters** — 39 built-ins (`upper`, `lower`, `capitalize`, `title`, `trim`, `truncate`, `replace`, `striptags`, `format`, `wordcount`, `wordwrap`, `indent`, `center`, `urlencode`, `escape` / `e`, `safe`, `first`, `last`, `join`, `reverse`, `sort`, `length` / `count`, `list`, `unique`, `batch`, `slice`, `dictsort`, `groupby`, `min`, `max`, `sum`, `random`, `abs`, `round`, `int`, `float`, `default` / `d`, `tojson`, `date`). See `lib/filters.js` for the full list.
+* **Async** — `renderFileAsync` / `compileFileAsync` for async loaders.
+
+Explicitly unsupported (parse-time throw or absent)
+---------------------------------------------------
+
+* No sandboxed-rendering mode — template source is trusted.
+* `{% call %}`, `{% do %}`, `{% trans %}` — deferred / Jinja2 extensions.
+* `map` / `select` / `reject` / `selectattr` / `rejectattr` filters — deferred.
+* Macro kwargs — use positional args or an object literal.
+* Dynamic `{% extends %}` / `{% import %}` / `{% from %}` — string-literal paths only.
+* Bracket-notation `{% set foo["x"] = … %}` — use dot-path notation.
 
 Repository
 ----------

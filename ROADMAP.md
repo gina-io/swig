@@ -15,12 +15,17 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 | Status | Item |
 | --- | --- |
 | Planned | Async parse path for dynamic targets — full support for `{% extends parent_var %}`, `{% include user_template %}`, and runtime-resolved `import` / `from` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic-target support is on hold pending consumer demand. |
-| Planned | Ship Jinja2 and Django frontends as additional `@rhinostone/swig-*` packages. On demand — when there's concrete user demand. |
+| Planned | Ship a Django frontend as an additional `@rhinostone/swig-*` package. On demand — when there's concrete user demand. (The Jinja2 frontend shipped in `2.5.0`.) |
 | Planned | Test framework migration. Replace mocha 1.x + expect.js with `node:test` + `node:assert/strict`, swap mocha-phantomjs for a modern browser-test harness, swap blanket for `c8`. (The Node engines bump is upstream-driven by gina and is being treated as done.) |
 
 ---
 
 ## Completed
+
+### v2.5.0 (May 2026)
+
+- Added `@rhinostone/swig-jinja2`, a Python Jinja2-syntax frontend on the shared `@rhinostone/swig-core` engine — the third dialect in the multi-flavor family alongside native swig and `@rhinostone/swig-twig`. Ships 13 tags (`set`, `if` / `elif` / `else`, `for` with `else`, `block`, `extends`, `include`, `macro`, `import`, `from`, `raw`, `filter`, `with`, `autoescape`), 39 filters, and 16 `is` tests, plus the `**` / `//` / `~` operators, inline-if, Python slicing, and `{{- … -}}` whitespace control. Async loader support via `renderFileAsync` / `compileFileAsync`. Autoescape and the CVE-2023-25345 guards are inherited from `@rhinostone/swig-core`. Every filter and is-test was cross-checked against Python Jinja2 3.x; the behavioural differences (where the JavaScript runtime diverges from CPython) and the explicit non-goals (no sandboxed rendering, `{% call %}` / `{% do %}` / `{% trans %}`, the `map` / `select` filter family, macro kwargs) are documented in the Jinja2 templating guide.
+- All four packages (`@rhinostone/swig`, `@rhinostone/swig-core`, `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2`) released in lockstep at `2.5.0`. `@rhinostone/swig-core` gained additive `slice` and `coerceOutput` runtime helpers consumed by the Jinja2 frontend; native swig and Twig are functionally unchanged.
 
 ### v2.4.3 (May 2026)
 

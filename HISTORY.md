@@ -1,3 +1,8 @@
+[2.5.0](https://github.com/gina-io/swig/tree/v2.5.0) / 2026-05-27
+-----------------------------------------------------------------
+
+* **Added** @rhinostone/swig-jinja2 — a Python Jinja2-syntax frontend on the shared swig-core engine (13 tags, 39 filters, 16 is-tests, async loader support, autoescape and CVE-2023-25345 guards inherited from swig-core). Releases in lockstep with @rhinostone/swig, @rhinostone/swig-core, and @rhinostone/swig-twig.
+
 [2.4.3](https://github.com/gina-io/swig/tree/v2.4.3) / 2026-05-22
 -----------------------------------------------------------------
 

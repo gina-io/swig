@@ -1,7 +1,6 @@
 {
   "name": "@rhinostone/swig-jinja2",
-  "version": "2.4.3",
-  "private": true,
+  "version": "2.5.0",
   "description": "Jinja2-syntax frontend for the @rhinostone/swig-core template engine. Part of the @rhinostone/swig multi-flavor family.",
   "keywords": [
     "template",
@@ -24,7 +23,7 @@
     "node": ">=12"
   },
   "peerDependencies": {
-    "@rhinostone/swig-core": "2.4.3"
+    "@rhinostone/swig-core": "2.5.0"
   },
   "publishConfig": {
     "access": "public"
