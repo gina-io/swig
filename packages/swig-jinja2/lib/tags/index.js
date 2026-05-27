@@ -18,5 +18,6 @@ module.exports = {
   'if': require('./if'),
   'elif': require('./elif'),
   'else': require('./else'),
-  'for': require('./for')
+  'for': require('./for'),
+  'block': require('./block')
 };

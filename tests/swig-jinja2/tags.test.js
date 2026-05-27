@@ -139,4 +139,24 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% block %}', function () {
+
+    it('renders its body when standalone (no extends)', function () {
+      expect(render('{% block content %}hi{% endblock %}')).to.equal('hi');
+    });
+
+    it('renders interpolated content inside a block', function () {
+      expect(render('{% block greeting %}Hello {{ name }}{% endblock %}', { name: 'Ada' })).to.equal('Hello Ada');
+    });
+
+    it('rejects a dangerous block name', function () {
+      expect(function () { render('{% block __proto__ %}x{% endblock %}'); }).to.throwError(/CVE-2023-25345/);
+    });
+
+    it('rejects a dotted block name', function () {
+      expect(function () { render('{% block a.b %}x{% endblock %}'); }).to.throwError(/must be a bare identifier/);
+    });
+
+  });
+
 });
