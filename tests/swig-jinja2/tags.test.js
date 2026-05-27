@@ -359,4 +359,67 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
 
   });
 
+  describe('{% from import %}', function () {
+
+    function instance(templates) {
+      return new jinja2.Jinja2({ loader: jinja2.loaders.memory(templates) });
+    }
+
+    it('imports a single macro by bare name', function () {
+      var mj = instance({
+        'forms.html': '{% macro label(name) %}[{{ name }}]{% endmacro %}',
+        'page.html': '{% from "forms.html" import label %}{{ label("x") }}'
+      });
+      expect(mj.renderFile('page.html', {})).to.equal('[x]');
+    });
+
+    it('imports multiple macros, with and without aliases', function () {
+      var mj = instance({
+        'forms.html': '{% macro a() %}A{% endmacro %}{% macro b() %}B{% endmacro %}',
+        'page.html': '{% from "forms.html" import a as x, b %}{{ x() }}{{ b() }}'
+      });
+      expect(mj.renderFile('page.html', {})).to.equal('AB');
+    });
+
+    it('does not surface unimported macros', function () {
+      var mj = instance({
+        'forms.html': '{% macro a() %}A{% endmacro %}{% macro b() %}B{% endmacro %}',
+        'page.html': '{% from "forms.html" import a %}{{ a() }}|{{ b }}'
+      });
+      expect(mj.renderFile('page.html', {})).to.equal('A|');
+    });
+
+    it('re-homes a nested from-import under a private slot (no bare leak)', function () {
+      var mj = instance({
+        'base.html': '{% macro hi() %}HELLO{% endmacro %}',
+        'sub.html': '{% from "base.html" import hi %}{% macro greet() %}[{{ hi() }}]{% endmacro %}',
+        'page.html': '{% from "sub.html" import greet %}{{ greet() }}|{{ hi }}'
+      });
+      expect(mj.renderFile('page.html', {})).to.equal('[HELLO]|');
+    });
+
+    it('throws when a requested macro is not found', function () {
+      var mj = instance({
+        'forms.html': '{% macro a() %}A{% endmacro %}',
+        'page.html': '{% from "forms.html" import zzz %}'
+      });
+      expect(function () { mj.renderFile('page.html', {}); }).to.throwError(/Macro "zzz" not found/);
+    });
+
+    it('rejects a dynamic from path', function () {
+      expect(function () {
+        render('{% from dyn import a %}', { dyn: 'forms.html' });
+      }).to.throwError(/Dynamic "from" is not supported/);
+    });
+
+    it('rejects a dangerous import alias', function () {
+      var mj = instance({
+        'forms.html': '{% macro a() %}A{% endmacro %}',
+        'page.html': '{% from "forms.html" import a as __proto__ %}'
+      });
+      expect(function () { mj.renderFile('page.html', {}); }).to.throwError(/CVE-2023-25345/);
+    });
+
+  });
+
 });

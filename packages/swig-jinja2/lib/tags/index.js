@@ -23,5 +23,6 @@ module.exports = {
   'extends': require('./extends'),
   'include': require('./include'),
   'macro': require('./macro'),
-  'import': require('./import')
+  'import': require('./import'),
+  'from': require('./from')
 };
