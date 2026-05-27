@@ -13,4 +13,6 @@
  * own their own arg-parsing path.
  */
 
-module.exports = {};
+module.exports = {
+  'set': require('./set')
+};
