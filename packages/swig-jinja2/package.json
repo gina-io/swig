@@ -1,0 +1,32 @@
+{
+  "name": "@rhinostone/swig-jinja2",
+  "version": "2.4.3",
+  "private": true,
+  "description": "Jinja2-syntax frontend for the @rhinostone/swig-core template engine. Part of the @rhinostone/swig multi-flavor family.",
+  "keywords": [
+    "template",
+    "templating",
+    "jinja2",
+    "jinja",
+    "swig",
+    "swig-jinja2",
+    "frontend"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gina-io/swig.git",
+    "directory": "packages/swig-jinja2"
+  },
+  "author": "Rhinostone <contact@gina.io>",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "engines": {
+    "node": ">=12"
+  },
+  "peerDependencies": {
+    "@rhinostone/swig-core": "2.4.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
