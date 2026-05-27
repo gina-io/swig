@@ -1,4 +1,5 @@
 var utils = require('@rhinostone/swig-core/lib/utils'),
+  dateFormatter = require('@rhinostone/swig-core/lib/dateformatter'),
   iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter;
 
 /**
@@ -1246,4 +1247,123 @@ exports.min = function (input, caseSensitive) {
  */
 exports.max = function (input, caseSensitive) {
   return minmax(input, caseSensitive, 'max');
+};
+
+/*!
+ * Percent-encode a string for use in a URL. Outside query-string context
+ * `/` is preserved; in query-string context (`forQs`) every reserved
+ * character is encoded and spaces become `+`. @private
+ */
+function urlQuote(s, forQs) {
+  var out = encodeURIComponent(String(s)).replace(/[!*'()]/g, function (c) {
+    return '%' + c.charCodeAt(0).toString(16).toUpperCase();
+  });
+  if (!forQs) {
+    out = out.replace(/%2F/g, '/');
+  } else {
+    out = out.replace(/%20/g, '+');
+  }
+  return out;
+}
+
+/**
+ * URL-encode the input (Jinja2's `urlencode`). A string is percent-encoded
+ * for a URL path, preserving the `/` separator. A mapping or a list of
+ * `[key, value]` pairs is encoded as a query string, with spaces becoming
+ * `+`. Not marked safe — under autoescape the `&` separators are escaped
+ * on output, matching Jinja2.
+ *
+ * @example
+ * {{ "a b/c"|urlencode }}
+ * // => a%20b/c
+ *
+ * @example
+ * {{ {"q": "a b"}|urlencode }}
+ * // => q=a+b
+ *
+ * @param  {*} input
+ * @return {string}
+ */
+exports.urlencode = function (input) {
+  if (typeof input === 'string') {
+    return urlQuote(input, false);
+  }
+  if (utils.isArray(input)) {
+    return utils.map(input, function (pair) {
+      return urlQuote(pair[0], true) + '=' + urlQuote(pair[1], true);
+    }).join('&');
+  }
+  if (input && typeof input === 'object') {
+    return utils.map(utils.keys(input), function (k) {
+      return urlQuote(k, true) + '=' + urlQuote(input[k], true);
+    }).join('&');
+  }
+  return urlQuote(input, false);
+};
+
+/**
+ * Return a random item from a sequence (Jinja2's `random`). A string is
+ * treated as a sequence of characters. Non-deterministic — uses
+ * `Math.random()`.
+ *
+ * @example
+ * {{ [1, 2, 3]|random }}
+ * // => one of 1, 2, 3
+ *
+ * @param  {*} input
+ * @return {*}
+ */
+exports.random = function (input) {
+  var seq = input;
+  if (typeof input === 'string') {
+    seq = input.split('');
+  } else if (!utils.isArray(input)) {
+    return input;
+  }
+  if (!seq.length) {
+    return undefined;
+  }
+  return seq[Math.floor(Math.random() * seq.length)];
+};
+
+/**
+ * Format a date with PHP-style `date()` tokens via the swig-core date
+ * formatter. Jinja2 core has no `date` filter; this is a swig-family
+ * extension shared with the native and Twig flavors. A backslash escapes a
+ * literal character; `offset` shifts the timezone (minutes from GMT) and
+ * `abbr` sets the output-only timezone abbreviation.
+ *
+ * @example
+ * {{ published|date("F jS, Y") }}
+ * // => September 23rd, 2011
+ *
+ * @param  {?(Date|string|number)} input
+ * @param  {string} format
+ * @param  {number} [offset]  Timezone offset in minutes from GMT.
+ * @param  {string} [abbr]    Output timezone abbreviation.
+ * @return {string}
+ */
+exports.date = function (input, format, offset, abbr) {
+  var l = format.length,
+    date = new dateFormatter.DateZ(input),
+    cur,
+    i = 0,
+    out = '';
+
+  if (offset) {
+    date.setTimezoneOffset(offset, abbr);
+  }
+
+  for (i; i < l; i += 1) {
+    cur = format.charAt(i);
+    if (cur === '\\') {
+      i += 1;
+      out += (i < l) ? format.charAt(i) : cur;
+    } else if (dateFormatter.hasOwnProperty(cur)) {
+      out += dateFormatter[cur](date, offset, abbr);
+    } else {
+      out += cur;
+    }
+  }
+  return out;
 };

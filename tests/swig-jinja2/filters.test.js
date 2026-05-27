@@ -1,4 +1,5 @@
 var jinja2 = require('@rhinostone/swig-jinja2'),
+  filters = require('@rhinostone/swig-jinja2/lib/filters'),
   expect = require('expect.js');
 
 
@@ -397,6 +398,50 @@ describe('@rhinostone/swig-jinja2 — filters', function () {
     });
     it('compares exactly when caseSensitive is truthy', function () {
       expect(render('{{ s|min(true) }}', { s: ['B', 'a'] })).to.equal('B');
+    });
+  });
+
+  describe('urlencode', function () {
+    it('percent-encodes a string, preserving the path separator', function () {
+      expect(render('{{ s|urlencode }}', { s: 'a=1&b=2' })).to.equal('a%3D1%26b%3D2');
+      expect(render('{{ s|urlencode }}', { s: 'a b/c?d' })).to.equal('a%20b/c%3Fd');
+    });
+    it('encodes a mapping as a query string (spaces become +)', function () {
+      // Not marked safe: the & separator is autoescaped on output.
+      expect(render('{{ d|urlencode }}', { d: { a: 1, b: 'x y' } })).to.equal('a=1&amp;b=x+y');
+      expect(render('{{ d|urlencode|safe }}', { d: { a: 1, b: 'x y' } })).to.equal('a=1&b=x+y');
+    });
+    it('encodes a list of [key, value] pairs as a query string', function () {
+      expect(render('{{ d|urlencode|safe }}', { d: [['a', 1], ['b', 2]] })).to.equal('a=1&b=2');
+    });
+  });
+
+  describe('random', function () {
+    it('returns a member of the sequence', function () {
+      var i;
+      for (i = 0; i < 20; i += 1) {
+        expect(['1', '2', '3']).to.contain(render('{{ [1, 2, 3]|random }}'));
+      }
+    });
+    it('returns the single element of a one-item list', function () {
+      expect(render('{{ ["only"]|random }}')).to.equal('only');
+    });
+  });
+
+  describe('date', function () {
+    // Direct filter calls (not render) with a fixed UTC instant, mirroring
+    // the native and Twig date suites. tzOffset defaults to 0 (GMT), so the
+    // assertions are independent of the host machine's timezone.
+    var d = new Date(Date.UTC(2011, 8, 23, 7, 0, 0));
+    it('formats with PHP-style tokens in GMT by default', function () {
+      expect(filters.date(d, 'Y-m-d')).to.equal('2011-09-23');
+      expect(filters.date(d, 'H:i')).to.equal('07:00');
+    });
+    it('honours the offset argument (UTC+4h)', function () {
+      expect(filters.date(d, 'H:i', -240)).to.equal('11:00');
+    });
+    it('treats a backslash as an escape for a literal character', function () {
+      expect(filters.date(d, '\\Y=Y')).to.equal('Y=2011');
     });
   });
 
