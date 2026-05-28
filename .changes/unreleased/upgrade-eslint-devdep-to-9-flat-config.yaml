@@ -1,0 +1,4 @@
+kind: changed
+body: "Upgraded the ESLint dev dependency from 8.57.1 to 9.x and migrated the lint configuration from the deprecated .eslintrc.json (eslintrc format) to the flat-config eslint.config.js, adding the globals dev dependency. The lenient rule set is preserved exactly (no indent enforcement, eqeqeq/no-eval/no-new-func off, semi always, max-len 600, plus an explicit linterOptions.reportUnusedDisableDirectives off to match the eslintrc default). ESLint 9 raises the lint toolchain Node floor to >=18.18, which affects development and CI only; the published package is unaffected and its only runtime dependency remains @rhinostone/swig-core."
+custom:
+  Issue: ""
