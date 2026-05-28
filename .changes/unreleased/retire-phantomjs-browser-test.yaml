@@ -1,4 +1,0 @@
-kind: changed
-body: "Removed the unmaintained phantomjs and mocha-phantomjs browser-test toolchain, dropping the vulnerable form-data (CVE-2025-7783) and the rest of the legacy request dependency subtree from the dev dependency tree. Browser parity is verified through the production bundle build, pending a modern browser-test harness."
-custom:
-  Issue: ""

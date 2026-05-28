@@ -1,4 +1,0 @@
-kind: fixed
-body: "Restored the JSDoc blocks on the top-level Swig public API methods (setFilter, setTag, setExtension, precompile, compile, compileFile, render, renderFile, run, invalidateCache) that were inadvertently stripped from lib/swig.js when the Swig constructor body was carved into @rhinostone/swig-core/lib/engine.js. The documentation comments now sit above the corresponding exports.* re-exports where make build-docs and IDE hover tooling read them. No runtime behavior change — the published lib/ code is byte-identical and only the JSDoc surface is updated."
-custom:
-  Issue: ""

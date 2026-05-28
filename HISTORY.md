@@ -1,3 +1,20 @@
+[2.5.1](https://github.com/gina-io/swig/tree/v2.5.1) / 2026-05-28
+-----------------------------------------------------------------
+
+* **Fixed** Restored the JSDoc blocks on the top-level Swig public API methods (setFilter, setTag, setExtension, precompile, compile, compileFile, render, renderFile, run, invalidateCache) that were inadvertently stripped from lib/swig.js when the Swig constructor body was carved into @rhinostone/swig-core/lib/engine.js. The documentation comments now sit above the corresponding exports.* re-exports where make build-docs and IDE hover tooling read them. No runtime behavior change — the published lib/ code is byte-identical and only the JSDoc surface is updated.
+
+* **Changed** Rephrased two stale internal-process tracker references in lib/tags/set.js source comments that survived the prior single-line audit sweep because the markers spanned a line wrap. The explanatory content is preserved verbatim; only the dead tracker tokens are dropped, per the in-repo no-internal-markers-in-shipping-source convention. No behavior change.
+
+* **Changed** Migrated the test toolchain from mocha 1.12.0 to the Node.js built-in test runner (node:test) with built-in line coverage, removing the mocha, blanket, and travis-cov dev dependencies. This clears all 6 npm audit advisories (4 high, 2 critical) that were rooted in mocha's transitive dependency tree; the full suite passes unchanged and the 95% coverage gate over lib/ is preserved. The published package is unaffected — its only runtime dependency remains @rhinostone/swig-core.
+
+* **Changed** Removed the unmaintained phantomjs and mocha-phantomjs browser-test toolchain, dropping the vulnerable form-data (CVE-2025-7783) and the rest of the legacy request dependency subtree from the dev dependency tree. Browser parity is verified through the production bundle build, pending a modern browser-test harness.
+
+* **Changed** Upgraded the ESLint dev dependency from 8.57.1 to 9.x and migrated the lint configuration from the deprecated .eslintrc.json (eslintrc format) to the flat-config eslint.config.js, adding the globals dev dependency. The lenient rule set is preserved exactly (no indent enforcement, eqeqeq/no-eval/no-new-func off, semi always, max-len 600, plus an explicit linterOptions.reportUnusedDisableDirectives off to match the eslintrc default). ESLint 9 raises the lint toolchain Node floor to >=18.18, which affects development and CI only; the published package is unaffected and its only runtime dependency remains @rhinostone/swig-core.
+
+* **Changed** Upgraded the example/development express dependency from the abandoned 3.x line to 4.x, dropping the vulnerable transitive morgan (CVE-2019-5413) and the legacy connect subtree from the dev dependency tree. The Express view-engine example runs unchanged. The published package is unaffected; its only runtime dependency remains @rhinostone/swig-core.
+
+* **Changed** Upgraded the development lodash dependency from 1.3.x to 4.x, dropping the prototype-pollution and command-injection advisories (affecting lodash through 4.17.23) from the dev dependency tree. lodash is a test-only utility and the full suite passes unchanged on 4.x. The published package is unaffected; its only runtime dependency remains @rhinostone/swig-core.
+
 [2.5.0](https://github.com/gina-io/swig/tree/v2.5.0) / 2026-05-27
 -----------------------------------------------------------------
 
