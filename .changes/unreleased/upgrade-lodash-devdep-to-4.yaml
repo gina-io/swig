@@ -1,0 +1,4 @@
+kind: changed
+body: "Upgraded the development lodash dependency from 1.3.x to 4.x, dropping the prototype-pollution and command-injection advisories (affecting lodash through 4.17.23) from the dev dependency tree. lodash is a test-only utility and the full suite passes unchanged on 4.x. The published package is unaffected; its only runtime dependency remains @rhinostone/swig-core."
+custom:
+  Issue: ""
