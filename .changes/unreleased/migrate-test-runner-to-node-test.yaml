@@ -1,0 +1,4 @@
+kind: changed
+body: "Migrated the test toolchain from mocha 1.12.0 to the Node.js built-in test runner (node:test) with built-in line coverage, removing the mocha, blanket, and travis-cov dev dependencies. This clears all 6 npm audit advisories (4 high, 2 critical) that were rooted in mocha's transitive dependency tree; the full suite passes unchanged and the 95% coverage gate over lib/ is preserved. The published package is unaffected — its only runtime dependency remains @rhinostone/swig-core."
+custom:
+  Issue: ""

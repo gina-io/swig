@@ -24,16 +24,13 @@
     "@rhinostone/swig-core": "2.5.0"
   },
   "devDependencies": {
-    "blanket": "~1.1",
     "esbuild": "^0.28.0",
     "eslint": "^8.57.1",
     "expect.js": "~0.2",
     "express": "^4",
     "lodash": "^4",
-    "mocha": "1.12.0",
     "path-browserify": "^1.0.1",
-    "terser": "^5.46.1",
-    "travis-cov": "~0.2"
+    "terser": "^5.46.1"
   },
   "license": "MIT",
   "main": "index",
@@ -48,15 +45,7 @@
   },
   "scripts": {
     "prepublish": "npm prune && make build",
-    "test": "make lint && make test reporter=spec && make coverage cov-reporter=travis-cov",
-    "travis-cov": {
-      "threshold": 95
-    }
-  },
-  "config": {
-    "blanket": {
-      "pattern": "swig/lib"
-    }
+    "test": "make lint && make test reporter=spec && make coverage"
   },
   "publishConfig": {
     "access": "public"

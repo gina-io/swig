@@ -77,25 +77,14 @@ tests := $(shell find ./tests -name '*.test.js' ! -path "*node_modules/*")
 reporter = dot
 opts =
 test:
-	@node node_modules/mocha/bin/_mocha --check-leaks --reporter ${reporter} ${opts} ${tests}
+	@node --require ./tests/lib/mocha-compat.js --test-reporter=${reporter} ${opts} --test ${tests}
 
 files := $(shell find . -name '*.js' ! -path "./node_modules/*" ! -path "./dist/*" ! -path "./browser*" ! -path "./docs*" ! -path "./tmp*")
 lint:
 	@${BIN}/eslint ${files}
 
-out = tests/coverage.html
-cov-reporter = html-cov
 coverage:
-ifeq (${cov-reporter}, travis-cov)
-	@node node_modules/mocha/bin/_mocha ${opts} ${tests} --require blanket -R ${cov-reporter}
-else
-	@node node_modules/mocha/bin/_mocha ${opts} ${tests} --require blanket -R ${cov-reporter} > ${out}
-	@sed -i .bak -e "s/${PWD}//g" ${out}
-	@rm ${out}.bak
-	@echo
-	@echo "Built Report to ${out}"
-	@echo
-endif
+	@node --require ./tests/lib/mocha-compat.js --test --experimental-test-coverage --test-coverage-include='lib/**' --test-coverage-lines=95 ${opts} ${tests}
 
 FORCE:
 
