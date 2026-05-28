@@ -1,0 +1,4 @@
+kind: changed
+body: "Rephrased two stale internal-process tracker references in lib/tags/set.js source comments that survived the prior single-line audit sweep because the markers spanned a line wrap. The explanatory content is preserved verbatim; only the dead tracker tokens are dropped, per the in-repo no-internal-markers-in-shipping-source convention. No behavior change."
+custom:
+  Issue: ""
