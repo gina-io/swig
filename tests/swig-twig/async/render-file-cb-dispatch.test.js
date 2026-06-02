@@ -11,11 +11,12 @@ var expect = require('expect.js'),
  * Twig-specific surfaces: {% from "..." import x, y as z %} and
  * Twig's include flag set (with/only/ignore missing).
  *
- * Dynamic extends paths (`{% extends parent_var %}`) are NOT covered
- * here. The extends-tag parser path stashes `tokens.parent` as a
- * pre-lowered JS source string rather than an IRExpr, so async-mode
- * extends only supports string-literal paths today. Closing that gap
- * is a separate follow-up.
+ * Dynamic extends paths (`{% extends layout_var %}`) ARE covered here
+ * (see "dynamic extends" below): the extends tag lowers its path through
+ * parser.parseExpr into an IRExpr on tokens.parentExpr, which
+ * buildExtendsDeferred passes into ir.extendsDeferred's path slot —
+ * mirroring dynamic include. Static string-literal extends keeps its
+ * tokens.parent string path unchanged.
  */
 
 
@@ -125,6 +126,23 @@ describe('twig.renderFile cb dispatch — async end-to-end', function () {
       twig.renderFile('entry.twig', { partial_var: 'static.twig' }, function (err, out) {
         expect(err).to.be(null);
         expect(out).to.equal('before static-content after');
+        done();
+      });
+    });
+  });
+
+  describe('dynamic extends (the dynamic-path differentiator)', function () {
+
+    it('resolves a dynamic extends path from locals', function (done) {
+      var twig = new twigModule.Twig({
+        loader: makeAsyncLoader({
+          '/page.twig': '{% extends layout_var %}{% block body %}Page body{% endblock %}',
+          '/layout.twig': '<doc>{% block body %}{% endblock %}</doc>'
+        })
+      });
+      twig.renderFile('page.twig', { layout_var: 'layout.twig' }, function (err, out) {
+        expect(err).to.be(null);
+        expect(out).to.equal('<doc>Page body</doc>');
         done();
       });
     });

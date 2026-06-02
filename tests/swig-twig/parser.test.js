@@ -1521,21 +1521,18 @@ describe('@rhinostone/swig-twig — parser.parse — {% extends %} tag', functio
     });
   });
 
-  it('throws on VAR parent (dynamic extends rejected)', function () {
-    expect(function () {
-      parser.parse(undefined, '{% extends parentTpl %}', { filename: 'tpl.twig' }, tags, {});
-    }).to.throwException(function (e) {
-      expect(e.message).to.match(/Dynamic "extends" is not supported/);
-      expect(e.message).to.match(/tpl\.twig/);
-    });
+  it('lowers a VAR parent to template.parentExpr (dynamic extends)', function () {
+    var tree = parser.parse(undefined, '{% extends parentTpl %}', { filename: 'tpl.twig' }, tags, {});
+    expect(tree.parent).to.equal('parentTpl');
+    expect(tree.parentExpr).to.be.an('object');
+    expect(tree.parentExpr.type).to.equal('VarRef');
+    expect(tree.parentExpr.path).to.eql(['parentTpl']);
   });
 
-  it('throws on ternary parent (dynamic extends rejected)', function () {
-    expect(function () {
-      parser.parse(undefined, '{% extends a ? "x" : "y" %}', { filename: 'tpl.twig' }, tags, {});
-    }).to.throwException(function (e) {
-      expect(e.message).to.match(/Dynamic "extends" is not supported/);
-    });
+  it('lowers a ternary parent to template.parentExpr (dynamic extends)', function () {
+    var tree = parser.parse(undefined, '{% extends a ? "x" : "y" %}', { filename: 'tpl.twig' }, tags, {});
+    expect(tree.parentExpr).to.be.an('object');
+    expect(tree.parentExpr.type).to.equal('Conditional');
   });
 
   it('throws on trailing tokens after STRING path', function () {
