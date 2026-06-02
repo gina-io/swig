@@ -399,6 +399,14 @@ exports.install = function (self, frontend) {
       parents = [];
       tokens.tokens = [buildExtendsDeferred(tokens, options)];
     } else {
+      if (tokens.parentExpr) {
+        // A dynamic {% extends %} path lowered to tokens.parentExpr can
+        // only resolve at render time. The sync precompile path walks the
+        // parent chain at compile time, before any runtime value exists,
+        // so a dynamic parent is unresolvable here — fail with a pointer
+        // to the async render path rather than a cryptic not-found.
+        throw new Error('Dynamic {% extends %} requires the async render path — use renderFile(path, locals, cb) with a loader that sets loader.async === true.');
+      }
       parents = getParentsInternal(tokens, options);
       if (parents.length) {
         tokens.tokens = exports.remapBlocks(tokens.blocks, parents[0].tokens);

@@ -1,0 +1,4 @@
+kind: changed
+body: "Dynamic `{% extends %}` on the synchronous render path now throws a clear error pointing to the async render path (`renderFile` with `loader.async === true`), instead of a generic \"template not found\" / \"no filename\" error. Dynamic extends has always required the async render path — this only improves the diagnostic. Applies to all flavors via the shared engine."
+custom:
+  Issue: ""
