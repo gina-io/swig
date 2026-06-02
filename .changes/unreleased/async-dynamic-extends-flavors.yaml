@@ -1,4 +1,0 @@
-kind: fixed
-body: "Dynamic `{% extends %}` paths (e.g. `{% extends layout_var %}`) now resolve on the async-loader render path (`renderFile(path, locals, cb)` with `loader.async`) in `@rhinostone/swig-twig` and `@rhinostone/swig-jinja2`, matching native swig and real Twig/Jinja2. Static string-literal extends and the synchronous render path are unchanged."
-custom:
-  Issue: ""

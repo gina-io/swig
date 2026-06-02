@@ -14,13 +14,18 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 | Status | Item |
 | --- | --- |
-| Planned | Async parse path for dynamic targets — full support for `{% extends parent_var %}`, `{% include user_template %}`, and runtime-resolved `import` / `from` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic-target support is on hold pending consumer demand. |
+| Planned | Async parse path for the remaining dynamic targets — runtime-resolved `{% import %}` / `{% from %}` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic `{% extends %}` shipped in 2.5.2 (native + Twig + Jinja2) and dynamic `{% include %}` paths already resolve (the include path has always been an expression). Dynamic `import` / `from` are on hold pending consumer demand. |
 | Planned | Ship a Django frontend as an additional `@rhinostone/swig-*` package. On demand — when there's concrete user demand. (The Jinja2 frontend shipped in `2.5.0`.) |
 | Planned | Test framework migration. Replace mocha 1.x + expect.js with `node:test` + `node:assert/strict`, add a modern browser-test harness (the legacy phantomjs runner has been removed), swap blanket for `c8`. (The Node engines bump is upstream-driven by gina and is being treated as done.) |
 
 ---
 
 ## Completed
+
+### v2.5.2 (June 2026)
+
+- Dynamic `{% extends %}` paths now resolve on the async render path (`renderFile(path, locals, cb)` against a loader with `loader.async === true`) across all three frontends — native `@rhinostone/swig`, `@rhinostone/swig-twig`, and `@rhinostone/swig-jinja2`. A dynamic parent (e.g. `{% extends layout_var %}`) is lowered to a deferred IR expression and resolved at render time, matching real Twig and Jinja2; previously a dynamic parent path was rejected at parse time (Twig / Jinja2) or produced a garbage template lookup (native). Static string-literal `{% extends %}` and the synchronous render path are unchanged — on the sync path a dynamic parent still requires a string literal (dispatch the chosen parent in the caller).
+- All four packages (`@rhinostone/swig`, `@rhinostone/swig-core`, `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2`) released in lockstep at `2.5.2`.
 
 ### v2.5.1 (May 2026)
 
