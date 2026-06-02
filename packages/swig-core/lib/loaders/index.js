@@ -21,7 +21,7 @@
  *   };
  * };
  * // Tell swig about the loader:
- * swig.setDefaults({ loader: memcachedLoader([process.env.MEMCACHED_SERVER]) });
+ * swig.setDefaults({ loader: memcachedLoader(['localhost:11211']) });
  */
 
 /**
