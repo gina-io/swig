@@ -369,3 +369,28 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
   });
 
 });
+
+
+describe('@rhinostone/swig-jinja2 — parser.parse — {% extends %} tag', function () {
+  var tags = require('@rhinostone/swig-jinja2/lib/tags');
+
+  it('sets template.parent from a STRING path (static extends)', function () {
+    var tree = parser.parse(undefined, '{% extends "layout.html" %}', {}, tags, {});
+    expect(tree.parent).to.equal('layout.html');
+    expect(tree.parentExpr).to.be(undefined);
+  });
+
+  it('lowers a VAR parent to template.parentExpr (dynamic extends)', function () {
+    var tree = parser.parse(undefined, '{% extends parent_var %}', { filename: 't.html' }, tags, {});
+    expect(tree.parent).to.equal('parent_var');
+    expect(tree.parentExpr).to.be.an('object');
+    expect(tree.parentExpr.type).to.equal('VarRef');
+    expect(tree.parentExpr.path).to.eql(['parent_var']);
+  });
+
+  it('lowers an inline-if parent to template.parentExpr (dynamic extends)', function () {
+    var tree = parser.parse(undefined, '{% extends full if cond else partial %}', { filename: 't.html' }, tags, {});
+    expect(tree.parentExpr).to.be.an('object');
+    expect(tree.parentExpr.type).to.equal('Conditional');
+  });
+});

@@ -206,12 +206,6 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
       expect(mj.renderFile('leaf.html', {})).to.equal('[leaf]');
     });
 
-    it('rejects dynamic extends', function () {
-      expect(function () {
-        render('{% extends parent_var %}', { parent_var: 'x' });
-      }).to.throwError(/Dynamic "extends" is not supported/);
-    });
-
   });
 
   describe('{% include %}', function () {

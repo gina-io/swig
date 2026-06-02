@@ -548,6 +548,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
   var line = 1;
   var stack = [];
   var parent = null;
+  var parentExpr = null;
   var tokens = [];
   var blocks = {};
   var inRaw = false;
@@ -698,6 +699,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
       if (token) {
         if (token.name === 'extends') {
           parent = token.args.length ? String(token.args[0]) : null;
+          parentExpr = token.irExpr && token.irExpr.file;
         } else if (token.block && !stack.length) {
           blocks[token.args.join('')] = token;
         }
@@ -757,6 +759,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
   return {
     name: opts.filename,
     parent: parent,
+    parentExpr: parentExpr,
     tokens: tokens,
     blocks: blocks
   };
