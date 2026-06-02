@@ -1,5 +1,5 @@
 var ir = require('@rhinostone/swig-core/lib/ir'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 
 /*!

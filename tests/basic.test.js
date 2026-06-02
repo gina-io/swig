@@ -1,5 +1,5 @@
 var swig = require('../lib/swig'),
-  expect = require('expect.js'),
+  expect = require('./lib/expect.js'),
   fs = require('fs'),
   _ = require('lodash'),
   Swig = swig.Swig;

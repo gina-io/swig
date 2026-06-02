@@ -1,4 +1,4 @@
-var expect = require('expect.js'),
+var expect = require('../lib/expect.js'),
   swigModule = require('../../lib/swig');
 
 function makeAsyncLoader(templates) {

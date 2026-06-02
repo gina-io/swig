@@ -1,4 +1,4 @@
-var expect = require('expect.js'),
+var expect = require('../../lib/expect.js'),
   preWalker = require('../../../packages/swig-jinja2/lib/async/pre-walker');
 
 var SCAN_OPTS = {

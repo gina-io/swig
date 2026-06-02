@@ -1,5 +1,5 @@
 var twig = require('@rhinostone/swig-twig'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 
 /*!

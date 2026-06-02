@@ -1,7 +1,7 @@
 var fs = require('fs'),
   path = require('path'),
   swig = require('../lib/swig'),
-  expect = require('expect.js'),
+  expect = require('./lib/expect.js'),
   _ = require('lodash'),
   Swig = swig.Swig;
 

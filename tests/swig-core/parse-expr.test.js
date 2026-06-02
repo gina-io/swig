@@ -4,7 +4,7 @@ var tokenparser = require('@rhinostone/swig-core/lib/tokenparser'),
   _t = require('@rhinostone/swig-core/lib/tokentypes'),
   lexer = require('../../lib/lexer'),
   filters = require('../../lib/filters'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 var TokenParser = tokenparser.TokenParser;
 

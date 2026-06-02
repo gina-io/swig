@@ -26,7 +26,6 @@
   "devDependencies": {
     "esbuild": "^0.28.0",
     "eslint": "^9",
-    "expect.js": "~0.2",
     "express": "^4",
     "globals": "^16",
     "lodash": "^4",

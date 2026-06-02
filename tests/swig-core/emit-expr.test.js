@@ -1,6 +1,6 @@
 var backend = require('@rhinostone/swig-core/lib/backend'),
   ir = require('@rhinostone/swig-core/lib/ir'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 
 /*!

@@ -1,6 +1,6 @@
 var parser = require('@rhinostone/swig-jinja2/lib/parser'),
   lexer = require('@rhinostone/swig-jinja2/lib/lexer'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 
 /*!

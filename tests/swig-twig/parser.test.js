@@ -1,6 +1,6 @@
 var parser = require('@rhinostone/swig-twig/lib/parser'),
   lexer = require('@rhinostone/swig-twig/lib/lexer'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 /*!
  * Phase 3 Session 5 — Twig expression parser.

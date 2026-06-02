@@ -1,6 +1,6 @@
 var jinja2 = require('@rhinostone/swig-jinja2'),
   filters = require('@rhinostone/swig-jinja2/lib/filters'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 
 /*!

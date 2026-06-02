@@ -14,7 +14,7 @@
  */
 var fs = require('fs'),
   path = require('path'),
-  expect = require('expect.js'),
+  expect = require('../lib/expect.js'),
   _ = require('lodash'),
   jinja2 = require('../../packages/swig-jinja2');
 

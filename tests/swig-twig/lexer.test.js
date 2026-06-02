@@ -1,6 +1,6 @@
 var lexer = require('@rhinostone/swig-twig/lib/lexer'),
   TYPES = require('@rhinostone/swig-twig/lib/tokentypes'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 
 /*!

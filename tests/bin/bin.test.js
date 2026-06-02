@@ -1,6 +1,6 @@
 var fs = require('fs'),
   exec = require('child_process').exec,
-  expect = require('expect.js'),
+  expect = require('../lib/expect.js'),
   _ = require('lodash'),
   path = require('path'),
   swig = require('../../lib/swig'),

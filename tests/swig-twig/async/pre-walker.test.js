@@ -1,4 +1,4 @@
-var expect = require('expect.js'),
+var expect = require('../../lib/expect.js'),
   preWalker = require('../../../packages/swig-twig/lib/async/pre-walker');
 
 var twigOpts = {

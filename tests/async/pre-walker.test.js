@@ -1,4 +1,4 @@
-var expect = require('expect.js'),
+var expect = require('../lib/expect.js'),
   preWalker = require('../../lib/async/pre-walker');
 
 var defaultControls = {

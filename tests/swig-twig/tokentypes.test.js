@@ -1,6 +1,6 @@
 var TYPES = require('@rhinostone/swig-twig/lib/tokentypes'),
   CORE_TYPES = require('@rhinostone/swig-core/lib/tokentypes'),
-  expect = require('expect.js');
+  expect = require('../lib/expect.js');
 
 
 /*!
