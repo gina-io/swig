@@ -22,6 +22,11 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.5.3 (June 2026)
+
+- Dynamic `{% extends %}` on the synchronous render path now throws a clear error pointing to the async render path (`renderFile` with `loader.async === true`), instead of a generic "template not found" / "no filename" error. Dynamic extends has always required the async render path; this only improves the diagnostic. Applies to all flavors via the shared engine.
+- All four packages (`@rhinostone/swig`, `@rhinostone/swig-core`, `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2`) released in lockstep at `2.5.3`.
+
 ### v2.5.2 (June 2026)
 
 - Dynamic `{% extends %}` paths now resolve on the async render path (`renderFile(path, locals, cb)` against a loader with `loader.async === true`) across all three frontends — native `@rhinostone/swig`, `@rhinostone/swig-twig`, and `@rhinostone/swig-jinja2`. A dynamic parent (e.g. `{% extends layout_var %}`) is lowered to a deferred IR expression and resolved at render time, matching real Twig and Jinja2; previously a dynamic parent path was rejected at parse time (Twig / Jinja2) or produced a garbage template lookup (native). Static string-literal `{% extends %}` and the synchronous render path are unchanged — on the sync path a dynamic parent still requires a string literal (dispatch the chosen parent in the caller).

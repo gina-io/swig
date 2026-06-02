@@ -1,3 +1,8 @@
+[2.5.3](https://github.com/gina-io/swig/tree/v2.5.3) / 2026-06-02
+-----------------------------------------------------------------
+
+* **Changed** Dynamic `{% extends %}` on the synchronous render path now throws a clear error pointing to the async render path (`renderFile` with `loader.async === true`), instead of a generic "template not found" / "no filename" error. Dynamic extends has always required the async render path — this only improves the diagnostic. Applies to all flavors via the shared engine.
+
 [2.5.2](https://github.com/gina-io/swig/tree/v2.5.2) / 2026-06-02
 -----------------------------------------------------------------
 
