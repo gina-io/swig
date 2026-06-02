@@ -1,0 +1,4 @@
+kind: fixed
+body: "Dynamic `{% extends %}` paths (e.g. `{% extends layout_var %}`) now resolve on the async-loader render path (`renderFile(path, locals, cb)` with `loader.async`); previously a dynamic parent path produced a garbage template lookup. Static string-literal extends and the synchronous render path are unchanged."
+custom:
+  Issue: ""

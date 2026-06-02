@@ -106,13 +106,15 @@ exports.importNonBlocks = function (blocks, tokens) {
  * which works for `{% extends "layout.html" %}` but for a bare
  * identifier (`{% extends parent_var %}`) yields a pre-lowered JS
  * source fragment such as `((typeof _ctx.parent_var !== "undefined")
- * ? _ctx.parent_var : …)`. Embedded here as a string literal it
- * becomes a garbage template lookup at runtime
- * (`Template not found: /((typeof _ctx.parent_var …`). Closing the
- * dynamic-extends gap requires the parser to stash an IRExpr on
- * `tokens.parent` and this helper to lower it through
- * `ir.extendsDeferred`'s `parentExpr` slot — already designed as
- * `<IRExpr>` per the deferred IR contract.
+ * ? _ctx.parent_var : …)`. As a string literal that would become a
+ * garbage template lookup at runtime
+ * (`Template not found: /((typeof _ctx.parent_var …`). Closed: a
+ * dynamic path is lowered to an IRExpr by the extends tag's `lowerExpr`
+ * (lib/tags/extends.js) and stashed on the sibling `tokens.parentExpr`
+ * slot — NOT `tokens.parent`, which the sync `getParents` chain still
+ * reads as a string — then passed through `ir.extendsDeferred`'s
+ * `path` slot below. A lone string-literal path keeps the
+ * `ir.literal('string', tokens.parent)` path unchanged.
  *
  * @param  {object} tokens   Parsed child template (must have `.parent`).
  * @param  {object} options  Per-call Swig options; `options.filename` is
@@ -149,7 +151,7 @@ function buildExtendsDeferred(tokens, options) {
     }
   });
   return ir.extendsDeferred(
-    ir.literal('string', tokens.parent),
+    tokens.parentExpr || ir.literal('string', tokens.parent),
     childBlocks,
     childIRs,
     options.filename || ''

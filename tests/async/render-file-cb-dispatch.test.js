@@ -13,11 +13,12 @@ var expect = require('expect.js'),
  * support — templates whose include targets evaluate from locals at
  * render time.
  *
- * Dynamic extends paths (`{% extends parent_var %}`) are NOT covered
- * here. The extends-tag parser path stashes `tokens.parent` as a
- * pre-lowered JS source string rather than an IRExpr, so async-mode
- * extends only supports string-literal paths today. Closing that gap
- * is a separate follow-up.
+ * Dynamic extends paths (`{% extends layout_var %}`) ARE covered here
+ * (see "dynamic extends" below): the extends tag lowers its path through
+ * parser.parseExpr into an IRExpr stashed on tokens.parentExpr, which
+ * buildExtendsDeferred passes into ir.extendsDeferred's path slot —
+ * mirroring dynamic include. Static string-literal extends keeps its
+ * tokens.parent string path unchanged.
  */
 
 
@@ -155,6 +156,23 @@ describe('swig.renderFile cb dispatch — async end-to-end', function () {
       swig.renderFile('entry.html', { partial_var: 'static.html' }, function (err, out) {
         expect(err).to.be(null);
         expect(out).to.equal('before static-content after');
+        done();
+      });
+    });
+  });
+
+  describe('dynamic extends (the dynamic-path differentiator)', function () {
+
+    it('resolves a dynamic extends path from locals', function (done) {
+      var swig = new swigModule.Swig({
+        loader: makeAsyncLoader({
+          '/page.html': '{% extends layout_var %}{% block body %}Page body{% endblock %}',
+          '/layout.html': '<doc>{% block body %}{% endblock %}</doc>'
+        })
+      });
+      swig.renderFile('page.html', { layout_var: 'layout.html' }, function (err, out) {
+        expect(err).to.be(null);
+        expect(out).to.equal('<doc>Page body</doc>');
         done();
       });
     });
