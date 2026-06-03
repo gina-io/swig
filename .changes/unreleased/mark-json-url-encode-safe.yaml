@@ -1,0 +1,4 @@
+kind: changed
+body: "The native `json` / `json_encode` filters now HTML-escape their output (`<`, `>`, `&`, `'`) and are marked safe, so `{{ data|json }}` renders valid JSON that is safe to embed directly inside a `<script>` block instead of `&quot;`-escaped text. `url_encode` is now marked safe as well — its output never contains HTML-significant characters. `url_decode` is unchanged — its output remains autoescaped, since decoded content can contain HTML."
+custom:
+  Issue: ""

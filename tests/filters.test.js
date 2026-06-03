@@ -134,7 +134,7 @@ var n = new Swig(),
       { v: { foo: 'blah' }, e: 'blah' }
     ],
     groupBy: [
-      { c: 'v|groupBy("name")|json', v: [{ name: 'a', a: 1 }, { name: 'a', a: 2 }, { name: 'b', a: 3 }], e: JSON.stringify({a: [{a: 1}, {a: 2}], b: [{a: 3}]}).replace(/"/g, '&quot;') },
+      { c: 'v|groupBy("name")|json', v: [{ name: 'a', a: 1 }, { name: 'a', a: 2 }, { name: 'b', a: 3 }], e: JSON.stringify({a: [{a: 1}, {a: 2}], b: [{a: 3}]}) },
       { c: 'v|groupBy("name")', v: 'foo', e: 'foo' }
     ],
     join: [
@@ -145,8 +145,8 @@ var n = new Swig(),
       { c: 'v|join("-")', v: 'asdf', e: 'asdf' }
     ],
     json: [
-      { v: { foo: 'bar', baz: [1, 2, 3] }, e: '{&quot;foo&quot;:&quot;bar&quot;,&quot;baz&quot;:[1,2,3]}' },
-      { c: 'v|json(2)', v: { foo: 'bar', baz: [1, 2, 3] }, e: '{\n  &quot;foo&quot;: &quot;bar&quot;,\n  &quot;baz&quot;: [\n    1,\n    2,\n    3\n  ]\n}'}
+      { v: { foo: 'bar', baz: [1, 2, 3] }, e: '{"foo":"bar","baz":[1,2,3]}' },
+      { c: 'v|json(2)', v: { foo: 'bar', baz: [1, 2, 3] }, e: '{\n  "foo": "bar",\n  "baz": [\n    1,\n    2,\n    3\n  ]\n}'}
     ],
     last: [
       { v: [1, 2, 3, 4], e: '4' },
@@ -282,6 +282,44 @@ describe('Filters:', function () {
     var obj = { a: '<hi>' };
     swig.render('{{ a }}', { locals: { a: obj } });
     expect(obj.a).to.equal('<hi>');
+  });
+
+  describe('json / url_encode autoescape interaction', function () {
+    var filters = require('../lib/filters');
+
+    it('json and json_encode are marked safe', function () {
+      expect(filters.json.safe).to.equal(true);
+      expect(filters.json_encode.safe).to.equal(true);
+    });
+
+    it('url_encode is marked safe', function () {
+      expect(filters.url_encode.safe).to.equal(true);
+    });
+
+    it('url_decode is intentionally NOT marked safe', function () {
+      expect(filters.url_decode.safe).to.be(undefined);
+    });
+
+    it('json HTML-escapes <, >, &, \' so its output is safe inside a <script> block', function () {
+      expect(swig.render('<script>var d={{ d|json }};</script>', { locals: { d: { x: '</script><script>alert(1)</script>' } } }))
+        .to.equal('<script>var d={"x":"\\u003c/script\\u003e\\u003cscript\\u003ealert(1)\\u003c/script\\u003e"};</script>');
+    });
+
+    it('json output is no longer re-escaped by autoescape (raw quotes)', function () {
+      expect(swig.render('{{ d|json }}', { locals: { d: { a: 1 } } })).to.equal('{"a":1}');
+    });
+
+    it('json does not throw on values JSON.stringify cannot represent', function () {
+      expect(swig.render('{{ d|json }}', { locals: { d: function () {} } })).to.equal('undefined');
+    });
+
+    it('url_encode output is no longer autoescaped (apostrophe survives)', function () {
+      expect(swig.render('{{ q|url_encode }}', { locals: { q: "a'b" } })).to.equal("a'b");
+    });
+
+    it('url_decode output is still autoescaped (decoded HTML stays escaped)', function () {
+      expect(swig.render('{{ e|url_decode }}', { locals: { e: '%3Cscript%3E' } })).to.equal('&lt;script&gt;');
+    });
   });
 
   it('gh-365: filters applied to functions after dotkey', function () {

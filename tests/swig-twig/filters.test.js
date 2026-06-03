@@ -14,9 +14,10 @@ var filters = require('@rhinostone/swig-twig/lib/filters'),
  * (Twig's `sort` is ascending-only; pipe through `reverse` for descending),
  * (c) Twig has no `safe` filter — `raw` is the only autoescape-bypass name.
  *
- * `.safe = true` convention check: only `raw` carries it this session.
- * `json_encode` and `url_encode` deliberately do NOT — per the session
- * scope decision, Twig matches swig-core's actual flagging.
+ * `.safe = true` convention check: only `raw` carries it in this flavor.
+ * `json_encode` and `url_encode` deliberately do NOT — swig-twig keeps their
+ * output autoescaped. Native swig-core marks its json / json_encode / url_encode
+ * safe (escaping JSON for safe <script> embedding); the flavors diverge by design.
  */
 describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
 
@@ -142,7 +143,7 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     it('maps over arrays via iterateFilter', function () {
       expect(filters.url_encode(['a b', 'c d'])).to.eql(['a%20b', 'c%20d']);
     });
-    it('is NOT marked safe (matches swig-core flagging)', function () {
+    it('is NOT marked safe in this flavor', function () {
       expect(filters.url_encode.safe).to.be(undefined);
     });
   });
@@ -157,7 +158,7 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
     it('accepts an indent width', function () {
       expect(filters.json_encode({ a: 1 }, 2)).to.equal('{\n  "a": 1\n}');
     });
-    it('is NOT marked safe (matches swig-core flagging)', function () {
+    it('is NOT marked safe in this flavor', function () {
       expect(filters.json_encode.safe).to.be(undefined);
     });
   });
