@@ -1,3 +1,10 @@
+[2.6.0](https://github.com/gina-io/swig/tree/v2.6.0) / 2026-06-03
+-----------------------------------------------------------------
+
+* **Changed** The native `json` / `json_encode` filters now HTML-escape their output (`<`, `>`, `&`, `'`) and are marked safe, so `{{ data|json }}` renders valid JSON that is safe to embed directly inside a `<script>` block instead of `&quot;`-escaped text. `url_encode` is now marked safe as well — its output never contains HTML-significant characters. `url_decode` is unchanged — its output remains autoescaped, since decoded content can contain HTML.
+
+* **Changed** Replaced the `expect.js` test-assertion dev dependency with a small in-repo shim (`tests/lib/expect.js`) that reproduces the subset of its API the suite uses, with verified behavioral parity. Dev-only — the published packages are unaffected (their only runtime dependency remains `@rhinostone/swig-core`), and the full test suite plus the CVE-2023-25345 regressions pass unchanged. `npm audit` was already clean (`expect.js` is zero-dependency and advisory-free), so this is dependency-hygiene polish, not a security fix.
+
 [2.5.3](https://github.com/gina-io/swig/tree/v2.5.3) / 2026-06-02
 -----------------------------------------------------------------
 

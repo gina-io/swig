@@ -16,11 +16,17 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 | --- | --- |
 | Planned | Async parse path for the remaining dynamic targets — runtime-resolved `{% import %}` / `{% from %}` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic `{% extends %}` shipped in 2.5.2 (native + Twig + Jinja2) and dynamic `{% include %}` paths already resolve (the include path has always been an expression). Dynamic `import` / `from` are on hold pending consumer demand. |
 | Planned | Ship a Django frontend as an additional `@rhinostone/swig-*` package. On demand — when there's concrete user demand. (The Jinja2 frontend shipped in `2.5.0`.) |
-| Planned | Test framework migration. Replace mocha 1.x + expect.js with `node:test` + `node:assert/strict`, add a modern browser-test harness (the legacy phantomjs runner has been removed), swap blanket for `c8`. (The Node engines bump is upstream-driven by gina and is being treated as done.) |
+| Planned | Modern browser-test harness. The legacy phantomjs runner was removed; a replacement (e.g. Playwright or JSDOM) has not yet landed, so browser parity is verified in the interim via the production build plus a symbol grep. (The `mocha` → `node:test` runner migration, the `expect.js` → in-repo assertion-shim swap, and the `blanket` → `node:test` built-in coverage migration have all shipped.) |
 
 ---
 
 ## Completed
+
+### v2.6.0 (June 2026)
+
+- The native `json` / `json_encode` filters now HTML-escape their output (`<`, `>`, `&`, and `'` are emitted as `\u00XX` escapes) and are marked safe, so `{{ data|json }}` renders valid JSON that can be embedded directly inside a `<script>` block instead of `&quot;`-escaped text. `url_encode` is now marked safe as well — its output never contains HTML-significant characters. `url_decode` is deliberately unchanged: its output stays autoescaped, since decoded content can contain HTML. Only the native `@rhinostone/swig` flavor changes here — `@rhinostone/swig-twig` keeps `json_encode` / `url_encode` unescaped (Twig-faithful), and `@rhinostone/swig-jinja2` keeps its `tojson` (safe) / `urlencode` (not safe) split (Jinja2-faithful).
+- Replaced the `expect.js` test-assertion dev dependency with a small in-repo shim, with verified behavioral parity. Dev-only — the published packages are unaffected (their only runtime dependency remains `@rhinostone/swig-core`), and the full test suite plus the CVE-2023-25345 regressions pass unchanged.
+- All four packages (`@rhinostone/swig`, `@rhinostone/swig-core`, `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2`) released in lockstep at `2.6.0`. The functional change is confined to native `@rhinostone/swig`'s filters; the `@rhinostone/swig-core`, `@rhinostone/swig-twig`, and `@rhinostone/swig-jinja2` runtimes are functionally identical to `2.5.3`.
 
 ### v2.5.3 (June 2026)
 
