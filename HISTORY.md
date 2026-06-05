@@ -327,29 +327,29 @@ Migrating from v0.x.x? The upstream wiki has since been deleted; see the individ
 [1.0.0-pre3](https://github.com/paularmstrong/swig/tree/v1.0.0-pre3) / 2013-08-20
 ---------------------------------------------------------------------------------
 
-* **Changed** Allow tags at block-level if specified. [gh-289](https://github.com/paularmstrong/swig/issues/289)
-* **Fixed** `swig.compileFile` runs callback template is found in cache. [gh-291](https://github.com/paularmstrong/swig/issues/291)
-* **Fixed** Accidental modification of Swig Options Object. [gh-287](https://github.com/paularmstrong/swig/issues/287)
-* **Fixed** Preserve forward-slashes in text chunks. [gh-285](https://github.com/paularmstrong/swig/issues/285)
+* **Changed** Allow tags at block-level if specified. gh-289
+* **Fixed** `swig.compileFile` runs callback template is found in cache. gh-291
+* **Fixed** Accidental modification of Swig Options Object. gh-287
+* **Fixed** Preserve forward-slashes in text chunks. gh-285
 
 [1.0.0-pre2](https://github.com/paularmstrong/swig/tree/v1.0.0-pre2) / 2013-08-18
 ---------------------------------------------------------------------------------
 
 * **Changed** Binary: Allow --method-name to be a shortcut for --wrap-start var setting.
 * **Changed** Make reverse filter an alias for `sort(true)`.
-* **Added** Allow asyncronous `compileFile` and `renderFile` operations. [gh-283](https://github.com/paularmstrong/swig/issues/283)
+* **Added** Allow asyncronous `compileFile` and `renderFile` operations. gh-283
 * **Added** Filter: `sort`.
-* **Added** Allow {% end[tag] tokens... %}. [gh-278](https://github.com/paularmstrong/swig/issues/278)
+* **Added** Allow {% end[tag] tokens... %}. gh-278
 * **Added** Built source map for minified browser source.
-* **Added** Contextual support for object method calls. [gh-275](https://github.com/paularmstrong/swig/issues/275)
-* **Added** `parser.on('start'|'end'...` options. [gh-274](https://github.com/paularmstrong/swig/issues/274)
-* **Added** Allow object prototypal inheritance. [gh-273](https://github.com/paularmstrong/swig/issues/273)
-* **Fixed** Prevent circular extends. [gh-282](https://github.com/paularmstrong/swig/issues/282)
-* **Fixed** Throw an error if reserved word is used as var. [gh-276](https://github.com/paularmstrong/swig/issues/276)
-* **Fixed** Add filename to errors if possible. [gh-280](https://github.com/paularmstrong/swig/issues/280)
-* **Fixed** Filters work over arrays/objects if possible. [gh-259](https://github.com/paularmstrong/swig/issues/259)
-* **Fixed** Allow {% parent %} to work in middle parent templates. [gh-277](https://github.com/paularmstrong/swig/issues/277)
-* **Fixed** Allow newlines in tags/vars/comments. [gh-272](https://github.com/paularmstrong/swig/issues/272)
+* **Added** Contextual support for object method calls. gh-275
+* **Added** `parser.on('start'|'end'...` options. gh-274
+* **Added** Allow object prototypal inheritance. gh-273
+* **Fixed** Prevent circular extends. gh-282
+* **Fixed** Throw an error if reserved word is used as var. gh-276
+* **Fixed** Add filename to errors if possible. gh-280
+* **Fixed** Filters work over arrays/objects if possible. gh-259
+* **Fixed** Allow {% parent %} to work in middle parent templates. gh-277
+* **Fixed** Allow newlines in tags/vars/comments. gh-272
 
 [1.0.0-pre1](https://github.com/paularmstrong/swig/tree/v1.0.0-pre1) / 2013-08-14
 ---------------------------------------------------------------------------------
@@ -370,57 +370,57 @@ Migrating from v0.x.x? The upstream wiki has since been deleted; see the individ
 * **Changed** allow `_`, `$` to start var names in templates.
 * **Changed** Documentation is auto-generated from jsdoc comments in-files.
 * **Added** Ability to set custom var/tag/comment controls (`{{`, `}}`, etc, can be customized).
-* **Added** Variable/string concatenation [gh-135](https://github.com/paularmstrong/swig/issues/135).
+* **Added** Variable/string concatenation gh-135.
 * **Added** Binary application for `compile`, `run`, and `render` (Lets you pre-compile templates into JS functions for client-side delivery).
 * **Fixed** Lots.
 
 [0.14.0](https://github.com/paularmstrong/swig/tree/v0.14.0) / 2013-06-08
 -------------------------------------------------------------------------
 
-* **Added** Allow executing functions from within templates [gh-182](https://github.com/paularmstrong/swig/pull/182)
-* **Added** New `spaceless` tag [gh-193](https://github.com/paularmstrong/swig/pull/193)
-* **Fixed** bug when attempting to loop over nested vars with `for`. [gh-232](https://github.com/paularmstrong/swig/pull/232)
+* **Added** Allow executing functions from within templates gh-182
+* **Added** New `spaceless` tag gh-193
+* **Fixed** bug when attempting to loop over nested vars with `for`. gh-232
 
 [0.13.5](https://github.com/paularmstrong/swig/tree/v0.13.5) / 2013-01-29
 -------------------------------------------------------------------------
 
-* **Fixed** date filter output for 'O' when time-zone offset is negative [gh-185](https://github.com/paularmstrong/swig/pull/185)
+* **Fixed** date filter output for 'O' when time-zone offset is negative gh-185
 
 [0.13.4](https://github.com/paularmstrong/swig/tree/v0.13.4) / 2012-12-19
 -------------------------------------------------------------------------
 
-* **Fixed** Runaway loop on missing template [gh-162](https://github.com/paularmstrong/swig/pull/162) [gh-165](https://github.com/paularmstrong/swig/pull/165)
-* **Fixed** Allow variables in if tag conditionals to have filters with arguments [gh-167](https://github.com/paularmstrong/swig/pull/167)
+* **Fixed** Runaway loop on missing template gh-162 gh-165
+* **Fixed** Allow variables in if tag conditionals to have filters with arguments gh-167
 
 [0.13.3](https://github.com/paularmstrong/swig/tree/v0.13.3) / 2012-12-07
 -------------------------------------------------------------------------
 
-* **Added** Support % (modulus) in if tags [gh-155](https://github.com/paularmstrong/swig/pull/155)
-* **Added** Support multi-root via array [gh-143](https://github.com/paularmstrong/swig/pull/143)
+* **Added** Support % (modulus) in if tags gh-155
+* **Added** Support multi-root via array gh-143
 
 [0.13.2](https://github.com/paularmstrong/swig/tree/v0.13.2) / 2012-10-28
 -------------------------------------------------------------------------
 
-* **Changed** Allow variables, filters, arguments to span lines [gh-122](https://github.com/paularmstrong/swig/issues/122)
-* **Changed** Throw Errors when using undefined filters [gh-115](https://github.com/paularmstrong/swig/issues/115)
-* **Fixed** compiling files from absolute paths [gh-103](https://github.com/paularmstrong/swig/issues/103)
-* **Fixed** Prevent global variables from being used before context variables [gh-117](https://github.com/paularmstrong/swig/issues/117)
+* **Changed** Allow variables, filters, arguments to span lines gh-122
+* **Changed** Throw Errors when using undefined filters gh-115
+* **Fixed** compiling files from absolute paths gh-103
+* **Fixed** Prevent global variables from being used before context variables gh-117
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.13.2/docs)
 
 [0.13.1](https://github.com/paularmstrong/swig/tree/v0.13.1) / 2012-10-28
 -------------------------------------------------------------------------
 
-* **Fixed** Macros should be preserved when using inheritence [gh-132](https://github.com/paularmstrong/swig/issues/132) ([nsaun](https://github.com/nsaun))
-* **Fixed** bug in parent tag logic [gh-130](https://github.com/paularmstrong/swig/issues/130)
-* **Fixed** Error messaging when parent block failed compilation [gh-129](https://github.com/paularmstrong/swig/issues/129) ([nsaun](https://github.com/nsaun))
+* **Fixed** Macros should be preserved when using inheritence gh-132 ([nsaun](https://github.com/nsaun))
+* **Fixed** bug in parent tag logic gh-130
+* **Fixed** Error messaging when parent block failed compilation gh-129 ([nsaun](https://github.com/nsaun))
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.13.1/docs)
 
 [0.13.0](https://github.com/paularmstrong/swig/tree/v0.13.0) / 2012-10-20
 -------------------------------------------------------------------------
 
-* **Added** Support for nested blocks! [gh-64](https://github.com/paularmstrong/swig/issues/64) [gh-129](https://github.com/paularmstrong/swig/issues/129) ([nsaun](https://github.com/nsaun))
+* **Added** Support for nested blocks! gh-64 gh-129 ([nsaun](https://github.com/nsaun))
 * **Changed** Removed the `parentBlock` argument from tags.
 * **Fixed** Object keys may now contain dots
 
@@ -449,28 +449,28 @@ Migrating from v0.x.x? The upstream wiki has since been deleted; see the individ
 [0.11.2](https://github.com/paularmstrong/swig/tree/v0.11.2) / 2012-04-10
 -------------------------------------------------------------------------
 
-* **Fixed** Update support for underscore@1.3.3 [gh-70](https://github.com/paularmstrong/swig/issues/70) [gh-71](https://github.com/paularmstrong/swig/issues/71)
+* **Fixed** Update support for underscore@1.3.3 gh-70 gh-71
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.11.2/docs)
 
 [0.11.1](https://github.com/paularmstrong/swig/tree/v0.11.1) / 2012-04-01
 -------------------------------------------------------------------------
 
-* **Fixed** Duplicate (string) tokens were being removed when extending a base template. [gh-67](https://github.com/paularmstrong/swig/issues/67)
+* **Fixed** Duplicate (string) tokens were being removed when extending a base template. gh-67
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.11.1/docs)
 
 [0.11.0](https://github.com/paularmstrong/swig/tree/v0.11.0) / 2012-02-27
 -------------------------------------------------------------------------
 
-* **Added** Support for Windows style paths [gh-57](https://github.com/paularmstrong/swig/issues/57)
+* **Added** Support for Windows style paths gh-57
 * **Added** `ignore missing` tokens to include tag
 * **Changed** include tag `with context` to only work if `context` is an object
 * **Changed** `autoescape` tag controls no longer 'yes' or 'no'. Use `true` and `false`
 * **Changed** parser is now passed into tags as an argument
 * **Changed** don't require passing context object when rendering template
-* **Fixed** dateformats `N` and `w` [gh-59](https://github.com/paularmstrong/swig/issues/59)
-* **Fixed** number changing to string after add filter or set from variable [gh-53](https://github.com/paularmstrong/swig/issues/53) [gh-58](https://github.com/paularmstrong/swig/issues/58)
+* **Fixed** dateformats `N` and `w` gh-59
+* **Fixed** number changing to string after add filter or set from variable gh-53 gh-58
 * **Fixed** speed decrease caused by loop.cycle fixed
 * **Fixed** Ensure set tag bubbles through extends and blocks
 
@@ -479,22 +479,22 @@ Migrating from v0.x.x? The upstream wiki has since been deleted; see the individ
 [0.10.0](https://github.com/paularmstrong/swig/tree/v0.10.0) / 2012-02-13
 -------------------------------------------------------------------------
 
-* **Added** loop.index0, loop.revindex, loop.revindex0, and loop.cycle [gh-48](https://github.com/paularmstrong/swig/issues/48)
-* **Added** init config `extensions` for 3rd party extension access in custom tags [gh-44](https://github.com/paularmstrong/swig/issues/44)
-* **Added** Whitespace Control [gh-46](https://github.com/paularmstrong/swig/issues/46)
-* **Changed** The `empty` tag in `for` loops is now `else` [gh-49](https://github.com/paularmstrong/swig/issues/49)
-* **Changed** `forloop` vars to `loop` closes [gh-47](https://github.com/paularmstrong/swig/issues/47)
-* **Fixed** `include` tag's `with` and `only` args documentation [gh-50](https://github.com/paularmstrong/swig/issues/50)
+* **Added** loop.index0, loop.revindex, loop.revindex0, and loop.cycle gh-48
+* **Added** init config `extensions` for 3rd party extension access in custom tags gh-44
+* **Added** Whitespace Control gh-46
+* **Changed** The `empty` tag in `for` loops is now `else` gh-49
+* **Changed** `forloop` vars to `loop` closes gh-47
+* **Fixed** `include` tag's `with` and `only` args documentation gh-50
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.10.0/docs)
 
 [0.9.4](https://github.com/paularmstrong/swig/tree/v0.9.4) / 2012-02-07
 -----------------------------------------------------------------------
 
-* **Fixed** `parent` tag would not render when called within tags [gh-41](https://github.com/paularmstrong/swig/issues/41)
-* **Fixed** Documentation for forloop.index & forloop.key [gh-42](https://github.com/paularmstrong/swig/issues/42)
-* **Fixed** Errors when using `include` inside base template `block` tags [gh-43](https://github.com/paularmstrong/swig/issues/43)
-* **Fixed** Allow `set` tag to set values to numbers [gh-45](https://github.com/paularmstrong/swig/issues/45)
+* **Fixed** `parent` tag would not render when called within tags gh-41
+* **Fixed** Documentation for forloop.index & forloop.key gh-42
+* **Fixed** Errors when using `include` inside base template `block` tags gh-43
+* **Fixed** Allow `set` tag to set values to numbers gh-45
 * **Fixed** `set` tag for booleans using too many checks
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.9.4/docs)
@@ -502,21 +502,21 @@ Migrating from v0.x.x? The upstream wiki has since been deleted; see the individ
 [0.9.3](https://github.com/paularmstrong/swig/tree/v0.9.3) / 2012-01-28
 -----------------------------------------------------------------------
 
-* **Fixed** Allow object and array values to be accessed via context variables [gh-40](https://github.com/paularmstrong/swig/issues/40)
+* **Fixed** Allow object and array values to be accessed via context variables gh-40
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.9.3/docs)
 
 [0.9.2](https://github.com/paularmstrong/swig/tree/v0.9.2) / 2012-01-23
 -----------------------------------------------------------------------
 
-* **Fixed** Correctly reset autoescape after closing an autoescape tag. [gh-39](https://github.com/paularmstrong/swig/issues/39)
+* **Fixed** Correctly reset autoescape after closing an autoescape tag. gh-39
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.9.2/docs)
 
 [0.9.1](https://github.com/paularmstrong/swig/tree/v0.9.1) / 2012-01-18
 -----------------------------------------------------------------------
 
-* **Fixed** Allow multi-line tags and comments. [gh-30](https://github.com/paularmstrong/swig/issues/30)
+* **Fixed** Allow multi-line tags and comments. gh-30
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.9.1/docs)
 
@@ -524,7 +524,7 @@ Migrating from v0.x.x? The upstream wiki has since been deleted; see the individ
 -----------------------------------------------------------------------
 
 * **Added** DateZ license to browser header, use link to underscore license.
-* **Added** Timezone support in `date` filter [gh-27](https://github.com/paularmstrong/swig/issues/27).
+* **Added** Timezone support in `date` filter gh-27.
 * **Added** New `raw` tag.
 * **Changed** Swig is no longer node 0.4 compatible.
 * **Fixed** Filter `date('f')` for 10am times.
@@ -546,18 +546,18 @@ Migrating from v0.x.x? The upstream wiki has since been deleted; see the individ
 * **Changed** `swig.init()` will clear template cache.
 * **Changed** `swig.init()` is now optional for browser mode with no custom settings.
 * **Changed** Development dependencies are be more lenient.
-* **Fixed** Parser will properly preserver '\' escaping. [gh-24](https://github.com/paularmstrong/swig/issues/24)
+* **Fixed** Parser will properly preserver '\' escaping. gh-24
 * **Fixed** Rewrote tag argument parsing for proper space handling.
-* **Fixed** Rewrote filter argument parsing. [gh-23](https://github.com/paularmstrong/swig/issues/23)
-* **Fixed** Allow pipe `|` characters in filter arguments. [gh-22](https://github.com/paularmstrong/swig/issues/22)
+* **Fixed** Rewrote filter argument parsing. gh-23
+* **Fixed** Allow pipe `|` characters in filter arguments. gh-22
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.8.0/docs)
 
 [0.7.0](https://github.com/paularmstrong/swig/tree/v0.7.0) / 2011-10-05
 -----------------------------------------------------------------------
 
-* **Added** `make browser` will build Swig for use in major browsers. [gh-3](https://github.com/paularmstrong/swig/issues/3)
-* **Changed** Allow overriding `escape` filters. [gh-19](https://github.com/paularmstrong/swig/issues/19)
+* **Added** `make browser` will build Swig for use in major browsers. gh-3
+* **Changed** Allow overriding `escape` filters. gh-19
 
 [Documentation](https://github.com/paularmstrong/swig/tree/v0.7.0/docs)
 

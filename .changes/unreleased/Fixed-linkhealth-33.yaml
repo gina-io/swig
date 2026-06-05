@@ -1,0 +1,5 @@
+kind: fixed
+body: 'De-linked the dead `paularmstrong/swig` issue and pull-request references in `HISTORY.md` and the matching `.changes/v*.md` fragments (2026-06-01 link-health scan, gina-io/gina#33). The upstream repository remains but its issue tracker is disabled, so the inline `[gh-N](...)` links are now plain `gh-N` text — every reference is preserved for historical traceability, and the fragments are edited in lockstep with `HISTORY.md` to keep `changie merge` idempotent. Documentation / changelog only; no runtime or API change.'
+time: 2026-06-05T01:27:38.000000000Z
+custom:
+  Issue: ""
