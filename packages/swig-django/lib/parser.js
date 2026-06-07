@@ -600,7 +600,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
       var openName = tagName.replace(/^end/, '');
       last = stack[stack.length - 1];
       if (last && last.name === openName && last.ends) {
-        if (openName === 'verbatim') { inRaw = false; }
+        if (openName === 'verbatim' || openName === 'comment') { inRaw = false; }
         if (openName === 'autoescape') { escapeStack.pop(); }
         stack.pop();
         return;
@@ -638,7 +638,9 @@ exports.parse = function (swig, source, opts, tags, filters) {
       utils.throwError('Unexpected tag "' + tagName + '"', _line, opts.filename);
     }
 
-    if (tagName === 'verbatim') {
+    if (tagName === 'verbatim' || tagName === 'comment') {
+      // Both bypass parsing of their body: verbatim renders it verbatim,
+      // comment discards it (its compile drops the captured text).
       inRaw = true;
     }
     if (tagName === 'autoescape') {
