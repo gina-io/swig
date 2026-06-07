@@ -1,3 +1,10 @@
+[2.7.0](https://github.com/gina-io/swig/tree/v2.7.0) / 2026-06-07
+-----------------------------------------------------------------
+
+* **Added** `@rhinostone/swig-django` is a new Django Template Language frontend for the `@rhinostone/swig-core` engine — the fourth flavor in the multi-flavor family alongside the native, Twig, and Jinja2 frontends. It renders real Django templates: the full built-in tag set (`for`/`empty` with `forloop`, `if`/`elif`/`else`, `block`/`extends`/`include`, `with`, `autoescape`, `spaceless`, `comment`, `verbatim`, `cycle`, `firstof`), ~42 built-in filters with colon-argument syntax such as `{{ value|date:"Y-m-d" }}`, a Django-faithful variable resolver (auto-calls callable attributes while honoring `alters_data`/`do_not_call_in_templates`, numeric indexing like `{{ list.0 }}`, and `.keys`/`.values`/`.items` dict iteration), and async loader support via `renderFile(path, locals, cb)`. Installs as `npm install @rhinostone/swig-django`.
+
+* **Fixed** De-linked the dead `paularmstrong/swig` issue and pull-request references in `HISTORY.md` and the matching `.changes/v*.md` fragments (2026-06-01 link-health scan, gina-io/gina#33). The upstream repository remains but its issue tracker is disabled, so the inline `[gh-N](...)` links are now plain `gh-N` text — every reference is preserved for historical traceability, and the fragments are edited in lockstep with `HISTORY.md` to keep `changie merge` idempotent. Documentation / changelog only; no runtime or API change.
+
 [2.6.0](https://github.com/gina-io/swig/tree/v2.6.0) / 2026-06-03
 -----------------------------------------------------------------
 

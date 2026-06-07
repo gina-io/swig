@@ -15,12 +15,17 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 | Status | Item |
 | --- | --- |
 | Planned | Async parse path for the remaining dynamic targets — runtime-resolved `{% import %}` / `{% from %}` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic `{% extends %}` shipped in 2.5.2 (native + Twig + Jinja2) and dynamic `{% include %}` paths already resolve (the include path has always been an expression). Dynamic `import` / `from` are on hold pending consumer demand. |
-| Planned | Ship a Django frontend as an additional `@rhinostone/swig-*` package. On demand — when there's concrete user demand. (The Jinja2 frontend shipped in `2.5.0`.) |
 | Planned | Modern browser-test harness. The legacy phantomjs runner was removed; a replacement (e.g. Playwright or JSDOM) has not yet landed, so browser parity is verified in the interim via the production build plus a symbol grep. (The `mocha` → `node:test` runner migration, the `expect.js` → in-repo assertion-shim swap, and the `blanket` → `node:test` built-in coverage migration have all shipped.) |
 
 ---
 
 ## Completed
+
+### v2.7.0 (June 2026)
+
+- Added `@rhinostone/swig-django`, a Django Template Language frontend on the shared `@rhinostone/swig-core` engine — the fourth dialect in the multi-flavor family alongside native swig, `@rhinostone/swig-twig`, and `@rhinostone/swig-jinja2`. It renders real Django templates: 15 tags (`if` / `elif` / `else`, `for` / `empty` with `forloop`, `block`, `extends`, `include`, `with`, `autoescape`, `spaceless`, `comment`, `verbatim`, `cycle`, `firstof`), 42 built-in filters with Django's colon-argument syntax (`{{ value|date:"Y-m-d" }}`), and a Django-faithful variable resolver — callable attributes are auto-called (honoring `alters_data` / `do_not_call_in_templates`), numeric indexing works (`{{ list.0 }}`), and dicts iterate via `.keys` / `.values` / `.items`. Async loader support via `renderFileAsync` / `compileFileAsync` and `renderFile(path, locals, cb)` against an async loader. Autoescape and the CVE-2023-25345 guards are inherited from `@rhinostone/swig-core`. Every tag and filter was cross-checked against Django 5.2; the behavioural differences and explicit non-goals (no `{% load %}` / custom tag libraries, no `{% url %}` / `{% static %}` / `{% csrf_token %}` / `{% trans %}` / `{% blocktrans %}` framework infrastructure, no whitespace-control, no `is` tests) are documented in the Django templating guide.
+- All five packages (`@rhinostone/swig`, `@rhinostone/swig-core`, `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2`, `@rhinostone/swig-django`) released in lockstep at `2.7.0`. `@rhinostone/swig-core` gained an additive opt-in loop-context flag and a variable-resolver primitive (`_utils.resolve`) consumed by the Django frontend; native swig, Twig, and Jinja2 are functionally unchanged (proven byte-identical compiled output).
+- Documentation housekeeping: de-linked the dead `paularmstrong/swig` issue and pull-request references in `HISTORY.md` (the upstream issue tracker is disabled), preserving every reference as plain text.
 
 ### v2.6.0 (June 2026)
 
