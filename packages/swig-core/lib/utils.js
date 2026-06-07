@@ -1,3 +1,5 @@
+var security = require('./security');
+
 var isArray;
 
 /**
@@ -310,4 +312,72 @@ exports.slice = function (obj, start, stop, step) {
  */
 exports.coerceOutput = function (v) {
   return (v === null || v === undefined) ? '' : v;
+};
+
+/*!
+ * Resolve a single path segment against a value, Django-style. A plain
+ * property access (`obj[seg]`) covers dictionary, attribute, and array /
+ * string index lookup in one step (JS string-keys an array / string by a
+ * numeric segment, so `["a"][0]` and `["a"]["0"]` both yield the element).
+ * A callable leaf is auto-called with no arguments, bound to its receiver,
+ * honoring Django's opt-outs: `fn.alters_data === true` is not called and
+ * yields `undefined` (Django renders nothing for data-altering callables);
+ * `fn.do_not_call_in_templates === true` is returned uncalled. A call that
+ * throws (e.g. a method that needs arguments) yields `undefined`, mirroring
+ * Django's `string_if_invalid` fallback on a failed auto-call. The
+ * `_dangerousProps` segments are rejected at runtime as defense-in-depth.
+ * @private
+ */
+function resolveSeg(obj, seg) {
+  var val;
+  if (obj === null || obj === undefined) {
+    return undefined;
+  }
+  if (security.dangerousProps.indexOf(seg) !== -1) {
+    return undefined;
+  }
+  val = obj[seg];
+  if (typeof val === 'function') {
+    if (val.alters_data === true) {
+      return undefined;
+    }
+    if (val.do_not_call_in_templates === true) {
+      return val;
+    }
+    // Django auto-calls a callable leaf with no args and falls back to
+    // string_if_invalid ("") when the call raises; mirror that here.
+    try {
+      return val.call(obj);
+    } catch (e) {
+      return undefined;
+    }
+  }
+  return val;
+}
+
+/**
+ * Resolve a dotted path against a context object, Django-style — walk each
+ * segment through the per-segment lookup, short-circuiting to the missing
+ * value as soon as a segment resolves null / undefined. Powers the Django
+ * flavor's variable resolution (dict / attribute / method lookup, auto-call
+ * of callable leaves, `{{ list.0 }}` index access) when a frontend opts in
+ * via the `IRVarRef.resolve` flag. The raw resolved value (including null) is
+ * returned so downstream filters such as `default_if_none` see a real null;
+ * coercion to "" is deferred to the output drain (via `coerceOutput`).
+ *
+ * @param  {*}        obj   The root context (usually `_ctx`).
+ * @param  {string[]} path  Path segments.
+ * @return {*}              The resolved value, or null / undefined when a
+ *                          segment is missing.
+ */
+exports.resolve = function (obj, path) {
+  var cur = obj,
+    i;
+  for (i = 0; i < path.length; i += 1) {
+    cur = resolveSeg(cur, path[i]);
+    if (cur === null || cur === undefined) {
+      return cur;
+    }
+  }
+  return cur;
 };

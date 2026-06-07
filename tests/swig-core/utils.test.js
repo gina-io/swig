@@ -71,3 +71,74 @@ describe('@rhinostone/swig-core — utils.slice', function () {
   });
 
 });
+
+
+/*!
+ * utils.resolve — Django-style variable resolution (swig-core "change B").
+ *
+ * Per-segment property / attribute / index lookup, auto-call of callable
+ * leaves (bound to the receiver) honoring alters_data /
+ * do_not_call_in_templates, a runtime _dangerousProps guard, and raw
+ * null/undefined preservation (coercion is deferred to the output drain).
+ * Opted into per-VarRef by the Django frontend; dormant for the other flavors.
+ */
+describe('@rhinostone/swig-core — utils.resolve', function () {
+
+  it('resolves a simple property', function () {
+    expect(utils.resolve({ a: 'x' }, ['a'])).to.equal('x');
+  });
+
+  it('walks a dotted path', function () {
+    expect(utils.resolve({ a: { b: { c: 'deep' } } }, ['a', 'b', 'c'])).to.equal('deep');
+  });
+
+  it('indexes an array by a numeric segment ({{ list.0 }})', function () {
+    expect(utils.resolve({ list: [10, 20, 30] }, ['list', '0'])).to.equal(10);
+    expect(utils.resolve({ list: [10, 20, 30] }, ['list', '2'])).to.equal(30);
+  });
+
+  it('indexes a string by a numeric segment', function () {
+    expect(utils.resolve({ w: 'abc' }, ['w', '1'])).to.equal('b');
+  });
+
+  it('auto-calls a callable leaf with no arguments', function () {
+    expect(utils.resolve({ fn: function () { return 'Y'; } }, ['fn'])).to.equal('Y');
+  });
+
+  it('auto-calls a method bound to its receiver (this)', function () {
+    var user = { first: 'Jo', get_full_name: function () { return this.first + ' Doe'; } };
+    expect(utils.resolve({ user: user }, ['user', 'get_full_name'])).to.equal('Jo Doe');
+  });
+
+  it('does not call a function flagged alters_data (yields undefined)', function () {
+    var f = function () { return 'X'; };
+    f.alters_data = true;
+    expect(utils.resolve({ f: f }, ['f'])).to.be(undefined);
+  });
+
+  it('returns a function flagged do_not_call_in_templates uncalled', function () {
+    var f = function () { return 'X'; };
+    f.do_not_call_in_templates = true;
+    expect(typeof utils.resolve({ f: f }, ['f'])).to.equal('function');
+  });
+
+  it('rejects __proto__ / constructor / prototype segments at runtime', function () {
+    expect(utils.resolve({}, ['__proto__'])).to.be(undefined);
+    expect(utils.resolve({ a: {} }, ['a', 'constructor'])).to.be(undefined);
+    expect(utils.resolve({ a: {} }, ['a', 'prototype'])).to.be(undefined);
+  });
+
+  it('short-circuits to null when a segment is null', function () {
+    expect(utils.resolve({ a: null }, ['a', 'b'])).to.be(null);
+  });
+
+  it('returns undefined for a missing segment', function () {
+    expect(utils.resolve({}, ['nope'])).to.be(undefined);
+  });
+
+  it('yields undefined when an auto-call throws (Django string_if_invalid)', function () {
+    var f = function () { throw new Error('boom'); };
+    expect(utils.resolve({ f: f }, ['f'])).to.be(undefined);
+  });
+
+});

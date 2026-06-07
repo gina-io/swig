@@ -83,6 +83,36 @@ describe('swig-core/lib/backend — emitExpr', function () {
     });
   });
 
+  describe('IRVarRef with opt-in resolve flag', function () {
+    function resolveVar(path) {
+      var n = ir.varRef(path);
+      n.resolve = true;
+      return n;
+    }
+
+    it('emits a _utils.resolve runtime walk instead of the static dot-path', function () {
+      expect(backend.emitExpr(resolveVar(['foo']))).to.be('_utils.resolve(_ctx, ["foo"])');
+      expect(backend.emitExpr(resolveVar(['user', 'profile', 'name'])))
+        .to.be('_utils.resolve(_ctx, ["user","profile","name"])');
+    });
+
+    it('leaves a VarRef WITHOUT the flag byte-identical to the static dot-path', function () {
+      expect(backend.emitExpr(ir.varRef(['foo']))).to.be(
+        '((typeof _ctx.foo !== "undefined" && _ctx.foo !== null) ? _ctx.foo : ' +
+        '((typeof foo !== "undefined" && foo !== null) ? foo : ""))'
+      );
+    });
+
+    it('still applies the parse-time CVE-2023-25345 guard with the flag set', function () {
+      expect(function () {
+        backend.emitExpr(resolveVar(['__proto__']));
+      }).to.throwException(/CVE-2023-25345/);
+      expect(function () {
+        backend.emitExpr(resolveVar(['foo', 'constructor']));
+      }).to.throwException(/CVE-2023-25345/);
+    });
+  });
+
   describe('IRVarRefExists', function () {
     it('emits a boolean disjunction of the two scope-prefix dot walks for a single segment', function () {
       var js = backend.emitExpr(ir.varRefExists(['foo']));

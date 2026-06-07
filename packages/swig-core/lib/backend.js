@@ -794,6 +794,15 @@ function emitVarRef(node, d) {
   utils.each(node.path, function (segment) {
     checkDangerousSegment(segment, d, node);
   });
+  // Opt-in Django-style runtime resolution: dict / attribute / method
+  // lookup, numeric index access ({{ list.0 }}), and auto-call of callable
+  // leaves, via _utils.resolve. A frontend sets node.resolve; absent it,
+  // emit the unchanged static dot-path so the other flavors stay
+  // byte-identical. The parse-time _dangerousProps guard above still runs
+  // either way; _utils.resolve adds a matching runtime guard.
+  if (node.resolve) {
+    return '_utils.resolve(_ctx, ' + JSON.stringify(node.path) + ')';
+  }
   return checkMatchExpr(node.path);
 }
 
