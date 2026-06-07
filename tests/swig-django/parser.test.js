@@ -31,38 +31,38 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
   /* ---- Variable references ------------------------------------- */
 
   it('lowers a bare identifier to VarRef', function () {
-    expect(parse('name')).to.eql({ type: 'VarRef', path: ['name'] });
+    expect(parse('name')).to.eql({ type: 'VarRef', path: ['name'], resolve: true });
   });
 
   it('folds a dotted path into a single VarRef', function () {
-    expect(parse('user.profile.name')).to.eql({ type: 'VarRef', path: ['user', 'profile', 'name'] });
+    expect(parse('user.profile.name')).to.eql({ type: 'VarRef', path: ['user', 'profile', 'name'], resolve: true });
   });
 
   /* ---- Colon-filters ------------------------------------------- */
 
   it('lowers a no-arg filter to FilterCall with no args', function () {
     expect(parse('x|upper')).to.eql({
-      type: 'FilterCall', name: 'upper', input: { type: 'VarRef', path: ['x'] }
+      type: 'FilterCall', name: 'upper', input: { type: 'VarRef', path: ['x'], resolve: true }
     });
   });
 
   it('lowers a colon-filter with a string argument', function () {
     expect(parse('x|default:"none"')).to.eql({
-      type: 'FilterCall', name: 'default', input: { type: 'VarRef', path: ['x'] },
+      type: 'FilterCall', name: 'default', input: { type: 'VarRef', path: ['x'], resolve: true },
       args: [{ type: 'Literal', kind: 'string', value: 'none' }]
     });
   });
 
   it('lowers a colon-filter with a variable argument', function () {
     expect(parse('x|add:y')).to.eql({
-      type: 'FilterCall', name: 'add', input: { type: 'VarRef', path: ['x'] },
-      args: [{ type: 'VarRef', path: ['y'] }]
+      type: 'FilterCall', name: 'add', input: { type: 'VarRef', path: ['x'], resolve: true },
+      args: [{ type: 'VarRef', path: ['y'], resolve: true }]
     });
   });
 
   it('lowers a colon-filter with a negative-number argument', function () {
     expect(parse('x|floatformat:-3')).to.eql({
-      type: 'FilterCall', name: 'floatformat', input: { type: 'VarRef', path: ['x'] },
+      type: 'FilterCall', name: 'floatformat', input: { type: 'VarRef', path: ['x'], resolve: true },
       args: [{ type: 'Literal', kind: 'number', value: -3 }]
     });
   });
@@ -70,7 +70,7 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
   it('chains filters left-to-right (the trailing filter wraps the result)', function () {
     expect(parse('x|lower|upper')).to.eql({
       type: 'FilterCall', name: 'upper',
-      input: { type: 'FilterCall', name: 'lower', input: { type: 'VarRef', path: ['x'] } }
+      input: { type: 'FilterCall', name: 'lower', input: { type: 'VarRef', path: ['x'], resolve: true } }
     });
   });
 
@@ -80,8 +80,8 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
     expect(parse('x|default:y|upper')).to.eql({
       type: 'FilterCall', name: 'upper',
       input: {
-        type: 'FilterCall', name: 'default', input: { type: 'VarRef', path: ['x'] },
-        args: [{ type: 'VarRef', path: ['y'] }]
+        type: 'FilterCall', name: 'default', input: { type: 'VarRef', path: ['x'], resolve: true },
+        args: [{ type: 'VarRef', path: ['y'], resolve: true }]
       }
     });
   });
@@ -105,7 +105,7 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
   it('lowers `x is True` to an identity BinaryOp (===)', function () {
     expect(parse('x is True')).to.eql({
       type: 'BinaryOp', op: '===',
-      left: { type: 'VarRef', path: ['x'] },
+      left: { type: 'VarRef', path: ['x'], resolve: true },
       right: { type: 'Literal', kind: 'bool', value: true }
     });
   });
@@ -113,7 +113,7 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
   it('lowers `x is not False` to an identity BinaryOp (!==)', function () {
     expect(parse('x is not False')).to.eql({
       type: 'BinaryOp', op: '!==',
-      left: { type: 'VarRef', path: ['x'] },
+      left: { type: 'VarRef', path: ['x'], resolve: true },
       right: { type: 'Literal', kind: 'bool', value: false }
     });
   });
@@ -123,21 +123,21 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
   it('lowers a comparison to BinaryOp', function () {
     expect(parse('a == b')).to.eql({
       type: 'BinaryOp', op: '==',
-      left: { type: 'VarRef', path: ['a'] }, right: { type: 'VarRef', path: ['b'] }
+      left: { type: 'VarRef', path: ['a'], resolve: true }, right: { type: 'VarRef', path: ['b'], resolve: true }
     });
   });
 
   it('lowers and / or logic to BinaryOp', function () {
     expect(parse('a and b')).to.eql({
       type: 'BinaryOp', op: '&&',
-      left: { type: 'VarRef', path: ['a'] }, right: { type: 'VarRef', path: ['b'] }
+      left: { type: 'VarRef', path: ['a'], resolve: true }, right: { type: 'VarRef', path: ['b'], resolve: true }
     });
   });
 
   it('keeps inherited arithmetic (lenient — not Django syntax, but accepted)', function () {
     expect(parse('a + b')).to.eql({
       type: 'BinaryOp', op: '+',
-      left: { type: 'VarRef', path: ['a'] }, right: { type: 'VarRef', path: ['b'] }
+      left: { type: 'VarRef', path: ['a'], resolve: true }, right: { type: 'VarRef', path: ['b'], resolve: true }
     });
   });
 
@@ -146,16 +146,16 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
       type: 'BinaryOp', op: '&&',
       left: {
         type: 'BinaryOp', op: '||',
-        left: { type: 'VarRef', path: ['a'] }, right: { type: 'VarRef', path: ['b'] }
+        left: { type: 'VarRef', path: ['a'], resolve: true }, right: { type: 'VarRef', path: ['b'], resolve: true }
       },
-      right: { type: 'VarRef', path: ['c'] }
+      right: { type: 'VarRef', path: ['c'], resolve: true }
     });
   });
 
   it('keeps inherited function-call syntax', function () {
     expect(parse('foo(bar)')).to.eql({
       type: 'FnCall', callee: { type: 'VarRef', path: ['foo'] },
-      args: [{ type: 'VarRef', path: ['bar'] }]
+      args: [{ type: 'VarRef', path: ['bar'], resolve: true }]
     });
   });
 

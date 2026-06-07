@@ -22,6 +22,26 @@ function escapeRegExp(str) {
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
 /**
+ * Build a VarRef IR node flagged for Django-style runtime resolution. The
+ * `resolve` flag makes swig-core's emitVarRef emit `_utils.resolve(_ctx,
+ * path)` — dictionary / attribute / method lookup, numeric index access
+ * (`{{ list.0 }}`), and auto-call of callable leaves — instead of a static
+ * dot-path. Used at every USER-variable site (bare lookups, dotted-path
+ * rebuilds in parsePostfix, filter-argument variables). Deliberately NOT
+ * used for a function-call callee (emitFnCall reads the callee path directly
+ * and ignores the flag) or the synthetic `_utils.slice` reference.
+ *
+ * @param  {string[]} path  Path segments.
+ * @return {object}         IRVarRef with `resolve === true`.
+ * @private
+ */
+function mkVar(path) {
+  var n = ir.varRef(path);
+  n.resolve = true;
+  return n;
+}
+
+/**
  * Django expression parser — Pratt-style recursive descent.
  *
  * Consumes a flat LexerToken[] (produced by swig-django's lexer) and
@@ -226,7 +246,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       utils.each(path, function (segment) {
         guardSegment(segment);
       });
-      return ir.varRef(path);
+      return mkVar(path);
     }
     bail('Unexpected filter argument "' + tok.match + '"');
     return null;
@@ -303,7 +323,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         consume();
         guardSegment(tok.match);
         if (expr.type === 'VarRef') {
-          expr = ir.varRef(expr.path.concat([tok.match]));
+          expr = mkVar(expr.path.concat([tok.match]));
         } else {
           expr = ir.access(expr, ir.literal('string', tok.match));
         }
@@ -372,7 +392,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       utils.each(path, function (segment) {
         guardSegment(segment);
       });
-      return parsePostfix(ir.varRef(path));
+      return parsePostfix(mkVar(path));
     case _t.FUNCTION:
     case _t.FUNCTIONEMPTY:
       m = tok.match;
@@ -571,9 +591,13 @@ exports.parse = function (swig, source, opts, tags, filters) {
     }
     var node = ir.output(expr, tail);
     // Coerce null / undefined to "" for any non-VarRef output (function
-    // calls, dynamic bracket access, ...). A VarRef already coerces inside
-    // emitVarRef, so the common `{{ name }}` path stays wrapper-free.
-    if (expr.type !== 'VarRef') {
+    // calls, dynamic bracket access, ...). A *plain* VarRef already coerces
+    // inside emitVarRef, so the common `{{ name }}` path stays wrapper-free —
+    // but a *resolve* VarRef (`{{ obj.method }}`, `{{ list.0 }}`) returns the
+    // raw resolved value (including null) so filters such as default_if_none
+    // see a real null; that raw null reaches the output drain unescaped (the
+    // autoescape `e` tail passes null through), so it needs coerceOutput here.
+    if (expr.type !== 'VarRef' || expr.resolve) {
       node.coerce = true;
     }
     return node;
