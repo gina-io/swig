@@ -22,6 +22,11 @@
  * is `if`-only here); it lexes as its own marker token (tags/empty.js) and
  * compile splits the content at it into the loop body and the empty body.
  *
+ * Django's dict-iteration pseudo-methods are supported on the iterable —
+ * `{% for k in d.keys %}`, `{% for v in d.values %}`, and the canonical
+ * `{% for key, value in d.items %}` (see rewriteDictIterable). The one-name
+ * `{% for pair in d.items %}` tuple form is rejected with a clear message.
+ *
  * The `reversed` modifier (`{% for x in items reversed %}`) is not yet
  * supported; it is detected and rejected with a clear message rather than
  * the cryptic `Unexpected token "reversed"` that parseExpr's
@@ -45,6 +50,76 @@ var DJANGO_LOOP_FIELDS = {
   revindex: 'revcounter',
   revindex0: 'revcounter0'
 };
+
+/*!
+ * Django dict-iteration pseudo-methods recognized on a `for` iterable.
+ * @private
+ */
+var DICT_PSEUDO_METHODS = { keys: true, values: true, items: true };
+
+/*!
+ * Build a resolve-flagged VarRef for an object path (the iterable with its
+ * trailing pseudo-method segment removed) so the object itself is resolved
+ * Django-style by the swig-core variable resolver. @private
+ */
+function resolveVar(path) {
+  var n = ir.varRef(path);
+  n.resolve = true;
+  return n;
+}
+
+/*!
+ * Rewrite a `for` iterable that ends in a Django dict-iteration
+ * pseudo-method (`.keys` / `.values` / `.items`), so the loop walks the
+ * mapping the way Django does. With the variable resolver in place a trailing
+ * `.keys` / `.values` / `.items` would otherwise resolve to a (usually
+ * missing) object property, yielding an empty loop.
+ *
+ *   - `.keys`   → `_utils.keys(obj)` (a plain key array; a one-name `for`
+ *                 binds each key).
+ *   - `.values` → the object itself; swig's one-name object iteration binds
+ *                 each VALUE (`_utils.each(obj, fn(value, key))`), matching
+ *                 Django.
+ *   - `.items`  → the object itself, walked with the two-name form, so swig
+ *                 binds key + value per entry exactly as Django's two-name
+ *                 `{% for k, v in d.items %}`. The one-name tuple form is
+ *                 rejected (there is no `_utils.entries` to synthesize a
+ *                 (key, value) tuple sequence flavor-locally).
+ *
+ * Anything that is not a resolved user-variable path of length >= 2 ending in
+ * one of the three names is returned unchanged. Documented divergence: the
+ * interception is unconditional, so if `obj` has a literal key named
+ * `keys` / `values` / `items`, the pseudo-method wins (Django's dict-key
+ * precedence is not honored for those three names).
+ *
+ * @param  {object}  it          Parsed iterable IRExpr.
+ * @param  {boolean} hasTwoNames Whether the loop declared `key, val`.
+ * @param  {number}  line        Source line, for error reporting.
+ * @param  {string}  filename    Template filename, for error reporting.
+ * @return {object}              The (possibly rewritten) iterable IRExpr.
+ * @private
+ */
+function rewriteDictIterable(it, hasTwoNames, line, filename) {
+  if (!it || it.type !== 'VarRef' || !it.resolve || it.path.length < 2) {
+    return it;
+  }
+  var lastSeg = it.path[it.path.length - 1];
+  if (!DICT_PSEUDO_METHODS.hasOwnProperty(lastSeg)) {
+    return it;
+  }
+  var objPath = it.path.slice(0, -1);
+  if (lastSeg === 'keys') {
+    // The synthetic `_utils.keys` callee is intentionally NOT resolve-flagged
+    // (emitFnCall reads a callee path directly, never through emitVarRef).
+    return ir.fnCall(ir.varRef(['_utils', 'keys']), [resolveVar(objPath)]);
+  }
+  if (lastSeg === 'items' && !hasTwoNames) {
+    utils.throwError('The "items" pseudo-method in a "for" tag requires two loop variables — use {% for key, value in ' + objPath.join('.') + '.items %}', line, filename);
+  }
+  // `.values` (one-name → value) and `.items` (two-name → key, value) both
+  // walk the object directly through swig's object iteration.
+  return resolveVar(objPath);
+}
 
 exports.ends = true;
 exports.block = false;
@@ -129,7 +204,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   }
 
   token.args = key !== undefined ? [key, val] : [val];
-  token.irExpr = parser.parseExpr(iterableTokens);
+  token.irExpr = rewriteDictIterable(parser.parseExpr(iterableTokens), key !== undefined, line, opts.filename);
   return true;
 };
 
