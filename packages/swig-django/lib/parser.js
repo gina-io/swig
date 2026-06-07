@@ -630,7 +630,12 @@ exports.parse = function (swig, source, opts, tags, filters) {
       content: [],
       ends: !!tag.ends,
       name: tagName,
-      irExpr: undefined
+      irExpr: undefined,
+      // Region autoescape state at this tag's position (the same value the
+      // `{{ … }}` output path reads). Output-producing tags (firstof, cycle)
+      // consult it to escape their output exactly as a `{{ … }}` would —
+      // honoring an enclosing `{% autoescape off %}`. Other tags ignore it.
+      escape: escapeStack[escapeStack.length - 1]
     };
 
     var ok = tag.parse(tagArgs, _line, exports, _t, stack, opts, swig, token);

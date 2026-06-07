@@ -13,10 +13,9 @@
  * own their own arg-parsing path, like the Twig and Jinja2 siblings.
  *
  * Conditionals (if / elif / else), looping (for / empty), template
- * inheritance (block / extends / include), and the region tags (with /
- * autoescape / spaceless / comment / verbatim) are registered. The
- * remaining Django-only output tags (cycle, firstof) land in a subsequent
- * commit.
+ * inheritance (block / extends / include), the region tags (with /
+ * autoescape / spaceless / comment / verbatim), and the Django-only output
+ * tags (cycle / firstof) are registered — the full S3 tag set.
  */
 
 module.exports = {
@@ -32,5 +31,7 @@ module.exports = {
   'autoescape': require('./autoescape'),
   'spaceless': require('./spaceless'),
   'comment': require('./comment'),
-  'verbatim': require('./verbatim')
+  'verbatim': require('./verbatim'),
+  'cycle': require('./cycle'),
+  'firstof': require('./firstof')
 };
