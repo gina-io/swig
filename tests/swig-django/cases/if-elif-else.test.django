@@ -1,0 +1,1 @@
+{% if done %}D{% elif flag %}F{% else %}E{% endif %}

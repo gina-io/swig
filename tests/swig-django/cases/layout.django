@@ -1,0 +1,1 @@
+<doc>{% block body %}default{% endblock %}</doc>

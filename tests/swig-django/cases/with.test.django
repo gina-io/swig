@@ -1,0 +1,1 @@
+{% with total=num %}total={{ total }}{% endwith %}

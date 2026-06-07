@@ -1,0 +1,1 @@
+{% spaceless %}<p>  <a>x</a>  </p>{% endspaceless %}

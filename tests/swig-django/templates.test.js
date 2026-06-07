@@ -1,0 +1,70 @@
+/*
+ * End-to-end render-fixture suite for @rhinostone/swig-django.
+ *
+ * Mirrors the native tests/templates.test.js walker — readdirSync the
+ * cases/ directory, group by basename, and render every *.test.django
+ * against its paired *.expectation.html via compileFile (the fs loader, so
+ * extends/include resolve relative to the fixture). Supporting templates
+ * (layouts, includes) use bare *.django and group under their own basename
+ * with no .test. file; the walker skips those groups.
+ *
+ * Every expectation was cross-checked against Django Template Language
+ * behavior at seed time. Documented swig-family divergences exercised here:
+ * the dict-iteration `{% for k, v in obj.items %}` pseudo-method, and the
+ * single-argument `default` filter firing on a null context value.
+ */
+var fs = require('fs'),
+  path = require('path'),
+  expect = require('../lib/expect.js'),
+  _ = require('lodash'),
+  django = require('../../packages/swig-django');
+
+var locals = {
+  name: 'Tacos',
+  greeting: 'hello world',
+  flag: true,
+  done: false,
+  items: ['a', 'b', 'c'],
+  obj: { a: 1, b: 2 },
+  user: { name: 'Alice', get_full_name: function () { return 'Alice Liddell'; } },
+  empty: [],
+  num: 4,
+  html: '<b>x</b>',
+  missing: null
+};
+
+var casefiles = [],
+  cases;
+
+function walkSync(dir, files) {
+  fs.readdirSync(dir).forEach(function (file) {
+    var statPath = path.join(dir, file),
+      stat = fs.statSync(statPath);
+    if (stat.isFile()) {
+      files.push(statPath);
+    } else if (stat.isDirectory()) {
+      walkSync(statPath, files);
+    }
+  });
+}
+
+function isTest(f) { return f.indexOf('.test.django') !== -1; }
+function isExpectation(f) { return f.indexOf('.expectation.html') !== -1; }
+
+walkSync(__dirname + '/cases', casefiles);
+cases = _.groupBy(casefiles, function (f) {
+  return f.split('.')[0];
+});
+
+describe('swig-django template render fixtures', function () {
+  _.each(cases, function (files, c) {
+    var testFile = _.find(files, isTest);
+    if (!testFile) { return; }
+    var expectationFile = _.find(files, isExpectation);
+    if (!expectationFile) { return; }
+    var expectation = fs.readFileSync(expectationFile, 'utf8');
+    it(path.basename(c), function () {
+      expect(django.compileFile(testFile)(locals)).to.equal(expectation);
+    });
+  });
+});

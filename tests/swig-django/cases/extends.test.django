@@ -1,0 +1,1 @@
+{% extends "layout.django" %}{% block body %}CHILD{% endblock %}
