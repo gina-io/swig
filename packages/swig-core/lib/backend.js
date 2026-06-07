@@ -195,7 +195,20 @@ exports.compile = function (template, parents, options, blockName) {
         forBodyJS = '',
         ctxloopcache = ('_ctx.__loopcache' + Math.random()).replace(/\./g, ''),
         ctx = '_ctx.',
-        ctxloop = '_ctx.loop';
+        // Opt-in loop-context naming. A frontend may rename the loop
+        // variable (Django uses `forloop`), rename the counter fields, and
+        // expose the enclosing loop as `parentloop`. All three default to
+        // swig's own names, so an absent flag emits byte-identical JS — the
+        // native / Twig / Jinja2 frontends never set them and are untouched.
+        // The Django `for` tag sets all three on the IRFor node.
+        loopName = node.loopName || 'loop',
+        ctxloop = '_ctx.' + loopName,
+        loopFields = node.loopFields || {},
+        fIndex = loopFields.index || 'index',
+        fIndex0 = loopFields.index0 || 'index0',
+        fRevindex = loopFields.revindex || 'revindex',
+        fRevindex0 = loopFields.revindex0 || 'revindex0',
+        parentloopJS = node.loopParent ? ', parentloop: ' + ctxloopcache + '.' + loopName : '';
       if (node.iterable && typeof node.iterable === 'object' && typeof node.iterable.type === 'string') {
         forIterable = exports.emitExpr(node.iterable);
       } else {
@@ -226,18 +239,18 @@ exports.compile = function (template, parents, options, blockName) {
       out += '(function () {\n' +
         '  var __l = ' + forIterable + ', __len = (_utils.isArray(__l) || typeof __l === "string") ? __l.length : _utils.keys(__l).length;\n' +
         forEmptyCheck +
-        '    var ' + ctxloopcache + ' = { loop: ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + ', ' + forKey + ': ' + ctx + forKey + ' };\n' +
-        '    ' + ctxloop + ' = { first: false, index: 1, index0: 0, revindex: __len, revindex0: __len - 1, length: __len, last: false };\n' +
+        '    var ' + ctxloopcache + ' = { ' + loopName + ': ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + ', ' + forKey + ': ' + ctx + forKey + ' };\n' +
+        '    ' + ctxloop + ' = { first: false, ' + fIndex + ': 1, ' + fIndex0 + ': 0, ' + fRevindex + ': __len, ' + fRevindex0 + ': __len - 1, length: __len, last: false' + parentloopJS + ' };\n' +
         '  _utils.each(__l, function (' + forVal + ', ' + forKey + ') {\n' +
         '    ' + ctx + forVal + ' = ' + forVal + ';\n' +
         '    ' + ctx + forKey + ' = ' + forKey + ';\n' +
         '    ' + ctxloop + '.key = ' + forKey + ';\n' +
-        '    ' + ctxloop + '.first = (' + ctxloop + '.index0 === 0);\n' +
-        '    ' + ctxloop + '.last = (' + ctxloop + '.revindex0 === 0);\n' +
+        '    ' + ctxloop + '.first = (' + ctxloop + '.' + fIndex0 + ' === 0);\n' +
+        '    ' + ctxloop + '.last = (' + ctxloop + '.' + fRevindex0 + ' === 0);\n' +
         '    ' + forBodyJS +
-        '    ' + ctxloop + '.index += 1; ' + ctxloop + '.index0 += 1; ' + ctxloop + '.revindex -= 1; ' + ctxloop + '.revindex0 -= 1;\n' +
+        '    ' + ctxloop + '.' + fIndex + ' += 1; ' + ctxloop + '.' + fIndex0 + ' += 1; ' + ctxloop + '.' + fRevindex + ' -= 1; ' + ctxloop + '.' + fRevindex0 + ' -= 1;\n' +
         '  });\n' +
-        '  ' + ctxloop + ' = ' + ctxloopcache + '.loop;\n' +
+        '  ' + ctxloop + ' = ' + ctxloopcache + '.' + loopName + ';\n' +
         '  ' + ctx + forVal + ' = ' + ctxloopcache + '.' + forVal + ';\n' +
         '  ' + ctx + forKey + ' = ' + ctxloopcache + '.' + forKey + ';\n' +
         '  ' + ctxloopcache + ' = undefined;\n' +

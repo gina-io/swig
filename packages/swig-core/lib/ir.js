@@ -109,6 +109,14 @@
  * to a real {@link IRExpr}. Backends MUST tolerate both shapes — same
  * transitional widening as {@link IRSet}'s `target`.
  *
+ * `loopName` / `loopFields` / `loopParent` are opt-in flags a frontend
+ * sets to rename the loop-context object and its counter fields and to
+ * expose the enclosing loop. They default to swig's own names, so when a
+ * frontend leaves them unset the backend emits byte-identical JS (native /
+ * Twig / Jinja2 never set them). The Django frontend uses all three to
+ * surface `forloop` with `counter` / `counter0` / `revcounter` /
+ * `revcounter0` / `parentloop`.
+ *
  * @typedef {Object} IRFor
  * @property {'For'} type
  * @property {string} [key]                   Loop key var (second binding).
@@ -116,6 +124,9 @@
  * @property {IRExpr|string} iterable         Transitional — see note above.
  * @property {IRStatement[]} body
  * @property {IRStatement[]} [emptyBody]
+ * @property {string} [loopName]              Opt-in loop-context var name (default 'loop'; Django sets 'forloop').
+ * @property {Object} [loopFields]            Opt-in counter-field rename map ({index,index0,revindex,revindex0} → emit names); absent fields keep swig names.
+ * @property {boolean} [loopParent]           Opt-in: expose the enclosing loop as `<loopName>.parentloop` (Django forloop.parentloop).
  * @property {IRLoc} [loc]
  */
 
