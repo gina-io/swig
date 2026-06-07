@@ -12,10 +12,10 @@
  * native-swig `parser.on(types.X, fn)` callback indirection — Django tags
  * own their own arg-parsing path, like the Twig and Jinja2 siblings.
  *
- * Conditionals (if / elif / else) and looping (for / empty) are registered.
- * The remaining inheritance / Django-only tags (block, extends, include,
- * with, autoescape, comment, spaceless, verbatim, cycle, firstof) land in
- * subsequent commits.
+ * Conditionals (if / elif / else), looping (for / empty), and template
+ * inheritance (block / extends / include) are registered. The remaining
+ * region / Django-only tags (with, autoescape, comment, spaceless,
+ * verbatim, cycle, firstof) land in subsequent commits.
  */
 
 module.exports = {
@@ -23,5 +23,8 @@ module.exports = {
   'elif': require('./elif'),
   'else': require('./else'),
   'for': require('./for'),
-  'empty': require('./empty')
+  'empty': require('./empty'),
+  'block': require('./block'),
+  'extends': require('./extends'),
+  'include': require('./include')
 };
