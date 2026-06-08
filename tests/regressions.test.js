@@ -138,6 +138,64 @@ describe('Regressions', function () {
     expect(swig.render('{% set r = c ? "__proto__" : "safe" %}{{ r }}', { locals: { c: true } })).to.equal('__proto__');
   });
 
+  it('CVE-2023-25345: filesystem loader rejects paths escaping the basepath root', function () {
+    var path = require('path'),
+      root = path.resolve('/srv/app/views'),
+      l = swig.loaders.fs(root);
+    // In-root paths resolve normally.
+    expect(l.resolve('partials/menu.html')).to.equal(path.resolve(root, 'partials/menu.html'));
+    expect(l.resolve('./page.html')).to.equal(path.resolve(root, 'page.html'));
+    // Resolving to the root directory itself is allowed.
+    expect(l.resolve('.')).to.equal(root);
+    // Escaping the root via ../ is rejected (the CVE-2023-25345 vector).
+    expect(function () { l.resolve('../../../etc/passwd'); }).to.throwError(/resolves outside the loader root/);
+    expect(function () { l.resolve('../secret.txt'); }).to.throwError(/resolves outside the loader root/);
+    // A sibling directory sharing a name prefix must not bypass the check.
+    expect(function () { l.resolve('../views-secret/x.html'); }).to.throwError(/resolves outside the loader root/);
+    // The `from` argument cannot be used to escape either (basepath always wins).
+    expect(function () { l.resolve('../secret.txt', path.resolve(root, 'deep/page.html')); }).to.throwError(/resolves outside the loader root/);
+  });
+
+  it('CVE-2023-25345: allowOutsideRoot opts out of basepath confinement', function () {
+    var path = require('path'),
+      root = path.resolve('/srv/app/views'),
+      l = swig.loaders.fs(root, 'utf8', true);
+    // With the opt-out, an escaping path resolves without throwing (pre-fix behavior).
+    expect(l.resolve('../secret.txt')).to.equal(path.resolve(root, '../secret.txt'));
+    // In-root paths are unaffected by the opt-out.
+    expect(l.resolve('page.html')).to.equal(path.resolve(root, 'page.html'));
+  });
+
+  it('CVE-2023-25345: include cannot read files outside the loader root', function () {
+    var path = require('path'),
+      os = require('os'),
+      base = fs.mkdtempSync(path.join(os.tmpdir(), 'swig-cve-25345-')),
+      views = path.join(base, 'views'),
+      s;
+    fs.mkdirSync(views);
+    fs.writeFileSync(path.join(base, 'secret.txt'), 'TOP-SECRET');
+    fs.writeFileSync(path.join(views, 'partial.html'), 'in-root-ok');
+    s = new swig.Swig({ loader: swig.loaders.fs(views), cache: false });
+    try {
+      // In-root include still renders.
+      expect(s.render('{% include "./partial.html" %}', { filename: path.join(views, 'a.html') }))
+        .to.equal('in-root-ok');
+      // Literal traversal out of the root is blocked.
+      expect(function () {
+        s.render('{% include "../secret.txt" %}', { filename: path.join(views, 'b.html') });
+      }).to.throwError(/resolves outside the loader root/);
+      // The dangerous vector: an include path supplied via untrusted locals is blocked too.
+      expect(function () {
+        s.render('{% include leak %}', { filename: path.join(views, 'c.html'), locals: { leak: '../secret.txt' } });
+      }).to.throwError(/resolves outside the loader root/);
+    } finally {
+      fs.unlinkSync(path.join(base, 'secret.txt'));
+      fs.unlinkSync(path.join(views, 'partial.html'));
+      fs.rmdirSync(views);
+      fs.rmdirSync(base);
+    }
+  });
+
   it('lexer NUMBER rule does not greedy-eat a leading sign in bracket-access expressions', function () {
     var locals = { arr: [10, 20, 30], idx: 2 };
     // Without the fix, the lexer matched `-1` as a single NUMBER token,
