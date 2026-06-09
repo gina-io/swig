@@ -21,6 +21,11 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.7.2 (June 2026)
+
+- Fixed a regression in the v2.7.1 CVE-2023-25345 hardening: a **relative** `basepath` (e.g. `swig.loaders.fs('templates')`) wrongly rejected *every* in-root `include` / `extends` / `import` path. The root check compared each resolved template path (always absolute) against a `basepath` that had only been normalized, so a relative root matched nothing and threw `resolves outside the loader root` for legitimate templates. The `basepath` is now resolved to an absolute path before the check; absolute basepaths, the no-`basepath` default, and the directory-traversal rejections are all unchanged. The fix lives in `@rhinostone/swig-core`, so the native, Twig, Jinja2, and Django frontends all inherit it.
+- All five packages (`@rhinostone/swig`, `@rhinostone/swig-core`, `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2`, `@rhinostone/swig-django`) released in lockstep at `2.7.2`.
+
 ### v2.7.1 (June 2026)
 
 - Hardened the filesystem loader against directory traversal / arbitrary local file read (CVE-2023-25345). When a `basepath` is configured, `include` / `extends` / `import` paths that resolve outside that root are now rejected — including paths supplied by an untrusted runtime variable such as `{% include userVar %}`, which could otherwise be steered to read files anywhere on disk (`{% include "../../../etc/passwd" %}`). A new third argument, `swig.loaders.fs(basepath, encoding, allowOutsideRoot)`, opts out for templates that intentionally read files from outside the root. In-root paths — including relative paths that stay within the configured root — are unaffected; only paths that escape the root are rejected, and the no-`basepath` default is unchanged. The fix lives in `@rhinostone/swig-core`, so the native, Twig, Jinja2, and Django frontends all inherit it.
