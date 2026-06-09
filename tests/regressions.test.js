@@ -196,6 +196,18 @@ describe('Regressions', function () {
     }
   });
 
+  it('CVE-2023-25345: a relative basepath still resolves in-root paths (no false-positive rejection)', function () {
+    var path = require('path'),
+      // A relative basepath is a working, documented mode; the root check
+      // must keep resolving in-root templates instead of rejecting every path
+      // (an absolute resolved path can never be prefixed by a relative root).
+      l = swig.loaders.fs('relbase-views');
+    expect(l.resolve('page.html')).to.equal(path.resolve('relbase-views', 'page.html'));
+    expect(l.resolve('sub/menu.html')).to.equal(path.resolve('relbase-views', 'sub/menu.html'));
+    // Confinement is still enforced when the basepath is relative.
+    expect(function () { l.resolve('../secret.txt'); }).to.throwError(/resolves outside the loader root/);
+  });
+
   it('lexer NUMBER rule does not greedy-eat a leading sign in bracket-access expressions', function () {
     var locals = { arr: [10, 20, 30], idx: 2 };
     // Without the fix, the lexer matched `-1` as a single NUMBER token,

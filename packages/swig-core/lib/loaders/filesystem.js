@@ -17,7 +17,12 @@ module.exports = function (basepath, encoding, allowOutsideRoot) {
   var ret = {};
 
   encoding = encoding || 'utf8';
-  basepath = (basepath) ? path.normalize(basepath) : null;
+  // Resolve (not merely normalize) basepath to an absolute path. The root
+  // check in resolve() compares it against path.resolve()'d template paths,
+  // which are always absolute, so a relative basepath must be made absolute
+  // too -- otherwise every in-root path is wrongly rejected (CVE-2023-25345
+  // confinement must not break the legitimate relative-basepath mode).
+  basepath = (basepath) ? path.resolve(basepath) : null;
 
   /**
    * Resolves <var>to</var> to an absolute path or unique identifier. This is used for building correct, normalized, and absolute paths to a given template.
