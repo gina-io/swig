@@ -156,6 +156,19 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(ir.input.name).to.equal('upper');
   });
 
+  it('does not leak an arg-bearing filter\'s args onto a later no-arg filter', function () {
+    // `x|default("y")|upper` — `upper` must lower with NO args; without
+    // the per-iteration `fargs` reset in parsePostfix it would inherit
+    // default's ["y"].
+    expect(parse('x|default("y")|upper')).to.eql({
+      type: 'FilterCall', name: 'upper',
+      input: {
+        type: 'FilterCall', name: 'default', input: { type: 'VarRef', path: ['x'] },
+        args: [{ type: 'Literal', kind: 'string', value: 'y' }]
+      }
+    });
+  });
+
   it('rejects a filter name present in the catalog but not a function', function () {
     expect(function () { parse('x|bad', { bad: 42 }); }).to.throwError(/Invalid filter/);
   });

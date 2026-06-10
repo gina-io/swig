@@ -302,6 +302,21 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
       var parser = new TokenParser(tokens, filters, false, 1, 'expr.test');
       expect(function () { parser.parseExpr(tokens); }).to.throwException(/Invalid filter/);
     });
+
+    it('does not leak an arg-bearing filter\'s args onto a later no-arg filter', function () {
+      // `foo|default("x")|upper` — `upper` must lower with NO args.
+      // `fargs` is function-scoped in parsePostfix, so without a
+      // per-iteration reset the trailing FILTEREMPTY would inherit
+      // default's ["x"].
+      var tokens = lexer.read('foo|default("x")|upper');
+      var parser = new TokenParser(tokens, filters, false, 1, 'expr.test');
+      var node = parser.parseExpr(tokens);
+      expect(node.type).to.be('FilterCall');
+      expect(node.name).to.be('upper');
+      expect(node.args).to.be(undefined);
+      expect(node.input.name).to.be('default');
+      expect(node.input.args.length).to.be(1);
+    });
   });
 
   describe('round-trip via emitExpr — byte-identity spot-checks', function () {

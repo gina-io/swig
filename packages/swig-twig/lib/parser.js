@@ -244,6 +244,11 @@ exports.parseExpr = function (tokens, filters, _posOut) {
           bail('Invalid filter "' + fname + '"');
         }
         var fargs;
+        // `fargs` must be reset each iteration — `var` is function-scoped
+        // (a bare declaration does not reset it), so without this an
+        // arg-bearing filter earlier in the chain would leak its args onto
+        // a later no-arg filter (e.g. `x|default("y")|upper`).
+        fargs = undefined;
         if (tok.type === _t.FILTER) {
           fargs = parseArgList(_t.PARENCLOSE);
         }

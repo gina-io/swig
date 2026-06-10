@@ -587,6 +587,19 @@ describe('@rhinostone/swig-twig — parser (expression subset)', function () {
       expect(node.input.name).to.equal('upper');
     });
 
+    it('does not leak an arg-bearing filter\'s args onto a later no-arg filter', function () {
+      // `name|default("anon")|upper` — `upper` must lower with NO args;
+      // without the per-iteration `fargs` reset in parsePostfix it would
+      // inherit default's ["anon"].
+      var node = parse('name|default("anon")|upper');
+      expect(node.type).to.equal('FilterCall');
+      expect(node.name).to.equal('upper');
+      expect(node.args).to.equal(undefined);
+      expect(node.input.type).to.equal('FilterCall');
+      expect(node.input.name).to.equal('default');
+      expect(node.input.args).to.have.length(1);
+    });
+
     it('filter binds to the preceding atom in binary ops', function () {
       var node = parse('a + b|upper');
       expect(node.type).to.equal('BinaryOp');
