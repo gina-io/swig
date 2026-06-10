@@ -21,6 +21,11 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 
 ## Completed
 
+### v2.7.3 (June 2026)
+
+- Fixed a filter-chain argument leak in the expression parsers: the per-filter argument accumulator was function-scoped and never reset between iterations, so an arg-bearing filter earlier in a chain leaked its arguments onto a later no-arg filter (e.g. `x|default("y")|upper` lowered `upper` with the leaked `["y"]`). Affected nested and parenthesized chains in the shared core parser and all filter chains in the Twig and Jinja2 frontends; the Django frontend already shipped the per-iteration reset. Runtime impact ranged from harmless (filters that ignore extra positional arguments) to wrong output (a no-arg filter consuming a leaked positional argument).
+- All five packages (`@rhinostone/swig`, `@rhinostone/swig-core`, `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2`, `@rhinostone/swig-django`) released in lockstep at `2.7.3`.
+
 ### v2.7.2 (June 2026)
 
 - Fixed a regression in the v2.7.1 CVE-2023-25345 hardening: a **relative** `basepath` (e.g. `swig.loaders.fs('templates')`) wrongly rejected *every* in-root `include` / `extends` / `import` path. The root check compared each resolved template path (always absolute) against a `basepath` that had only been normalized, so a relative root matched nothing and threw `resolves outside the loader root` for legitimate templates. The `basepath` is now resolved to an absolute path before the check; absolute basepaths, the no-`basepath` default, and the directory-traversal rejections are all unchanged. The fix lives in `@rhinostone/swig-core`, so the native, Twig, Jinja2, and Django frontends all inherit it.
