@@ -20,7 +20,7 @@ Here's an example of a great pull request that followed the above checklist: [Pu
 Documentation
 -------------
 
-User-facing documentation lives in the [Gina Docusaurus site](https://gina.io/docs/swig), maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/templating/swig/`. The [JSDoc](https://jsdoc.app) blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored by hand into the Docusaurus pages.
+User-facing documentation lives in the [Gina Docusaurus site](https://gina.io/docs/templating/swig), maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/templating/swig/`. The [JSDoc](https://jsdoc.app) blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored by hand into the Docusaurus pages.
 
 To update the documentation:
 

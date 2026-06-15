@@ -7,7 +7,7 @@ Swig
 
 > **Part of the [Gina](https://github.com/gina-io/gina) ecosystem.** This is the built-in template engine for [Gina](https://gina.io) ([npm](https://www.npmjs.com/package/gina)), a Node.js MVC framework with HTTP/2, multi-bundle architecture, and scope-based data isolation.
 
-Swig is a **Jinja2/Django-inspired** template engine for node.js and browsers. The syntax will feel familiar to Jinja2 and Django users, but Swig is **not drop-in compatible** with either — porting templates from an existing project requires a handful of changes. See the [Migration Guide](https://gina.io/docs/swig/migration) for the full parity list and workaround patterns.
+Swig is a **Jinja2/Django-inspired** template engine for node.js and browsers. The syntax will feel familiar to Jinja2 and Django users, but Swig is **not drop-in compatible** with either — porting templates from an existing project requires a handful of changes. See the [Migration Guide](https://gina.io/docs/templating/swig/migration) for the full parity list and workaround patterns.
 
 > **Coming from Twig?** Install [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig) instead — a dedicated Twig-syntax frontend with closer parity than working around incompatibilities here.
 
@@ -56,7 +56,7 @@ Need Help? Have Questions? Comments?
 ------------------------------------
 
 * File an issue at [gina-io/swig/issues](https://github.com/gina-io/swig/issues).
-* Swig v0.x → v1.x migration notes — the original upstream wiki has been deleted; see `HISTORY.md` entries around v1.0.0 for the individual breaking changes. For porting *from Jinja2 or Django* into Swig, see the [Migration Guide](https://gina.io/docs/swig/migration).
+* Swig v0.x → v1.x migration notes — the original upstream wiki has been deleted; see `HISTORY.md` entries around v1.0.0 for the individual breaking changes. For porting *from Jinja2 or Django* into Swig, see the [Migration Guide](https://gina.io/docs/templating/swig/migration).
 
 Installation
 ------------
@@ -78,7 +78,7 @@ For Django syntax:
 Documentation
 -------------
 
-User-facing documentation lives in the Gina Docusaurus site under the [Swig Template Engine](https://gina.io/docs/swig) section, maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/templating/swig/`. The JSDoc blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored into the Docusaurus pages.
+User-facing documentation lives in the Gina Docusaurus site under the [Swig Template Engine](https://gina.io/docs/templating/swig) section, maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/templating/swig/`. The JSDoc blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored into the Docusaurus pages.
 
 Basic Example
 -------------
@@ -139,7 +139,7 @@ Swig is *inspired by* Jinja2 and Django, not a drop-in replacement. Common pitfa
 * **Method calls require parens** — Django auto-invokes `x.get_absolute_url`; Swig needs `x.get_absolute_url()`.
 * **~25 Jinja2 filters are absent** — `default`, `truncate`, `tojson`, `round`, `int`, `float`, `map`, `select`, `batch`, `trim`, etc. Register them via `swig.setFilter(name, fn)`.
 
-Full parity tables and workaround patterns: **[Migration Guide](https://gina.io/docs/swig/migration)**.
+Full parity tables and workaround patterns: **[Migration Guide](https://gina.io/docs/templating/swig/migration)**.
 
 How it works
 ------------
