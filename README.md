@@ -32,7 +32,7 @@ Features
 --------
 
 * Available for node.js **and** major web browsers.
-* [Express](http://expressjs.com/) compatible.
+* [Express](https://expressjs.com/) compatible.
 * Object-Oriented template inheritance.
 * Apply filters and transformations to output in your templates.
 * **Hardened against prototype-pollution** — `__proto__` / `constructor` / `prototype` blocked at parser, tag-side, and IR-emission layers. CVE-2023-25345 fully patched. 11 CVE regression cases under [`tests/regressions.test.js`](./tests/regressions.test.js).

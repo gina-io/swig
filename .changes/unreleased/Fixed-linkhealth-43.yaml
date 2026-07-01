@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Refreshed two stale external URLs flagged by the 2026-06-22 / 2026-06-29 link-health scans (gina-io/gina#43). `README.md` now links to `https://expressjs.com/` instead of the plain-HTTP `http://expressjs.com/` (the domain 301-redirects HTTP to HTTPS). `browser/comments.js` updates the DateZ `@license` URL from `github.com/ocrybit/DateZ` to `github.com/tomoio/DateZ` — the upstream GitHub user was renamed again (same class as the v2.0.0 `TomoUniversalis` to `ocrybit` rename); the target repo keeps the upstream `LISENCE` spelling. Documentation and comment-only; no runtime or API change.'
+time: 2026-07-01T00:31:25.000000000Z
+custom:
+  Issue: ""
