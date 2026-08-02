@@ -1,5 +1,8 @@
 var swig = require('../lib/swig'),
-  expect = require('./lib/expect.js');
+  expect = require('./lib/expect.js'),
+  fs = require('fs'),
+  path = require('path'),
+  os = require('os');
 
 function precompiled(source, filename) {
   return swig.precompile(source, { filename: filename }).tpl;
@@ -25,6 +28,38 @@ describe('swig.register', function () {
     s.register('/partials/x.html', precompiled('X', '/partials/x.html'));
     expect(s.render('{% include "partials/x.html" %}', { filename: '/page.html' }))
       .to.equal('X');
+  });
+
+  it('does not let a registration shadow a loadable extends parent', function () {
+    var root = fs.mkdtempSync(path.join(os.tmpdir(), 'swig-extends-')),
+      s;
+    fs.writeFileSync(path.join(root, 'layout.html'), 'L[{% block b %}base{% endblock %}]');
+    fs.writeFileSync(path.join(root, 'child.html'), '{% extends "layout.html" %}{% block b %}child{% endblock %}');
+
+    s = new swig.Swig({ loader: swig.loaders.fs(root) });
+    s.register('layout.html', precompiled('L[{% block b %}base{% endblock %}]', path.join(root, 'layout.html')));
+
+    expect(s.renderFile('child.html')).to.equal('L[child]');
+
+    fs.unlinkSync(path.join(root, 'layout.html'));
+    fs.unlinkSync(path.join(root, 'child.html'));
+    fs.rmdirSync(root);
+  });
+
+  it('reports a clear error when an extends parent is only registered', function () {
+    var root = fs.mkdtempSync(path.join(os.tmpdir(), 'swig-extends-')),
+      s;
+    fs.writeFileSync(path.join(root, 'child.html'), '{% extends "layout.html" %}{% block b %}child{% endblock %}');
+
+    s = new swig.Swig({ loader: swig.loaders.fs(root) });
+    s.register('layout.html', precompiled('L[{% block b %}base{% endblock %}]', path.join(root, 'layout.html')));
+
+    expect(function () {
+      s.renderFile('child.html');
+    }).to.throwError();
+
+    fs.unlinkSync(path.join(root, 'child.html'));
+    fs.rmdirSync(root);
   });
 
   it('include of an unregistered path still fails', function () {

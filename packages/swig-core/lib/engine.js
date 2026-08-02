@@ -191,7 +191,15 @@ exports.getParents = function (tokens, options, deps) {
 
     parentFile = parentFile || options.filename;
     parentFile = deps.resolve(parentName, parentFile);
-    parent = deps.cacheGet(parentFile, options) || deps.parseFile(parentFile, utils.extend({}, options, { filename: parentFile }));
+    // Only a compile-cached entry carries the parse tree (compile extends the
+    // wrapper with the token properties); a registered template function does
+    // not. Falling through to parseFile keeps a registration from shadowing a
+    // loadable parent, which would otherwise remap blocks against an undefined
+    // token list and render an empty string with no error.
+    parent = deps.cacheGet(parentFile, options);
+    if (!parent || !parent.tokens) {
+      parent = deps.parseFile(parentFile, utils.extend({}, options, { filename: parentFile }));
+    }
     parentName = parent.parent;
 
     if (parentFiles.indexOf(parentFile) !== -1) {
