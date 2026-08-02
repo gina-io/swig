@@ -322,6 +322,75 @@ exports.install = function (self, frontend) {
     }
   };
 
+  /**
+   * Register a pre-compiled template function under a template path so
+   * later `include` lookups and `compileFile` / `renderFile` calls are
+   * served from the template cache without compiling. The path is
+   * normalized through the active loader's `resolve` so a registration
+   * and an include-site lookup agree on the cache key.
+   *
+   * The registered entry is stored as a locals-binding wrapper with the
+   * same call contract as `compile`'s cached closure — `include`-emitted
+   * code invokes cached entries as `(context)`, so caching the raw
+   * five-argument template function (what `run`'s priming side effect
+   * stores) breaks any partial that touches `_ctx` / `_filters`. The
+   * wrapper closes over this instance's filters and default locals,
+   * mirroring `compiled(locals, blocks)` below.
+   *
+   * Throws when caching is disabled on the instance (`cache: false`) —
+   * the registry IS the compile cache, so nothing could retain the
+   * registration.
+   *
+   * @param  {string}   path  Template path to register under.
+   * @param  {function} fn    Pre-compiled template function (CLI/AOT output).
+   * @return {object}         The instance, for chaining.
+   */
+  self.register = function (path, fn) {
+    if (typeof path !== 'string' || !path.length) {
+      throw new Error('Template registration path must be a non-empty string.');
+    }
+    if (typeof fn !== 'function') {
+      throw new Error('Registered template for "' + path + '" is not a function. Pass a pre-compiled template function.');
+    }
+    if (self.options.cache === false) {
+      throw new Error('Cannot register templates while caching is disabled (cache: false).');
+    }
+
+    var context = getLocals(),
+      contextLength = utils.keys(context).length;
+
+    function registered(locals, blocks) {
+      var lcls;
+      if (locals && contextLength) {
+        lcls = utils.extend({}, context, locals);
+      } else if (locals && !contextLength) {
+        lcls = locals;
+      } else if (!locals && contextLength) {
+        lcls = context;
+      } else {
+        lcls = {};
+      }
+      return fn(self, lcls, filters, utils, efn, blocks);
+    }
+
+    cacheSet(self.options.loader.resolve(path), {}, registered);
+    return self;
+  };
+
+  /**
+   * Register a map of pre-compiled template functions — the shape the
+   * CLI's `--recursive --register` bundle produces.
+   *
+   * @param  {object} map  `{ path: templateFn }` pairs.
+   * @return {object}      The instance, for chaining.
+   */
+  self.registerBundle = function (map) {
+    utils.each(map, function (fn, path) {
+      self.register(path, fn);
+    });
+    return self;
+  };
+
   self.setFilter = function (name, method) {
     if (typeof method !== "function") {
       throw new Error('Filter "' + name + '" is not a valid function.');
