@@ -27,6 +27,7 @@ var FLAGS = {
   'm': { alias: 'minify', boolean: true },
   'r': { alias: 'recursive' },
   'ext': {},
+  'register': { boolean: true },
   'filters': {},
   'tags': {},
   'options': {},
@@ -313,6 +314,10 @@ function validate(argv) {
     }
   }
 
+  if (argv.register && !argv.r) {
+    throw new Error('--register requires --recursive; it emits a self-registering bundle of the compiled directory.');
+  }
+
   if (argv.ext && !argv.r) {
     throw new Error('--ext is only meaningful with --recursive.');
   }
@@ -344,6 +349,7 @@ function usage() {
     '    -m, --minify        Minify compiled functions with terser',
     '    -r, --recursive     Recursively compile every template in <dir> into a single AOT bundle module.',
     '    --ext               Comma-separated list of file extensions to include when using --recursive (e.g. ".html,.swig"). Defaults to no filter.',
+    '    --register          With --recursive: emit a self-registering bundle (calls swig.registerBundle when a global swig is present; also exports the template map).',
     '    --filters           Custom filters as a CommonJS-style file',
     '    --tags              Custom tags as a CommonJS-style file',
     '    --options           Customize Swig\'s Options from a CommonJS-style file',
@@ -418,6 +424,13 @@ function walkSync(dir) {
  * resolution still happens at render time through the consumer's loader. The
  * bundle is not a closed module against inheritance chains.
  *
+ * With <code>--register</code> the bundle self-registers instead: it calls
+ * <code>swig.registerBundle(map)</code> against a global <code>swig</code>
+ * when one is present (a browser page that loaded the swig bundle first),
+ * and still exports the raw map for Node-side consumers. Run the command
+ * from the template root (<code>swig compile -r . --register</code>) so
+ * baked include paths line up with the bundle's registration keys.
+ *
  * @param  {string}  dir Directory to walk.
  * @return {undefined}   Writes to stdout or to <code>argv.o</code>.
  * @private
@@ -452,7 +465,17 @@ function bundleRecursive(dir) {
     parts.push(JSON.stringify(key) + ': ' + tpl);
   });
 
-  output = 'module.exports = {\n' + parts.join(',\n') + '\n};\n';
+  if (argv.register) {
+    output = 'var __swigTemplates = {\n' + parts.join(',\n') + '\n};\n' +
+      'if (typeof module !== "undefined" && module.exports) {\n' +
+      '  module.exports = __swigTemplates;\n' +
+      '}\n' +
+      'if (typeof swig !== "undefined" && swig.registerBundle) {\n' +
+      '  swig.registerBundle(__swigTemplates);\n' +
+      '}\n';
+  } else {
+    output = 'module.exports = {\n' + parts.join(',\n') + '\n};\n';
+  }
 
   if (argv.m) {
     output = loadTerser().minify_sync(output).code;
