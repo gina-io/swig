@@ -1,0 +1,5 @@
+kind: added
+body: 'A "What''s new in v<version>" section at the top of the README, regenerated from the release notes at every cut'
+time: 2026-08-02T18:48:11.000000000Z
+custom:
+  Issue: ""

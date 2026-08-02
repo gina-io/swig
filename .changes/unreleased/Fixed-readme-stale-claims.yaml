@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Refreshed stale README claims — the benchmark summary now reflects the latest measured run (swig leads on all five workloads; the previous table predated the 2.2.0 escape-filter rewrite and showed nunjucks ahead on simple var output), and the security bullet no longer pins an exact CVE regression-test count nor conflates the prototype-chain hardening with CVE-2023-25345 (a directory-traversal fix)'
+time: 2026-08-02T18:48:11.000000000Z
+custom:
+  Issue: ""

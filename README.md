@@ -32,14 +32,25 @@ Features
 --------
 
 * Available for node.js **and** major web browsers.
+* **Strict-CSP browser runtime** — AOT-compile templates ahead of time (`swig compile --recursive --register`) and render them with the runtime-only bundle (`dist/swig.runtime.min.js`, ~21 KB) — no parser, no `new Function`, no `unsafe-eval` required.
 * [Express](https://expressjs.com/) compatible.
 * Object-Oriented template inheritance.
 * Apply filters and transformations to output in your templates.
-* **Hardened against prototype-pollution** — `__proto__` / `constructor` / `prototype` blocked at parser, tag-side, and IR-emission layers. CVE-2023-25345 fully patched. 11 CVE regression cases under [`tests/regressions.test.js`](./tests/regressions.test.js).
+* **Security-hardened** — prototype-pollution vectors (`__proto__` / `constructor` / `prototype`) blocked at parser, tag-side, and IR-emission layers; template-driven file reads outside the loader root rejected (CVE-2023-25345 directory traversal, patched in 2.7.1). Dedicated CVE regression suite in [`tests/regressions.test.js`](./tests/regressions.test.js).
 * Automatically escapes all variable output (HTML by default; configurable per-call).
 * Lots of iteration and conditionals supported.
 * Robust without the bloat.
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
+
+What's new in v2.8.0
+--------------------
+
+* **Added — AOT template registration on every flavor.** `swig.register(path, fn)` and `swig.registerBundle(map)` store pre-compiled templates in the template cache under loader-normalized keys, wrapped in the call shape `include` expects. `swig compile --recursive --register <dir>` emits a self-registering browser bundle.
+* **Added — runtime-only browser build.** `dist/swig.runtime.js` / `dist/swig.runtime.min.js` (~21 KB minified) execute pre-compiled template bundles — `register`, `registerBundle`, `run`, `compileFile`, `renderFile`, the native filter catalog, and a root-based memory loader — and ship **no parser and no `new Function`**, so pages under a strict Content-Security-Policy (no `unsafe-eval`) can render AOT-compiled templates. Also available to Node as `require('@rhinostone/swig/runtime')`.
+* **Fixed — silent template-cache failures now report.** The memory loader rejects a climbing path when a basepath is set (mirroring the confinement the filesystem loader already enforces) instead of resolving to a different template than the one requested; priming via `swig.run(tpl, locals, filepath)` stores a cache entry a later `include` can actually use instead of crashing on the raw function shape; the memory cache no longer reads inherited object members (an identifier-style loader cannot resolve a name such as `constructor` to a cache hit); and both minified bundles now point at the source-map filename that is actually written.
+* **Fixed — documentation link refresh.** Canonical `/docs/templating/swig` URLs, HTTPS `expressjs.com` link, updated DateZ `@license` URL, and de-linked references to the archived `paularmstrong/swig` repository (kept as plain text for traceability).
+
+See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 
 Benchmarks
 ----------
@@ -50,7 +61,7 @@ Benchmarks
 cd benchmarks && npm install && node render.js
 ```
 
-In production-typical settings (autoescape on), `@rhinostone/swig` outperforms Nunjucks on iteration-heavy templates by 2–3.5× and ties on simple control flow. See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
+In production-typical settings (autoescape on), `@rhinostone/swig` leads Nunjucks on all five workload shapes — from ~1.8× on simple variable output to 3.5–5.5× on iteration-heavy templates (median of 3 runs, 2026-08). See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
 
 Need Help? Have Questions? Comments?
 ------------------------------------
