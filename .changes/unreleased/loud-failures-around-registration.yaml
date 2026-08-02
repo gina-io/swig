@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Several template-cache paths failed silently and now report the problem. The memory loader rejects a climbing path when a basepath is set, instead of resolving it to a different template than the one requested — with a root basepath it clamped and rendered the wrong file, mirroring the confinement the filesystem loader already enforces. Passing a filepath to run stores the same locals-binding wrapper, under the same resolved key, that a cache lookup expects, so a template primed that way is usable by a later include rather than crashing on the raw function argument shape. The memory cache no longer reads inherited object members, so an identifier-style loader cannot resolve a name such as constructor to a cache hit. Both minified bundles now point at the source map filename that is actually written.'
+time: 2026-08-02T03:40:00Z
+custom:
+  Issue: ""
