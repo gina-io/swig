@@ -151,6 +151,44 @@ describe('swig runtime-only module', function () {
     expect(typeof runtime.setDefaultTZOffset).to.equal('function');
   });
 
+  it('matches the full build method surface so a swap never hits a bare TypeError', function () {
+    var full = require('../lib/swig'),
+      fullInstance = new full.Swig(),
+      instance = new runtime.Swig();
+
+    Object.keys(full).forEach(function (key) {
+      if (typeof full[key] === 'function') {
+        expect(typeof runtime[key]).to.equal('function');
+      }
+    });
+
+    Object.keys(fullInstance).forEach(function (key) {
+      if (typeof fullInstance[key] === 'function') {
+        expect(typeof instance[key]).to.equal('function');
+      }
+    });
+
+    ['setTag', 'renderFileAsync', 'compileFileAsync'].forEach(function (name) {
+      expect(function () {
+        runtime[name]();
+      }).to.throwError(/unavailable/);
+    });
+  });
+
+  it('does not read inherited object members as cache hits', function () {
+    var identifierLoader = {
+        resolve: function (to) { return to; },
+        load: function () { return ''; }
+      },
+      instance = new runtime.Swig({ loader: identifierLoader });
+
+    ['constructor', 'toString', 'valueOf'].forEach(function (name) {
+      expect(function () {
+        instance.compileFile(name);
+      }).to.throwError(/is not registered/);
+    });
+  });
+
   it('module-level default instance registers, renders, and invalidates', function () {
     runtime.register('module-level.html', tpl('ML {{ name }}', '/module-level.html'));
     expect(runtime.renderFile('module-level.html', { name: 'ok' })).to.equal('ML ok');

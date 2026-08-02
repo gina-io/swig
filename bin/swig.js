@@ -466,12 +466,22 @@ function bundleRecursive(dir) {
   });
 
   if (argv.register) {
+    // The engine may be reachable as a bare global (classic script tag) or
+    // only as a property of the global object — under AMD the browser entry
+    // registers a named module and never creates the bare binding, so a
+    // bare-identifier lookup alone would silently register nothing.
     output = 'var __swigTemplates = {\n' + parts.join(',\n') + '\n};\n' +
       'if (typeof module !== "undefined" && module.exports) {\n' +
       '  module.exports = __swigTemplates;\n' +
       '}\n' +
-      'if (typeof swig !== "undefined" && swig.registerBundle) {\n' +
-      '  swig.registerBundle(__swigTemplates);\n' +
+      'var __swigEngine = (typeof swig !== "undefined" && swig) ||\n' +
+      '  (typeof window !== "undefined" && window.swig) ||\n' +
+      '  (typeof globalThis !== "undefined" && globalThis.swig) || null;\n' +
+      'if (__swigEngine && __swigEngine.registerBundle) {\n' +
+      '  __swigEngine.registerBundle(__swigTemplates);\n' +
+      '} else if (typeof console !== "undefined" && console.warn) {\n' +
+      '  console.warn("swig: no engine found; ' + parts.length + ' pre-compiled template(s) were not registered. ' +
+      'Load swig before this bundle, or call swig.registerBundle(__swigTemplates) yourself.");\n' +
       '}\n';
   } else {
     output = 'module.exports = {\n' + parts.join(',\n') + '\n};\n';

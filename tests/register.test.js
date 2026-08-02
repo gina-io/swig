@@ -118,6 +118,38 @@ describe('swig.register', function () {
     }).to.throwError(/caching is disabled/);
   });
 
+  it('throws for every disabled-cache spelling, not just false', function () {
+    [null, 0, ''].forEach(function (value) {
+      var s = new swig.Swig({ cache: value, loader: swig.loaders.memory({}, '/') });
+      expect(function () {
+        s.register('x.html', precompiled('X', '/x.html'));
+      }).to.throwError(/caching is disabled/);
+    });
+  });
+
+  it('registers a bundle atomically', function () {
+    var s = new swig.Swig({ loader: swig.loaders.memory({}, '/') });
+
+    expect(function () {
+      s.registerBundle({
+        'a.html': precompiled('A', '/a.html'),
+        'b.html': 'not a function',
+        'z.html': precompiled('Z', '/z.html')
+      });
+    }).to.throwError(/is not a function/);
+
+    expect(Object.keys(s.cache).length).to.equal(0);
+  });
+
+  it('rejects a bundle that is not an object', function () {
+    var s = new swig.Swig({ loader: swig.loaders.memory({}, '/') });
+    [null, undefined, 42, 'templates'].forEach(function (value) {
+      expect(function () {
+        s.registerBundle(value);
+      }).to.throwError(/must be an object/);
+    });
+  });
+
   it('is isolated per instance', function () {
     var s1 = new swig.Swig({ loader: swig.loaders.memory({}, '/') }),
       s2 = new swig.Swig({ loader: swig.loaders.memory({}, '/') });

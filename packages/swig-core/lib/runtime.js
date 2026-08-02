@@ -237,6 +237,8 @@ exports.create = function (frontend) {
   self.compile = function () { throw noCompiler('compile() is unavailable'); };
   self.render = function () { throw noCompiler('render(source) is unavailable'); };
   self.setTag = function () { throw noCompiler('setTag() is parse-time machinery and is unavailable'); };
+  self.renderFileAsync = function () { throw noCompiler('renderFileAsync() is unavailable'); };
+  self.compileFileAsync = function () { throw noCompiler('compileFileAsync() is unavailable'); };
 
   return self;
 };

@@ -71,7 +71,7 @@ dist/swig.js:
 
 dist/swig.min.js:
 	@echo "Building $@..."
-	@${BIN}/terser $^ --comments -c -m --source-map "url=swig.js.map" -o $@
+	@${BIN}/terser $^ --comments -c -m --source-map "url=swig.min.js.map" -o $@
 
 dist/swig.runtime.js:
 	@echo "Building $@..."
@@ -81,7 +81,7 @@ dist/swig.runtime.js:
 
 dist/swig.runtime.min.js:
 	@echo "Building $@..."
-	@${BIN}/terser $^ --comments -c -m --source-map "url=swig.runtime.js.map" -o $@
+	@${BIN}/terser $^ --comments -c -m --source-map "url=swig.runtime.min.js.map" -o $@
 
 browser/test/tests.js:
 	@echo "Building $@..."

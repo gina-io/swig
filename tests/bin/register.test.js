@@ -24,7 +24,12 @@ describe('bin/swig compile --recursive --register', function () {
       // is picked up by make lint and fails the pre-commit hook.
       fs.unlinkSync(outfile);
 
-      expect(source.indexOf('swig.registerBundle(__swigTemplates)') !== -1).to.equal(true);
+      expect(source.indexOf('__swigEngine.registerBundle(__swigTemplates)') !== -1).to.equal(true);
+      // The engine may only exist as a property of the global object — under
+      // AMD there is no bare `swig` binding — and a bundle that finds no
+      // engine must say so rather than register nothing quietly.
+      expect(source.indexOf('window.swig') !== -1).to.equal(true);
+      expect(source.indexOf('console.warn') !== -1).to.equal(true);
       expect(typeof map['page.html']).to.equal('function');
       expect(typeof map['partials/nav.html']).to.equal('function');
 

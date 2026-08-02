@@ -43,7 +43,10 @@ exports.cacheGet = function (key, options, engineCache, memoryStore) {
   }
 
   if (engineCache === 'memory') {
-    return memoryStore[key];
+    // The store is a plain object, so an identifier-style loader that returns
+    // bare names (the loader contract allows it) could otherwise read an
+    // inherited member such as "constructor" as a cache hit.
+    return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : undefined;
   }
 
   return engineCache.get(key);

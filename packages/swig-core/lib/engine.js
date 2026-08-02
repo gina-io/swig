@@ -330,6 +330,23 @@ exports.install = function (self, frontend) {
     }
   };
 
+  /*!
+   * Shared argument checks for register / registerBundle, so a bundle can be
+   * validated in full before any entry is committed.
+   * @private
+   */
+  function validateRegistration(path, fn) {
+    if (typeof path !== 'string' || !path.length) {
+      throw new Error('Template registration path must be a non-empty string.');
+    }
+    if (typeof fn !== 'function') {
+      throw new Error('Registered template for "' + path + '" is not a function. Pass a pre-compiled template function.');
+    }
+    if (!self.options.cache) {
+      throw new Error('Cannot register templates while caching is disabled (cache: ' + self.options.cache + '). The registry is the compile cache.');
+    }
+  }
+
   /**
    * Register a pre-compiled template function under a template path so
    * later `include` lookups and `compileFile` / `renderFile` calls are
@@ -345,24 +362,21 @@ exports.install = function (self, frontend) {
    * wrapper closes over this instance's filters and default locals,
    * mirroring `compiled(locals, blocks)` below.
    *
-   * Throws when caching is disabled on the instance (`cache: false`) —
+   * Throws when caching is disabled on the instance (any falsy `cache`) —
    * the registry IS the compile cache, so nothing could retain the
-   * registration.
+   * registration. `invalidateCache()` therefore also drops every
+   * registration made against the built-in memory cache.
+   *
+   * A registered entry cannot serve as an `{% extends %}` parent: it carries
+   * no parse tree, so the parent's source must still be reachable through
+   * the loader.
    *
    * @param  {string}   path  Template path to register under.
    * @param  {function} fn    Pre-compiled template function (CLI/AOT output).
    * @return {object}         The instance, for chaining.
    */
   self.register = function (path, fn) {
-    if (typeof path !== 'string' || !path.length) {
-      throw new Error('Template registration path must be a non-empty string.');
-    }
-    if (typeof fn !== 'function') {
-      throw new Error('Registered template for "' + path + '" is not a function. Pass a pre-compiled template function.');
-    }
-    if (self.options.cache === false) {
-      throw new Error('Cannot register templates while caching is disabled (cache: false).');
-    }
+    validateRegistration(path, fn);
 
     var context = getLocals(),
       contextLength = utils.keys(context).length;
@@ -389,12 +403,26 @@ exports.install = function (self, frontend) {
    * Register a map of pre-compiled template functions — the shape the
    * CLI's `--recursive --register` bundle produces.
    *
+   * Every entry is validated before any is committed, so a malformed bundle
+   * leaves the registry untouched instead of half-populated.
+   *
    * @param  {object} map  `{ path: templateFn }` pairs.
    * @return {object}      The instance, for chaining.
    */
   self.registerBundle = function (map) {
+    var entries = [];
+
+    if (!map || typeof map !== 'object') {
+      throw new Error('Template bundle must be an object of { path: templateFn } pairs.');
+    }
+
     utils.each(map, function (fn, path) {
-      self.register(path, fn);
+      entries.push([path, fn]);
+      validateRegistration(path, fn);
+    });
+
+    utils.each(entries, function (entry) {
+      self.register(entry[0], entry[1]);
     });
     return self;
   };
