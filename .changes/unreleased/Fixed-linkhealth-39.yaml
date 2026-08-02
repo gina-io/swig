@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Updated the stale `/docs/swig` and `/docs/swig/migration` documentation links to their canonical `/docs/templating/swig` and `/docs/templating/swig/migration` paths in `README.md` (4 occurrences) and `CONTRIBUTING.md` (1 occurrence) (2026-06-15 link-health scan, gina-io/gina#39). The old URLs still resolved via the 301 redirects added in the 2026-04-23 Templating umbrella restructure, but were no longer canonical and kept accruing redirect hops. Documentation only; no runtime or API change.'
-time: 2026-06-15T21:19:35.000000000Z
-custom:
-  Issue: ""

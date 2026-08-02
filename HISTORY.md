@@ -1,3 +1,18 @@
+[2.8.0](https://github.com/gina-io/swig/tree/v2.8.0) / 2026-08-02
+-----------------------------------------------------------------
+
+* **Added** AOT template registration — swig.register(path, fn) and swig.registerBundle(map) on every flavor store pre-compiled templates in the template cache under loader-normalized keys, wrapped in the locals-binding call shape include expects (priming via swig.run cached the raw template function, which crashed included partials that used variables or filters); swig compile --recursive --register emits a self-registering browser bundle
+
+* **Added** Runtime-only browser build — dist/swig.runtime.js and dist/swig.runtime.min.js execute pre-compiled template bundles (register, registerBundle, run, compileFile, renderFile with the native filter catalog and a root-based memory loader) and ship no parser and no new Function, so pages under a strict Content-Security-Policy without unsafe-eval can render AOT-compiled templates; also exposed to Node as require("@rhinostone/swig/runtime")
+
+* **Fixed** Updated the stale `/docs/swig` and `/docs/swig/migration` documentation links to their canonical `/docs/templating/swig` and `/docs/templating/swig/migration` paths in `README.md` (4 occurrences) and `CONTRIBUTING.md` (1 occurrence) (2026-06-15 link-health scan, gina-io/gina#39). The old URLs still resolved via the 301 redirects added in the 2026-04-23 Templating umbrella restructure, but were no longer canonical and kept accruing redirect hops. Documentation only; no runtime or API change.
+
+* **Fixed** Refreshed two stale external URLs flagged by the 2026-06-22 / 2026-06-29 link-health scans (gina-io/gina#43). `README.md` now links to `https://expressjs.com/` instead of the plain-HTTP `http://expressjs.com/` (the domain 301-redirects HTTP to HTTPS). `browser/comments.js` updates the DateZ `@license` URL from `github.com/ocrybit/DateZ` to `github.com/tomoio/DateZ` — the upstream GitHub user was renamed again (same class as the v2.0.0 `TomoUniversalis` to `ocrybit` rename); the target repo keeps the upstream `LISENCE` spelling. Documentation and comment-only; no runtime or API change.
+
+* **Fixed** De-linked the two remaining live references to the archived `paularmstrong/swig` repository (GitHub topic `unmaintained-dont-use`, last released 2014), flagged by the 2026-07-06 link-health scan (gina-io/gina#47). `README.md` no longer links the "abandoned `paularmstrong/swig`" mention to the archived repo root, and `CONTRIBUTING.md` de-links the "Pull Request 273" historical example (a PR on the archived repo, where contributions are disabled) — both references are preserved as plain text for traceability, matching the de-linking house style from the gina-io/gina#18 and #33 link-health fixes. Documentation only; no runtime or API change.
+
+* **Fixed** Several template-cache paths failed silently and now report the problem. The memory loader rejects a climbing path when a basepath is set, instead of resolving it to a different template than the one requested — with a root basepath it clamped and rendered the wrong file, mirroring the confinement the filesystem loader already enforces. Passing a filepath to run stores the same locals-binding wrapper, under the same resolved key, that a cache lookup expects, so a template primed that way is usable by a later include rather than crashing on the raw function argument shape. The memory cache no longer reads inherited object members, so an identifier-style loader cannot resolve a name such as constructor to a cache hit. Both minified bundles now point at the source map filename that is actually written.
+
 [2.7.3](https://github.com/gina-io/swig/tree/v2.7.3) / 2026-06-10
 -----------------------------------------------------------------
 

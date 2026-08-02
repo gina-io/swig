@@ -1,5 +1,0 @@
-kind: added
-body: 'AOT template registration — swig.register(path, fn) and swig.registerBundle(map) on every flavor store pre-compiled templates in the template cache under loader-normalized keys, wrapped in the locals-binding call shape include expects (priming via swig.run cached the raw template function, which crashed included partials that used variables or filters); swig compile --recursive --register emits a self-registering browser bundle'
-time: 2026-08-02T12:00:00Z
-custom:
-  Issue: ""
