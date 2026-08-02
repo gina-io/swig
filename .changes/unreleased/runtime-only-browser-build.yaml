@@ -1,0 +1,5 @@
+kind: added
+body: 'Runtime-only browser build — dist/swig.runtime.js and dist/swig.runtime.min.js execute pre-compiled template bundles (register, registerBundle, run, compileFile, renderFile with the native filter catalog and a root-based memory loader) and ship no parser and no new Function, so pages under a strict Content-Security-Policy without unsafe-eval can render AOT-compiled templates; also exposed to Node as require("@rhinostone/swig/runtime")'
+time: 2026-08-02T12:05:00Z
+custom:
+  Issue: ""

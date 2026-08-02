@@ -141,6 +141,16 @@ describe('swig runtime-only module', function () {
     expect(plain.compileFile('y.html')()).to.equal('[]');
   });
 
+  it('module-level compiling entry points throw clear errors', function () {
+    ['parse', 'parseFile', 'precompile', 'compile', 'render'].forEach(function (method) {
+      expect(function () {
+        runtime[method]('anything');
+      }).to.throwError(/runtime-only build has no compiler/);
+    });
+    runtime.setDefaultTZOffset(0);
+    expect(typeof runtime.setDefaultTZOffset).to.equal('function');
+  });
+
   it('module-level default instance registers, renders, and invalidates', function () {
     runtime.register('module-level.html', tpl('ML {{ name }}', '/module-level.html'));
     expect(runtime.renderFile('module-level.html', { name: 'ok' })).to.equal('ML ok');

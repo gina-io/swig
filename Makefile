@@ -31,6 +31,12 @@ browser/comments.js: FORCE
 .SECONDARY dist/swig.min.js: \
 	dist/swig.js
 
+.SECONDARY dist/swig.runtime.js: \
+	browser/comments.js
+
+.SECONDARY dist/swig.runtime.min.js: \
+	dist/swig.runtime.js
+
 .INTERMEDIATE browser/test/tests.js: \
 	tests/comments.test.js \
 	tests/filters.test.js \
@@ -51,7 +57,7 @@ clean: FORCE
 	@rm -rf dist
 	@rm -rf ${TMP}
 
-build: clean dist dist/swig.min.js
+build: clean dist dist/swig.min.js dist/swig.runtime.min.js
 	@echo "Built to ./dist/"
 
 dist:
@@ -66,6 +72,16 @@ dist/swig.js:
 dist/swig.min.js:
 	@echo "Building $@..."
 	@${BIN}/terser $^ --comments -c -m --source-map "url=swig.js.map" -o $@
+
+dist/swig.runtime.js:
+	@echo "Building $@..."
+	@cat $^ > $@
+	@${BIN}/esbuild browser/runtime.js --bundle --format=iife \
+		--alias:fs=./browser/stubs/fs.js --alias:path=path-browserify >> $@
+
+dist/swig.runtime.min.js:
+	@echo "Building $@..."
+	@${BIN}/terser $^ --comments -c -m --source-map "url=swig.runtime.js.map" -o $@
 
 browser/test/tests.js:
 	@echo "Building $@..."
