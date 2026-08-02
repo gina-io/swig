@@ -24,6 +24,41 @@ describe('swig.loaders', function () {
   });
 
   describe('Memory', function () {
+    it('rejects a climbing path when a basepath is set', function () {
+      var loader = swig.loaders.memory({}, '/views');
+
+      expect(function () {
+        loader.resolve('../secret.html', '/views/page.html');
+      }).to.throwError(/resolves outside the loader root/);
+
+      expect(function () {
+        loader.resolve('../../etc/passwd', '/views/page.html');
+      }).to.throwError(/resolves outside the loader root/);
+
+      // A root basepath is the case that used to clamp silently and return a
+      // different template rather than escaping.
+      expect(function () {
+        swig.loaders.memory({}, '/').resolve('../shared/foot.html', '/sub/dir/page.html');
+      }).to.throwError(/resolves outside the loader root/);
+    });
+
+    it('still resolves in-root paths when a basepath is set', function () {
+      var loader = swig.loaders.memory({}, '/views');
+
+      expect(loader.resolve('page.html')).to.equal(path.resolve('/views/page.html'));
+      expect(loader.resolve('/page.html')).to.equal(path.resolve('/page.html'));
+      expect(loader.resolve('partials/nav.html')).to.equal(path.resolve('/views/partials/nav.html'));
+      // Interior climbs that stay inside the root remain legal.
+      expect(loader.resolve('partials/../page.html')).to.equal(path.resolve('/views/page.html'));
+    });
+
+    it('leaves relative resolution alone with no basepath', function () {
+      var loader = swig.loaders.memory({});
+
+      expect(loader.resolve('../shared/foot.html', '/sub/dir/page.html'))
+        .to.equal(path.resolve('/sub/shared/foot.html'));
+    });
+
     it('can use extends', function () {
       var templates, html, s;
 

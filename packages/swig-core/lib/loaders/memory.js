@@ -28,6 +28,14 @@ module.exports = function (mapping, basepath) {
    */
   ret.resolve = function (to, from) {
     if (basepath) {
+      // A basepath ignores "from", so a climbing path can never mean what it
+      // says: path.resolve either walks out of the root or, when the root is
+      // "/", silently clamps and returns a different template. Reject it the
+      // way the filesystem loader rejects an escaping path, rather than
+      // resolving to something the caller did not ask for.
+      if ((/^\.\.([\\/]|$)/).test(path.normalize(to))) {
+        utils.throwError('Template "' + to + '" resolves outside the loader root "' + basepath + '".');
+      }
       from = basepath;
     } else {
       from = (from) ? path.dirname(from) : '/';
