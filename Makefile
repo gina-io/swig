@@ -18,6 +18,8 @@ all:
 version:
 	@sed -i.bak 's/exports\.version = "${VERSION_REGEX}"/exports.version = "${VERSION}"/' lib/swig.js
 	@rm lib/swig.js.bak
+	@sed -i.bak 's/exports\.version = "${VERSION_REGEX}"/exports.version = "${VERSION}"/' lib/runtime.js
+	@rm lib/runtime.js.bak
 
 browser/comments.js: FORCE
 	@sed -i.bak 's/v${VERSION_REGEX}/v${VERSION}/' $@
