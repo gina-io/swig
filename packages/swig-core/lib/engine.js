@@ -331,6 +331,31 @@ exports.install = function (self, frontend) {
   };
 
   /*!
+   * Wrap a pre-compiled template function in the locals-binding call shape
+   * cached entries have — include-emitted code invokes them as
+   * `(context)`, so the raw five-argument function is the wrong shape.
+   * @private
+   */
+  function buildRegistered(fn) {
+    var context = getLocals(),
+      contextLength = utils.keys(context).length;
+
+    return function registered(locals, blocks) {
+      var lcls;
+      if (locals && contextLength) {
+        lcls = utils.extend({}, context, locals);
+      } else if (locals && !contextLength) {
+        lcls = locals;
+      } else if (!locals && contextLength) {
+        lcls = context;
+      } else {
+        lcls = {};
+      }
+      return fn(self, lcls, filters, utils, efn, blocks);
+    };
+  }
+
+  /*!
    * Shared argument checks for register / registerBundle, so a bundle can be
    * validated in full before any entry is committed.
    * @private
@@ -378,24 +403,7 @@ exports.install = function (self, frontend) {
   self.register = function (path, fn) {
     validateRegistration(path, fn);
 
-    var context = getLocals(),
-      contextLength = utils.keys(context).length;
-
-    function registered(locals, blocks) {
-      var lcls;
-      if (locals && contextLength) {
-        lcls = utils.extend({}, context, locals);
-      } else if (locals && !contextLength) {
-        lcls = locals;
-      } else if (!locals && contextLength) {
-        lcls = context;
-      } else {
-        lcls = {};
-      }
-      return fn(self, lcls, filters, utils, efn, blocks);
-    }
-
-    cacheSet(self.options.loader.resolve(path), {}, registered);
+    cacheSet(self.options.loader.resolve(path), {}, buildRegistered(fn));
     return self;
   };
 
@@ -739,7 +747,10 @@ exports.install = function (self, frontend) {
   self.run = function (tpl, locals, filepath) {
     var context = getLocals({ locals: locals });
     if (filepath) {
-      cacheSet(filepath, {}, tpl);
+      // Cache the same wrapper `register` stores, under the same resolved
+      // key, so a template primed this way is actually usable by a later
+      // include instead of crashing on the raw function's argument shape.
+      cacheSet(self.options.loader.resolve(filepath), {}, buildRegistered(tpl));
     }
     return tpl(self, context, filters, utils, efn);
   };

@@ -20,8 +20,11 @@ var utils = require('./utils'),
  *   - `run(tpl, locals, filepath)` matches engine semantics.
  *
  * The default loader is a memory loader rooted at "/", so registration
- * keys and include lookups both flatten to root-relative paths — the
- * exact keys a `swig compile --recursive --register` bundle carries.
+ * keys and root-relative include lookups both flatten to the exact keys a
+ * `swig compile --recursive --register` bundle carries. A basepath ignores
+ * the resolving-from path, so an include inside a bundled partial must name
+ * its target from the bundle root; a climbing path is rejected rather than
+ * silently resolved to a different template.
  */
 
 /*!
@@ -91,17 +94,47 @@ exports.create = function (frontend) {
     cache.cacheSet(key, options, val, self.options.cache, self.cache);
   }
 
+  /**
+   * Merge options into this instance. Compile-time options are not
+   * accepted — the runtime build has no parser to configure.
+   *
+   * @example
+   * rt.setDefaults({ locals: { site: 'Acme' } });
+   *
+   * @param  {object} options  Option overrides (locals, cache, loader).
+   * @return {undefined}
+   */
   self.setDefaults = function (options) {
     validateRuntimeOptions(options);
     self.options = utils.extend(self.options, options || {});
   };
 
+  /**
+   * Empty the template cache. Because the cache IS the registry, this
+   * also drops every registration made against the built-in memory cache.
+   *
+   * @example
+   * rt.invalidateCache();
+   *
+   * @return {undefined}
+   */
   self.invalidateCache = function () {
     if (self.options.cache === 'memory') {
       self.cache = {};
     }
   };
 
+  /**
+   * Add or replace a filter available to registered templates. Filters
+   * bind at render time, so this affects templates registered earlier.
+   *
+   * @example
+   * rt.setFilter('shout', function (input) { return input + '!'; });
+   *
+   * @param  {string}   name    Filter name as used in templates.
+   * @param  {function} method  Filter implementation.
+   * @return {undefined}
+   */
   self.setFilter = function (name, method) {
     if (typeof method !== "function") {
       throw new Error('Filter "' + name + '" is not a valid function.');
@@ -109,34 +142,30 @@ exports.create = function (frontend) {
     filters[name] = method;
   };
 
+  /**
+   * Expose an object to compiled template code as `_ext[name]`.
+   *
+   * @example
+   * rt.setExtension('translate', function (key) { return dictionary[key]; });
+   *
+   * @param  {string} name    Name the compiled code refers to.
+   * @param  {*}      object  Value to expose.
+   * @return {undefined}
+   */
   self.setExtension = function (name, object) {
     self.extensions[name] = object;
   };
 
-  /**
-   * Register a pre-compiled template function under a template path.
-   * Mirrors the engine.js register contract — see that JSDoc for the
-   * key-normalization and wrapper-shape rationale.
-   *
-   * @param  {string}   path  Template path to register under.
-   * @param  {function} fn    Pre-compiled template function (CLI/AOT output).
-   * @return {object}         The instance, for chaining.
+  /*!
+   * Wrap a pre-compiled template function in the locals-binding call shape
+   * cached entries have, mirroring the engine.
+   * @private
    */
-  self.register = function (path, fn) {
-    if (typeof path !== 'string' || !path.length) {
-      throw new Error('Template registration path must be a non-empty string.');
-    }
-    if (typeof fn !== 'function') {
-      throw new Error('Registered template for "' + path + '" is not a function. Pass a pre-compiled template function.');
-    }
-    if (self.options.cache === false) {
-      throw new Error('Cannot register templates while caching is disabled (cache: false).');
-    }
-
+  function buildRegistered(fn) {
     var context = getLocals(),
       contextLength = utils.keys(context).length;
 
-    function registered(locals, blocks) {
+    return function registered(locals, blocks) {
       var lcls;
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
@@ -148,9 +177,38 @@ exports.create = function (frontend) {
         lcls = {};
       }
       return fn(self, lcls, filters, utils, efn, blocks);
-    }
+    };
+  }
 
-    cacheSet(self.options.loader.resolve(path), {}, registered);
+  /*!
+   * Shared argument checks for register / registerBundle, so a bundle is
+   * validated in full before any entry is committed.
+   * @private
+   */
+  function validateRegistration(path, fn) {
+    if (typeof path !== 'string' || !path.length) {
+      throw new Error('Template registration path must be a non-empty string.');
+    }
+    if (typeof fn !== 'function') {
+      throw new Error('Registered template for "' + path + '" is not a function. Pass a pre-compiled template function.');
+    }
+    if (!self.options.cache) {
+      throw new Error('Cannot register templates while caching is disabled (cache: ' + self.options.cache + '). The registry is the compile cache.');
+    }
+  }
+
+  /**
+   * Register a pre-compiled template function under a template path.
+   * Mirrors the engine.js register contract — see that JSDoc for the
+   * key-normalization and wrapper-shape rationale.
+   *
+   * @param  {string}   path  Template path to register under.
+   * @param  {function} fn    Pre-compiled template function (CLI/AOT output).
+   * @return {object}         The instance, for chaining.
+   */
+  self.register = function (path, fn) {
+    validateRegistration(path, fn);
+    cacheSet(self.options.loader.resolve(path), {}, buildRegistered(fn));
     return self;
   };
 
@@ -162,16 +220,41 @@ exports.create = function (frontend) {
    * @return {object}      The instance, for chaining.
    */
   self.registerBundle = function (map) {
+    var entries = [];
+
+    if (!map || typeof map !== 'object') {
+      throw new Error('Template bundle must be an object of { path: templateFn } pairs.');
+    }
+
     utils.each(map, function (fn, path) {
-      self.register(path, fn);
+      entries.push([path, fn]);
+      validateRegistration(path, fn);
+    });
+
+    utils.each(entries, function (entry) {
+      self.register(entry[0], entry[1]);
     });
     return self;
   };
 
+  /**
+   * Run a pre-compiled template function against locals. Passing a
+   * <var>filepath</var> also registers it, so later `include` lookups and
+   * `compileFile` calls resolve to it. Prefer `register` when no render is
+   * wanted.
+   *
+   * @example
+   * rt.run(templateFn, { name: 'Jane' }, 'page.html');
+   *
+   * @param  {function} tpl        Pre-compiled template function.
+   * @param  {object}   [locals]   Template context.
+   * @param  {string}   [filepath] Path to register the template under.
+   * @return {string}              Rendered output.
+   */
   self.run = function (tpl, locals, filepath) {
     var context = getLocals({ locals: locals });
     if (filepath) {
-      cacheSet(filepath, {}, tpl);
+      cacheSet(self.options.loader.resolve(filepath), {}, buildRegistered(tpl));
     }
     return tpl(self, context, filters, utils, efn);
   };

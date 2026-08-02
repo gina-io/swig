@@ -150,6 +150,15 @@ describe('swig.register', function () {
     });
   });
 
+  it('primes a usable cache entry when run is given a filepath', function () {
+    var s = new swig.Swig({ loader: swig.loaders.memory({}, '/') });
+    // run's priming used to store the raw template function, whose argument
+    // shape include-emitted code cannot call.
+    s.run(precompiled('NAV {{ name|upper }}', '/partials/nav.html'), { name: 'a' }, 'partials/nav.html');
+    expect(s.render('[{% include "partials/nav.html" %}]', { filename: '/page.html', locals: { name: 'b' } }))
+      .to.equal('[NAV B]');
+  });
+
   it('is isolated per instance', function () {
     var s1 = new swig.Swig({ loader: swig.loaders.memory({}, '/') }),
       s2 = new swig.Swig({ loader: swig.loaders.memory({}, '/') });

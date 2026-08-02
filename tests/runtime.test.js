@@ -151,6 +151,25 @@ describe('swig runtime-only module', function () {
     expect(typeof runtime.setDefaultTZOffset).to.equal('function');
   });
 
+  it('primes a usable cache entry when run is given a filepath', function () {
+    var instance = new runtime.Swig();
+    instance.run(tpl('NAV {{ name|upper }}', '/partials/nav.html'), { name: 'a' }, 'partials/nav.html');
+    expect(instance.compileFile('partials/nav.html')({ name: 'b' })).to.equal('NAV B');
+  });
+
+  it('registers a bundle atomically and rejects a non-object bundle', function () {
+    var instance = new runtime.Swig();
+
+    expect(function () {
+      instance.registerBundle({ 'a.html': tpl('A', '/a.html'), 'b.html': 'nope' });
+    }).to.throwError(/is not a function/);
+    expect(Object.keys(instance.cache).length).to.equal(0);
+
+    expect(function () {
+      instance.registerBundle(null);
+    }).to.throwError(/must be an object/);
+  });
+
   it('matches the full build method surface so a swap never hits a bare TypeError', function () {
     var full = require('../lib/swig'),
       fullInstance = new full.Swig(),
