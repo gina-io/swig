@@ -332,6 +332,8 @@ exports.render = defaultInstance.render;
 exports.renderFile = defaultInstance.renderFile;
 exports.renderFileAsync = defaultInstance.renderFileAsync;
 exports.run = defaultInstance.run;
+exports.register = defaultInstance.register;
+exports.registerBundle = defaultInstance.registerBundle;
 exports.invalidateCache = defaultInstance.invalidateCache;
 
 /**
