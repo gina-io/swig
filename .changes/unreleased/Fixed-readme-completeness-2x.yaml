@@ -1,0 +1,5 @@
+kind: fixed
+body: 'README completeness pass against the 2.x release line — the feature list now covers the async-loader render path (callback dispatch with loader.async, dynamic extends included) and the single-runtime-dependency posture, the "How it works" section explains the runtime-only strict-CSP path, and the Jinja2/Django migration notes no longer list the default filter as absent (it has been built into native swig since upstream 2014)'
+time: 2026-08-03T00:07:47.000000000Z
+custom:
+  Issue: ""
