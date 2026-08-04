@@ -6,7 +6,6 @@
 .history
 .idea
 .vscode
-.jshintrc
 
 # Local tool / automation artifacts (debug logs, MCP session output)
 .playwright-mcp/
@@ -29,7 +28,6 @@ examples/**
 Makefile
 scripts/**
 tests/**
-.travis.yml
 CONTRIBUTING.md
 
 # AI / internal development notes (local only — mirror Gina's convention)
