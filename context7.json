@@ -1,4 +1,17 @@
 {
   "url": "https://context7.com/gina-io/swig",
-  "public_key": "pk_MGD4ulFUKUHnxmzFGuWc8"
+  "public_key": "pk_MGD4ulFUKUHnxmzFGuWc8",
+  "projectTitle": "Rhinostone Swig",
+  "description": "Rhinostone Swig is a simple, powerful, and extendable template engine for Node.js and browsers, supporting native Swig, Twig, Python Jinja2, and Django Template Language syntaxes.",
+  "branch": "develop",
+  "excludeFolders": [
+    ".changes"
+  ],
+  "excludeFiles": [
+    "HISTORY.md",
+    "ROADMAP.md",
+    "AUTHORS",
+    "ISSUE_TEMPLATE.md",
+    "PULL_REQUEST_TEMPLATE.md"
+  ]
 }
