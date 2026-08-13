@@ -1,0 +1,5 @@
+kind: fixed
+body: 'The v0.9.0 changelog entry''s PHP date-format citation now links to the canonical `https://www.php.net/manual/en/function.date.php` instead of the plain-HTTP `http://php.net/date` it had carried since upstream. The old form still resolves — it 301s through to exactly that URL — so this is the same destination over HTTPS, with the link text unchanged; it removes the last plain-HTTP link a link-health scan can flag in this repo (reported twice, gina-io/gina#51 and #58). Documentation only; no runtime or API change.'
+time: 2026-08-13T13:21:53.000000000Z
+custom:
+  Issue: ""

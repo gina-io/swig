@@ -565,7 +565,7 @@ Migrating from v0.x.x? The upstream wiki has since been deleted; see the individ
 * **Added** New `raw` tag.
 * **Changed** Swig is no longer node 0.4 compatible.
 * **Fixed** Filter `date('f')` for 10am times.
-* **Fixed** Filter `date('r')` returns in UTC date format. This is more correct tospec RFC2822, per [php.net/date](http://php.net/date).
+* **Fixed** Filter `date('r')` returns in UTC date format. This is more correct tospec RFC2822, per [php.net/date](https://www.php.net/manual/en/function.date.php).
 * **Fixed** Filter `add` when adding numbers/numbers+strings together.
 * **Fixed** Tests for error messages that changed in node >0.6.0.
 
