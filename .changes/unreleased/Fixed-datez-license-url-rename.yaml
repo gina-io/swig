@@ -1,0 +1,4 @@
+kind: fixed
+body: 'The bundled DateZ attribution banner now points at `https://github.com/tn0ms/DateZ`, following the fourth rename of that upstream account. The previous `tomoio` form still resolves — GitHub 301s a renamed account through to its current owner — so this is the same destination, with the misspelled upstream `LISENCE` filename preserved because that is genuinely how the file is named there. The banner ships in every `dist/` artifact, so the corrected URL reaches consumers at the next publish. Documentation only; no runtime or API change.'
+time: 2026-08-20T16:53:12.000000000Z
+custom:
