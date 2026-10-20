@@ -1,3 +1,9 @@
-# Swig is no longer maintained
+<!--
+Please target the develop branch. See CONTRIBUTING.md.
+-->
 
-If you're in need of a fix or a new feature, you should maintain your own fork of this repository.
+**What this changes and why:**
+
+- [ ] Tests added or updated (`make test`)
+- [ ] `make lint` passes
+- [ ] `make test-bundles` passes, if `lib/`, `packages/` or the build changed

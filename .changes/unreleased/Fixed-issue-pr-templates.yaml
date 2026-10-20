@@ -1,0 +1,5 @@
+kind: fixed
+body: 'The issue and pull-request templates no longer open with the original project''s "Swig is no longer maintained" notice. The issue template asks for the package and version, the environment, and a template with locals that reproduces the problem, and sends security reports to SECURITY.md; the pull-request template points to the develop branch and the test, lint and bundle checks.'
+time: 2026-10-20T01:57:43.000000Z
+custom:
+  Issue: ""

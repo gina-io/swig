@@ -1,5 +1,13 @@
-# Swig is no longer maintained
+<!--
+Security problems: do not open a public issue; see SECURITY.md for private reporting.
+-->
 
-Feel free to file an issue. Someone in the community may be able to help.
+**Package and version** (e.g. @rhinostone/swig 2.8.1, or swig-twig, swig-jinja2, swig-django, swig-core):
 
-However, no new releases are being made to this repository. 
+**Node version, or browser and bundle:**
+
+**Template and locals that reproduce it:**
+
+**Expected output:**
+
+**Actual output or error:**
