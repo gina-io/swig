@@ -1,0 +1,5 @@
+kind: changed
+body: 'Upgraded the globals dev dependency, which the ESLint config reads, from 16.x to 17.x. Its node global set drops DisposableStack, AsyncDisposableStack and SuppressedError, which no linted file uses, and its mocha set is unchanged, so make lint reports the same clean result.'
+time: 2026-10-20T01:17:18.000000Z
+custom:
+  Issue: ""
