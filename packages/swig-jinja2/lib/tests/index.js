@@ -158,26 +158,53 @@ exports['sameas'] = function (v, other) {
   return v === other;
 };
 
+/*!
+ * Unicode case properties for `lower` / `upper`, as Python's
+ * `str.islower` / `str.isupper` read them: a string needs at least one
+ * cased letter, and none of the other case (a titlecase letter counts
+ * against both). Built in a try/catch because an engine without Unicode
+ * property escapes (ES2018) throws on them; it keeps the case-mapping
+ * fallback below. @private
+ */
+var caseProps = (function () {
+  try {
+    return {
+      lower: new RegExp('\\p{Lowercase}', 'u'),
+      upper: new RegExp('\\p{Uppercase}', 'u'),
+      notLower: new RegExp('[\\p{Uppercase}\\p{Lt}]', 'u'),
+      notUpper: new RegExp('[\\p{Lowercase}\\p{Lt}]', 'u')
+    };
+  } catch (e) {
+    return null;
+  }
+}());
+
 /**
- * `foo is lower` — true when the subject is a string equal to its own
- * lowercase form.
+ * `foo is lower` — true when the subject is a string with at least one
+ * cased letter and no uppercase or titlecase letter, as Python's
+ * `str.islower`: `''`, `'123'` and `'-'` are neither lower nor upper.
  *
  * @param  {*} v
  * @return {boolean}
  */
 exports['lower'] = function (v) {
-  return typeof v === 'string' && v === v.toLowerCase();
+  if (typeof v !== 'string') { return false; }
+  if (caseProps) { return !caseProps.notLower.test(v) && caseProps.lower.test(v); }
+  return v === v.toLowerCase() && v !== v.toUpperCase();
 };
 
 /**
- * `foo is upper` — true when the subject is a string equal to its own
- * uppercase form.
+ * `foo is upper` — true when the subject is a string with at least one
+ * cased letter and no lowercase or titlecase letter, as Python's
+ * `str.isupper`.
  *
  * @param  {*} v
  * @return {boolean}
  */
 exports['upper'] = function (v) {
-  return typeof v === 'string' && v === v.toUpperCase();
+  if (typeof v !== 'string') { return false; }
+  if (caseProps) { return !caseProps.notUpper.test(v) && caseProps.upper.test(v); }
+  return v === v.toUpperCase() && v !== v.toLowerCase();
 };
 
 /**
