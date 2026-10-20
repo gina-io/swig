@@ -116,4 +116,39 @@ describe('@rhinostone/swig-jinja2 — filter parity with Jinja2', function () {
       expect(render('{{ "aaa"|replace("a", "b", -1) }}')).to.equal('bbb');
     });
   });
+
+  describe('format', function () {
+    it('%e and %E print at least two exponent digits', function () {
+      expect(filters.format('%e|%E|%.2e', 12345.678, 0, 1.5)).to.equal('1.234568e+04|0.000000E+00|1.50e+00');
+      expect(filters.format('%e', 1e-07)).to.equal('1.000000e-07');
+      expect(filters.format('%e', 1e+100)).to.equal('1.000000e+100');
+      expect(filters.format('%.3E', -0.000123)).to.equal('-1.230E-04');
+    });
+    it('%g and %G choose the notation as Python does', function () {
+      expect(filters.format('%g', 1234567)).to.equal('1.23457e+06');
+      expect(filters.format('%g', 1e-05)).to.equal('1e-05');
+      expect(filters.format('%G', 1e-05)).to.equal('1E-05');
+      expect(filters.format('%g', 100000)).to.equal('100000');
+      expect(filters.format('%g', 123456)).to.equal('123456');
+      expect(filters.format('%g', 0.0001)).to.equal('0.0001');
+      expect(filters.format('%g', 1.5)).to.equal('1.5');
+      expect(filters.format('%g', 0)).to.equal('0');
+      expect(filters.format('%g', -1234567)).to.equal('-1.23457e+06');
+      expect(filters.format('%g', 999999.5)).to.equal('1e+06');
+    });
+    it('a precision sets the significant digits of %g', function () {
+      expect(filters.format('%.3g', 1234567)).to.equal('1.23e+06');
+      expect(filters.format('%.0g', 123)).to.equal('1e+02');
+      expect(filters.format('%.2g', 0.000123456)).to.equal('0.00012');
+      expect(filters.format('%10.3g|', 1234567)).to.equal('  1.23e+06|');
+      expect(filters.format('%+g', 1.5)).to.equal('+1.5');
+      expect(filters.format('%-8g|', 0.5)).to.equal('0.5     |');
+      expect(render('{{ "%g|%e"|format(x, x) }}', { x: 1234567 })).to.equal('1.23457e+06|1.234567e+06');
+    });
+    it('a precision above 100 digits does not throw', function () {
+      expect(filters.format('%.200g', 1.5)).to.equal('1.5');
+      expect(filters.format('%.120g', 0.1)).to.equal('0.1000000000000000055511151231257827021181583404541015625');
+      expect(filters.format('%.150g', 1e-05)).to.equal('1.0000000000000000818030539140313095458623138256371021270751953125e-05');
+    });
+  });
 });

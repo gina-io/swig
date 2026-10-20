@@ -718,6 +718,35 @@ exports.replace = function (input, old, neu, count) {
 };
 
 /*!
+ * Pad the exponent of a JavaScript exponential string to at least two
+ * digits, as Python's `%e` prints it (`1e+4` becomes `1e+04`). @private
+ */
+function padExponent(s) {
+  return s.replace(/e([+-])(\d)$/, function (m, sign, digit) {
+    return 'e' + sign + '0' + digit;
+  });
+}
+
+/*!
+ * Python's `%g` for a non-negative number: precision `prec` (0 counts as
+ * 1) significant digits, fixed notation when the decimal exponent X of
+ * the rounded value satisfies -4 <= X < precision and exponential
+ * notation otherwise, then trailing zeros and a bare point removed from
+ * the fractional part. @private
+ */
+function formatGeneral(num, prec) {
+  var p = (prec === 0) ? 1 : prec, digits = Math.min(p - 1, 100), exp, parts;
+  // toExponential and toFixed take at most 100 digits; for most numbers the
+  // digits past those are zeros, which are stripped below anyway.
+  exp = parseInt(num.toExponential(digits).split('e')[1], 10);
+  parts = ((exp >= -4 && exp < p) ? num.toFixed(Math.min(p - 1 - exp, 100)) : num.toExponential(digits)).split('e');
+  if (parts[0].indexOf('.') !== -1) {
+    parts[0] = parts[0].replace(/0+$/, '').replace(/\.$/, '');
+  }
+  return (parts.length > 1) ? padExponent(parts[0] + 'e' + parts[1]) : parts[0];
+}
+
+/*!
  * printf-style format expansion backing the `format` filter. Supports the
  * common conversions (s d i u f F e E g G x X o c %) with optional flags
  * (`-` `+` space `0`), width, and `.precision`. @private
@@ -766,14 +795,14 @@ function sprintf(fmt, args) {
     case 'E':
       num = parseFloat(arg);
       if (isNaN(num)) { num = 0; }
-      s = withSign(num).toExponential(hasPrec ? prec : 6);
+      s = padExponent(withSign(num).toExponential(hasPrec ? prec : 6));
       if (conv === 'E') { s = s.toUpperCase(); }
       break;
     case 'g':
     case 'G':
       num = parseFloat(arg);
       if (isNaN(num)) { num = 0; }
-      s = String(withSign(num));
+      s = formatGeneral(withSign(num), hasPrec ? prec : 6);
       if (conv === 'G') { s = s.toUpperCase(); }
       break;
     case 'x':
