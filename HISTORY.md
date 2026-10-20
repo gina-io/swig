@@ -1,3 +1,18 @@
+[2.8.1](https://github.com/gina-io/swig/tree/v2.8.1) / 2026-10-20
+-----------------------------------------------------------------
+
+* **Added** A "What's new in v<version>" section at the top of the README, regenerated from the release notes at every cut
+
+* **Fixed** Refreshed stale README claims — the benchmark summary now reflects the latest measured run (swig leads on all five workloads; the previous table predated the 2.2.0 escape-filter rewrite and showed nunjucks ahead on simple var output), and the security bullet no longer pins an exact CVE regression-test count nor conflates the prototype-chain hardening with CVE-2023-25345 (a directory-traversal fix)
+
+* **Fixed** README completeness pass against the 2.x release line — the feature list now covers the async-loader render path (callback dispatch with loader.async, dynamic extends included) and the single-runtime-dependency posture, the "How it works" section explains the runtime-only strict-CSP path, and the Jinja2/Django migration notes no longer list the default filter as absent (it has been built into native swig since upstream 2014)
+
+* **Fixed** The v0.9.0 changelog entry's PHP date-format citation now links to the canonical `https://www.php.net/manual/en/function.date.php` instead of the plain-HTTP `http://php.net/date` it had carried since upstream. The old form still resolves — it 301s through to exactly that URL — so this is the same destination over HTTPS, with the link text unchanged; it removes the last plain-HTTP link a link-health scan can flag in this repo (reported twice, gina-io/gina#51 and #58). Documentation only; no runtime or API change.
+
+* **Fixed** The bundled DateZ attribution banner now points at `https://github.com/tn0ms/DateZ`, following the fourth rename of that upstream account. The previous `tomoio` form still resolves — GitHub 301s a renamed account through to its current owner — so this is the same destination, with the misspelled upstream `LISENCE` filename preserved because that is genuinely how the file is named there. The banner ships in every `dist/` artifact, so the corrected URL reaches consumers at the next publish. Documentation only; no runtime or API change.
+
+* **Changed** Upgraded the ESLint dev dependency from 9.x, which its maintainers no longer support, to 10.x. The flat-config eslint.config.js carries over unchanged, and make lint reports the same results as under 9.x. ESLint 10 raises the lint toolchain Node floor to ^20.19.0, ^22.13.0 or >=24, which affects development and CI only; the published package is unaffected and its only runtime dependency remains @rhinostone/swig-core.
+
 [2.8.0](https://github.com/gina-io/swig/tree/v2.8.0) / 2026-08-02
 -----------------------------------------------------------------
 

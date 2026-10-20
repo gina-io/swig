@@ -32,7 +32,7 @@ Features
 --------
 
 * Available for node.js **and** major web browsers.
-* **Strict-CSP browser runtime** — AOT-compile templates ahead of time (`swig compile --recursive --register`) and render them with the runtime-only bundle (`dist/swig.runtime.min.js`, ~21 KB) — no parser, no `new Function`, no `unsafe-eval` required.
+* **Strict-CSP browser runtime** — AOT-compile templates ahead of time (`swig compile --recursive --register`) and render them with the runtime-only bundle (`dist/swig.runtime.min.js`, ~22 KB) — no parser, no `new Function`, no `unsafe-eval` required.
 * [Express](https://expressjs.com/) compatible.
 * **Async template loading** — back the loader with S3 / Redis / HTTP / any callback API: set `loader.async = true` and pass a callback to `renderFile` / `compileFile`; `extends` / `include` / `import` resolve at render time, dynamic `{% extends %}` paths included.
 * Object-Oriented template inheritance.
@@ -43,13 +43,14 @@ Features
 * Robust without the bloat — a single runtime dependency ([`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core)).
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
-What's new in v2.8.0
+What's new in v2.8.1
 --------------------
 
-* **Added — AOT template registration on every flavor.** `swig.register(path, fn)` and `swig.registerBundle(map)` store pre-compiled templates in the template cache under loader-normalized keys, wrapped in the call shape `include` expects. `swig compile --recursive --register <dir>` emits a self-registering browser bundle.
-* **Added — runtime-only browser build.** `dist/swig.runtime.js` / `dist/swig.runtime.min.js` (~21 KB minified) execute pre-compiled template bundles — `register`, `registerBundle`, `run`, `compileFile`, `renderFile`, the native filter catalog, and a root-based memory loader — and ship **no parser and no `new Function`**, so pages under a strict Content-Security-Policy (no `unsafe-eval`) can render AOT-compiled templates. Also available to Node as `require('@rhinostone/swig/runtime')`.
-* **Fixed — silent template-cache failures now report.** The memory loader rejects a climbing path when a basepath is set (mirroring the confinement the filesystem loader already enforces) instead of resolving to a different template than the one requested; priming via `swig.run(tpl, locals, filepath)` stores a cache entry a later `include` can actually use instead of crashing on the raw function shape; the memory cache no longer reads inherited object members (an identifier-style loader cannot resolve a name such as `constructor` to a cache hit); and both minified bundles now point at the source-map filename that is actually written.
-* **Fixed — documentation link refresh.** Canonical `/docs/templating/swig` URLs, HTTPS `expressjs.com` link, updated DateZ `@license` URL, and de-linked references to the archived `paularmstrong/swig` repository (kept as plain text for traceability).
+* **Fixed — README corrections now on npm.** The 2.8.0 README listed CVE-2023-25345 under the prototype-chain hardening; it is the directory-traversal fix, and the security bullet now says so without pinning an exact CVE regression-test count. The benchmark summary reflects the latest measured run (swig leads on all five workloads; the previous table predated the 2.2.0 escape-filter rewrite and showed nunjucks ahead on simple var output). The Jinja2/Django migration notes no longer list the `default` filter as absent — it has been built into native swig since upstream 2014.
+* **Fixed — README completeness for the 2.x line.** The feature list now covers the async-loader render path (callback dispatch with `loader.async`, dynamic `extends` included) and the single-runtime-dependency posture, and "How it works" explains the runtime-only strict-CSP path.
+* **Added — a "What's new" section.** The README now opens with a section like this one, regenerated from the release notes at every cut.
+* **Fixed — attribution and changelog links.** The bundled DateZ attribution banner points at `https://github.com/tn0ms/DateZ` after the upstream account's rename, and the v0.9.0 changelog's PHP date-format citation links to the canonical HTTPS `php.net` page. Both old links still resolved; documentation only, no runtime or API change.
+* **Changed — ESLint 10 for development.** ESLint 9 is no longer supported by its maintainers, so the lint toolchain moves to ESLint 10 with the flat config unchanged. Running `make lint` now needs Node ^20.19.0, ^22.13.0 or >=24; the published package and its runtime Node floor are unaffected.
 
 See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 
