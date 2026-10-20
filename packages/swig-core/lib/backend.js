@@ -880,7 +880,7 @@ function emitAccess(node, d) {
   if (node.key && node.key.type === 'Literal' && node.key.kind === 'string') {
     checkDangerousSegment(node.key.value, d, node);
   }
-  return emitExpr(node.object, d) + '[' + emitExpr(node.key, d) + ']';
+  return groupOperand(node.object, emitExpr(node.object, d), true) + '[' + emitExpr(node.key, d) + ']';
 }
 
 /*!
@@ -893,9 +893,24 @@ function isArithmeticOp(op) {
   return op === '+' || op === '-' || op === '*' || op === '/' || op === '%';
 }
 
+/*!
+ * Parenthesize an operand whose emitted JS could regroup. The IR tree
+ * carries the grouping (`(a + b) * c` parses to a `*` node whose left
+ * operand is the `+` node), so a nested binary node is wrapped or JS
+ * precedence and associativity regroup it (`a + b * c`). `unary` also
+ * wraps a unary operand, for the positions where its prefix would bind
+ * differently (`-(-x)`, `(-x)[0]`). @private
+ */
+function groupOperand(node, js, unary) {
+  if (node && (node.type === 'BinaryOp' || (unary && node.type === 'UnaryOp'))) {
+    return '(' + js + ')';
+  }
+  return js;
+}
+
 function emitBinaryOp(node, d) {
-  var left = emitExpr(node.left, d),
-    right = emitExpr(node.right, d);
+  var left = groupOperand(node.left, emitExpr(node.left, d)),
+    right = groupOperand(node.right, emitExpr(node.right, d));
   if (isArithmeticOp(node.op)) {
     return left + ' ' + node.op + ' ' + right;
   }
@@ -922,11 +937,7 @@ function emitBinaryOp(node, d) {
 }
 
 function emitUnaryOp(node, d) {
-  var operandJS = emitExpr(node.operand, d);
-  if (node.operand && node.operand.type === 'BinaryOp') {
-    operandJS = '(' + operandJS + ')';
-  }
-  return node.op + operandJS;
+  return node.op + groupOperand(node.operand, emitExpr(node.operand, d), true);
 }
 
 function emitConditional(node, d) {
