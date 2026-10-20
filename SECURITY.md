@@ -14,8 +14,8 @@ security fix ships across the family at the same version.
 
 | Version            | Supported          |
 | ------------------ | ------------------ |
-| `2.7.x` (latest)   | :white_check_mark: |
-| `< 2.7.0`          | :x: — upgrade      |
+| `2.8.x` (latest)   | :white_check_mark: |
+| `< 2.8.0`          | :x: — upgrade      |
 
 ## Reporting a vulnerability
 
