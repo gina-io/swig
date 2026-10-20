@@ -77,4 +77,15 @@ describe('@rhinostone/swig-jinja2 — is-test parity with Jinja2', function () {
       expect(cond('even', { x: 2.5 })).to.equal('N');
     });
   });
+
+  describe('number accepts every JavaScript number, as Python\'s numbers.Number does', function () {
+    it('NaN and the infinities are numbers', function () {
+      expect(cond('number', { x: NaN })).to.equal('Y');
+      expect(cond('number', { x: Infinity })).to.equal('Y');
+      expect(cond('number', { x: -Infinity })).to.equal('Y');
+    });
+    it('a numeric string is not a number', function () {
+      expect(cond('number', { x: '5' })).to.equal('N');
+    });
+  });
 });

@@ -33,7 +33,9 @@ function isArr(v) {
 }
 
 /*!
- * Finite-number guard shared by the numeric tests. @private
+ * Number guard shared by `even`, `odd` and `divisibleby`: any number but
+ * NaN. An infinity passes and then fails each test's remainder check.
+ * @private
  */
 function isNumber(v) {
   return typeof v === 'number' && !isNaN(v);
@@ -83,13 +85,14 @@ exports['boolean'] = function (v) {
 };
 
 /**
- * `foo is number` — true for a finite number.
+ * `foo is number` — true for any JavaScript number, NaN and the
+ * infinities included, as Python's `numbers.Number` test.
  *
  * @param  {*} v
  * @return {boolean}
  */
 exports['number'] = function (v) {
-  return isNumber(v);
+  return typeof v === 'number';
 };
 
 /**

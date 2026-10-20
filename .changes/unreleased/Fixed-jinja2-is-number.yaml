@@ -1,0 +1,5 @@
+kind: fixed
+body: 'The Jinja2 number test now accepts NaN, as Python''s numbers.Number does; it used to reject it.'
+time: 2026-10-20T19:34:18.000000Z
+custom:
+  Issue: ""
