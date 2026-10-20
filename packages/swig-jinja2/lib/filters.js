@@ -882,7 +882,9 @@ exports.wordcount = function (input) {
  * Word-wrap a string to a given line width (Jinja2's `wordwrap`). Words are
  * packed greedily; a word longer than the width is split when
  * `breakLongWords` is truthy (the default). Lines are joined with
- * `wrapstring` (default newline).
+ * `wrapstring` (default newline). A width of 0 or less returns the input
+ * unchanged (Jinja2 raises), and a width between 0 and 1 breaks one
+ * character at a time, as Python's textwrap does.
  *
  * @example
  * {{ "the quick brown fox"|wordwrap(10) }}
@@ -900,6 +902,12 @@ exports.wordwrap = function (input, width, breakLongWords, wrapstring) {
     return input;
   }
   if (width === undefined || width === null) { width = 79; }
+  if (width <= 0) {
+    return input;
+  }
+  if (width < 1) {
+    width = 1;
+  }
   if (breakLongWords === undefined) { breakLongWords = true; }
   if (wrapstring === undefined || wrapstring === null) { wrapstring = '\n'; }
   words = input.split(/\s+/);
@@ -911,7 +919,9 @@ exports.wordwrap = function (input, width, breakLongWords, wrapstring) {
     while (breakLongWords && word.length > width) {
       space = (cur === '') ? width : width - cur.length - 1;
       if (space <= 0) {
-        lines.push(cur);
+        // Python's textwrap keeps the separating space when the line is
+        // exactly full.
+        lines.push(space === 0 ? cur + ' ' : cur);
         cur = '';
         space = width;
       }

@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Jinja2 wordwrap no longer spins on a width below 1. A width of 0 or less ran for several seconds and grew the process to about 1.8 GB before failing with a RangeError; it now returns the input unchanged (Jinja2 raises). A width between 0 and 1, which spun the same way, now breaks one character at a time, as Python does. When a line is exactly full before a long word, the separating space is now kept, as Python textwrap keeps it, so the output is "abcd |xxxxx|xxxxx" where it was "abcd|xxxxx|xxxxx".'
+time: 2026-10-20T17:18:50.000000Z
+custom:
+  Issue: ""

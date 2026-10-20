@@ -151,4 +151,24 @@ describe('@rhinostone/swig-jinja2 — filter parity with Jinja2', function () {
       expect(filters.format('%.150g', 1e-05)).to.equal('1.0000000000000000818030539140313095458623138256371021270751953125e-05');
     });
   });
+
+  describe('wordwrap', function () {
+    it('keeps the space when a line is exactly full before a long word', function () {
+      expect(filters.wordwrap('abcd xxxxxxxxxx', 5, true, '|')).to.equal('abcd |xxxxx|xxxxx');
+      expect(filters.wordwrap('abcde xxxxxxxxxx', 5, true, '|')).to.equal('abcde|xxxxx|xxxxx');
+      expect(filters.wordwrap('ab cd xxxxxxxxx', 5, true, '|')).to.equal('ab cd|xxxxx|xxxx');
+      expect(render('{{ s|wordwrap(5, true, "|") }}', { s: 'abcd xxxxxxxxxx' })).to.equal('abcd |xxxxx|xxxxx');
+    });
+    it('a width of 1 puts one character on each line', function () {
+      expect(filters.wordwrap('abc def', 1)).to.equal('a\nb\nc\nd\ne\nf');
+    });
+    it('a width between 0 and 1 breaks one character at a time', function () {
+      expect(filters.wordwrap('abc def', 0.5)).to.equal('a\nb\nc\nd\ne\nf');
+      expect(filters.wordwrap('ab xxxxxxx', 0.5)).to.equal('a\nb\nx\nx\nx\nx\nx\nx\nx');
+    });
+    it('a width of 0 or less returns the input unchanged, where Jinja2 raises', function () {
+      expect(filters.wordwrap('abc def', 0)).to.equal('abc def');
+      expect(filters.wordwrap('abc def', -2)).to.equal('abc def');
+    });
+  });
 });
