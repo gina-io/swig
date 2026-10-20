@@ -1,7 +1,7 @@
 # Swig documentation
 
 The user-facing documentation for `@rhinostone/swig` lives in the Gina
-Docusaurus site, under `/swig/`:
+Docusaurus site, under `/docs/templating/swig`:
 
 - Source: [gina-io/docs](https://github.com/gina-io/docs) → `docs/templating/swig/`
 - Published: the `Swig Template Engine` section of the Gina documentation site
@@ -12,8 +12,9 @@ was retired in favor of the Docusaurus section, which is actively maintained
 alongside the Gina docs, supports search + versioning + Mermaid, and removes
 unmaintained dependencies (`still`, `less`, `jsdoc@3.2.0`, `file`).
 
-The JSDoc blocks in `lib/*.js` remain the canonical source-of-truth for the
-public API and are mirrored (by hand) into the Docusaurus pages.
+The JSDoc blocks in `lib/*.js` and `packages/swig-core/lib/loaders/` remain the
+canonical source-of-truth for the public API and are mirrored (by hand) into
+the Docusaurus pages.
 
 ## Updating the docs
 

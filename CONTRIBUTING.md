@@ -7,7 +7,7 @@ Checklist
 ---------
 
 1. **Setup:** Before you begin, run `make` from your command line to ensure all dependencies are met.
-2. **Test:** Always write new test cases. `make test`.
+2. **Test:** Always write new test cases. `make test`, plus `make test-bundles` if you changed `lib/`, `packages/` or the build.
 3. **Lint:** Ensure coding-standards are followed. `make lint`.
 4. **Explain:** In your pull request, very clearly explain the use-case or problem that you are solving.
 
@@ -20,7 +20,7 @@ Here's an example of a great pull request that followed the above checklist: Pul
 Documentation
 -------------
 
-User-facing documentation lives in the [Gina Docusaurus site](https://gina.io/docs/templating/swig), maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/templating/swig/`. The [JSDoc](https://jsdoc.app) blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored by hand into the Docusaurus pages.
+User-facing documentation lives in the [Gina Docusaurus site](https://gina.io/docs/templating/swig), maintained in [gina-io/docs](https://github.com/gina-io/docs) at `docs/templating/swig/`. The [JSDoc](https://jsdoc.app) blocks in `lib/swig.js`, `lib/filters.js`, `lib/tags/`, and `packages/swig-core/lib/loaders/` remain the canonical source-of-truth for the public API and are mirrored by hand into the Docusaurus pages.
 
 To update the documentation:
 
@@ -39,11 +39,15 @@ Installs all dependencies and sets up sanity-check git hooks.
 
 ### make build
 
-Builds the browser-ified version of Swig to `./dist`.
+Builds the browser bundles to `./dist` with esbuild and terser: the full build (`swig.js`, `swig.min.js`) and the runtime-only build (`swig.runtime.js`, `swig.runtime.min.js`).
 
 ### make test
 
-Runs all test files matching `./test/*.test.js` within node.js.
+Runs every `*.test.js` file under `./tests` with the Node.js built-in test runner.
+
+### make test-bundles
+
+Runs `make build`, then loads each of the four bundles in a Node vm context and checks that it reports the package version and renders a template set exactly as the Node library does, and that the runtime-only bundles compile nothing. CI runs it on every push.
 
 ### make coverage
 
