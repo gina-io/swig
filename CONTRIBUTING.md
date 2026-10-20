@@ -7,13 +7,13 @@ Checklist
 ---------
 
 1. **Setup:** Before you begin, run `make` from your command line to ensure all dependencies are met.
-2. **Test:** Always write new test cases. `make test`, plus `make test-bundles` if you changed `lib/`, `packages/` or the build.
+2. **Test:** Always write new test cases. `make test` and `make coverage`, plus `make test-bundles` if you changed `lib/`, `packages/` or the build.
 3. **Lint:** Ensure coding-standards are followed. `make lint`.
 4. **Explain:** In your pull request, very clearly explain the use-case or problem that you are solving.
 
 _Pull requests that fail to add test coverage, break tests, or fail linting standards will not be accepted._
 
-The swig codebase is highly tested (95% line coverage is a hard gate in `make coverage`) and linted, as a way to guarantee functionality and keep all code written in a particular style for readability. No contributions will be accepted that do not pass all tests or throw any linter errors.
+The swig codebase is highly tested (`make coverage` requires 95% line coverage overall and holds each package to its own line and branch floors) and linted, as a way to guarantee functionality and keep all code written in a particular style for readability. No contributions will be accepted that do not pass all tests or throw any linter errors.
 
 Here's an example of a great pull request that followed the above checklist: Pull Request 273 - Added patch and test case for object prototypal inheritance (from the original upstream repo, kept as a historical reference).
 
@@ -51,7 +51,7 @@ Runs `make build`, then loads each of the four bundles in a Node vm context and 
 
 ### make coverage
 
-Builds a test coverage report.
+Runs the tests with coverage over `lib/` and each `packages/*/lib/`, and fails below 95% line coverage overall. Then `scripts/coverage-check.js` holds each of those directories to the line and branch floors set in the Makefile, and fails if a source file is never loaded by any test.
 
 ### make version
 

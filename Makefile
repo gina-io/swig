@@ -101,8 +101,12 @@ files := $(shell find . -name '*.js' ! -path "*/node_modules/*" ! -path "./dist/
 lint:
 	@${BIN}/eslint ${files}
 
+coverage_reporter = spec
+coverage_floors = lib=95/93 packages/swig-core/lib=95/93 packages/swig-twig/lib=95/92 packages/swig-jinja2/lib=93/81 packages/swig-django/lib=93/79
 coverage:
-	@node --require ./tests/lib/mocha-compat.js --test --experimental-test-coverage --test-coverage-include='lib/**' --test-coverage-lines=95 ${opts} ${tests}
+	@mkdir -p ${TMP}
+	@node --require ./tests/lib/mocha-compat.js --test --experimental-test-coverage --test-coverage-include='lib/**' --test-coverage-include='packages/*/lib/**' --test-coverage-lines=95 --test-reporter=${coverage_reporter} --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=${TMP}/lcov.info ${opts} ${tests}
+	@node scripts/coverage-check.js ${TMP}/lcov.info ${coverage_floors}
 
 test-bundles: build
 	@node scripts/test-bundles.js
