@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-jinja2 binds a test to the operand next to it, as Jinja2 does: {{ 1 + 2 is number }} tests 2, so it gives 2 where it gave true, and {% if not x is defined %} negates the test, so it is false for a defined x where it was true. A test also takes one argument without parentheses, as in Jinja2 (x is divisibleby 3, x is sameas false), where that threw an Unexpected token error.'
+time: 2026-10-20T21:07:39.000000Z
+custom:
+  Issue: ""

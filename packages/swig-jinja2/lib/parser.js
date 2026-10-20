@@ -105,12 +105,6 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       }
       return { op: m, prec: 4 };
     }
-    if (tok.type === _t.IS) {
-      return { op: 'is', prec: 3 };
-    }
-    if (tok.type === _t.ISNOT) {
-      return { op: 'is not', prec: 3 };
-    }
     if (tok.type === _t.OPERATOR) {
       m = tok.match;
       if (m === '+' || m === '-') { return { op: m, prec: 6 }; }
@@ -182,7 +176,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
   }
 
   function parseTest() {
-    var nameTok = consume();
+    var nameTok = consume(), pk;
     if (!nameTok) { bail('Expected test name after "is" / "is not"'); }
     var testName;
     var testArgs = [];
@@ -191,6 +185,13 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         bail('Dotted names are not valid test names');
       }
       testName = nameTok.match;
+      pk = peek();
+      if (pk && pk.type === _t.PARENOPEN) {
+        consume();
+        testArgs = parseArgList(_t.PARENCLOSE);
+      } else if (pk && isBareTestArgStart(pk)) {
+        testArgs = [parsePostfix(parsePrimary())];
+      }
     } else if (nameTok.type === _t.FUNCTIONEMPTY) {
       testName = nameTok.match;
     } else if (nameTok.type === _t.FUNCTION) {
@@ -204,6 +205,40 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     }
     guardSegment(testName);
     return { name: testName, args: testArgs };
+  }
+
+  // Jinja2's parse_test takes one argument without parentheses when the
+  // next token starts a primary (`x is divisibleby 3`, `x is sameas y`);
+  // the argument is a primary with its subscripts and calls, no filter or
+  // test. `else` ends an inline-if, and `if` is excluded too, so
+  // `x is defined if c else d` keeps parsing as an inline-if (Jinja2
+  // rejects it).
+  function isBareTestArgStart(tok) {
+    if (tok.type === _t.VAR) {
+      return tok.match !== 'if' && tok.match !== 'else';
+    }
+    return tok.type === _t.STRING || tok.type === _t.NUMBER || tok.type === _t.BOOL ||
+      tok.type === _t.FUNCTION || tok.type === _t.FUNCTIONEMPTY ||
+      tok.type === _t.BRACKETOPEN || tok.type === _t.CURLYOPEN;
+  }
+
+  // Lower `<subject> is [not] <test>` to `_ext._test_<name>(subject,
+  // ...args)`; `is not` wraps the call in a unary `!`. `defined` / `none` /
+  // `undefined` on a VarRef subject route through IRVarRefExists instead,
+  // because emitVarRef coerces a missing or null lookup to "" and so loses
+  // the defined/undefined signal those tests depend on. Other subjects
+  // evaluate to a concrete value (no coercion) and use the generic helper
+  // the engine registers.
+  function lowerTest(subject, negated) {
+    var test = parseTest(), testCall;
+    if (test.args.length === 0 && subject.type === 'VarRef' && test.name === 'defined') {
+      testCall = ir.varRefExists(subject.path, subject.loc);
+    } else if (test.args.length === 0 && subject.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
+      testCall = ir.unaryOp('!', ir.varRefExists(subject.path, subject.loc));
+    } else {
+      testCall = ir.fnCall(ir.varRef(['_ext', '_test_' + test.name]), [subject].concat(test.args));
+    }
+    return negated ? ir.unaryOp('!', testCall) : testCall;
   }
 
   function expectBracketClose() {
@@ -268,9 +303,10 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     ]);
   }
 
-  // Subscripts and calls, then (when `withFilter`) filters. A unary
-  // minus/plus operand is read without its filters (Jinja2's
-  // parse_unary(False)); they then apply to the negated value.
+  // Subscripts and calls, then (when `withFilter`) filters and tests, as in
+  // Jinja2's parse_postfix and parse_filter_expr. A unary minus/plus
+  // operand is read without them (Jinja2's parse_unary(False)); they then
+  // apply to the negated value.
   function parsePostfix(expr, withFilter) {
     while (true) {
       var tok = peek();
@@ -289,6 +325,9 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       } else if (tok.type === _t.PARENOPEN) {
         consume();
         expr = ir.fnCall(expr, parseArgList(_t.PARENCLOSE));
+      } else if (withFilter && (tok.type === _t.IS || tok.type === _t.ISNOT)) {
+        consume();
+        expr = lowerTest(expr, tok.type === _t.ISNOT);
       } else if (withFilter && (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY)) {
         consume();
         var fname = tok.match;
@@ -417,28 +456,6 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       var info = getBinaryOpInfo(tok);
       if (!info || info.prec < minPrec) { break; }
       consume();
-      // `is` / `is not` — the RHS is a constrained test name + optional arg
-      // list, not a full expression. Lower to `_ext._test_<name>(subject,
-      // ...args)`; `is not` wraps the call in a unary `!`. `defined` /
-      // `none` / `undefined` on a VarRef subject route through
-      // IRVarRefExists instead, because emitVarRef coerces a missing or
-      // null lookup to "" and so loses the defined/undefined signal those
-      // tests depend on. Non-VarRef subjects evaluate to a concrete value
-      // (no coercion) and fall through to the generic `_ext._test_<name>`
-      // helper registered by the engine.
-      if (info.op === 'is' || info.op === 'is not') {
-        var test = parseTest();
-        var testCall;
-        if (test.args.length === 0 && left.type === 'VarRef' && test.name === 'defined') {
-          testCall = ir.varRefExists(left.path, left.loc);
-        } else if (test.args.length === 0 && left.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
-          testCall = ir.unaryOp('!', ir.varRefExists(left.path, left.loc));
-        } else {
-          testCall = ir.fnCall(ir.varRef(['_ext', '_test_' + test.name]), [left].concat(test.args));
-        }
-        left = info.op === 'is not' ? ir.unaryOp('!', testCall) : testCall;
-        continue;
-      }
       var right = parseExpression(info.prec + 1);
       if (info.op === '//') {
         // Floor division — JS `a // b` is a line comment, so lower to
