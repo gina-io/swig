@@ -25,6 +25,16 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
 exports.name = 'django';
 
 /**
+ * Package version number as a string. The packages of the family are
+ * released together, so they share one version.
+ * @example
+ * if (django.version === "2.8.2") { ... }
+ *
+ * @type {String}
+ */
+exports.version = "2.8.1";
+
+/**
  * Expression-level parser — Pratt-style recursive descent that consumes
  * Django lexer tokens and returns swig-core IRExpr nodes, plus the top-level
  * `parse(swig, source, opts, tags, filters)` splitter.

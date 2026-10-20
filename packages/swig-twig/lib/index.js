@@ -20,6 +20,16 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
 exports.name = 'twig';
 
 /**
+ * Package version number as a string. The packages of the family are
+ * released together, so they share one version.
+ * @example
+ * if (twig.version === "2.8.2") { ... }
+ *
+ * @type {String}
+ */
+exports.version = "2.8.1";
+
+/**
  * Expression-level parser — Pratt-style recursive descent that consumes
  * Twig lexer tokens and returns swig-core IRExpr nodes.
  *

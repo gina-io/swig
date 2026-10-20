@@ -20,6 +20,14 @@ version:
 	@rm lib/swig.js.bak
 	@sed -i.bak 's/exports\.version = "${VERSION_REGEX}"/exports.version = "${VERSION}"/' lib/runtime.js
 	@rm lib/runtime.js.bak
+	@sed -i.bak 's/exports\.version = "${VERSION_REGEX}"/exports.version = "${VERSION}"/' packages/swig-core/lib/index.js
+	@rm packages/swig-core/lib/index.js.bak
+	@sed -i.bak 's/exports\.version = "${VERSION_REGEX}"/exports.version = "${VERSION}"/' packages/swig-twig/lib/index.js
+	@rm packages/swig-twig/lib/index.js.bak
+	@sed -i.bak 's/exports\.version = "${VERSION_REGEX}"/exports.version = "${VERSION}"/' packages/swig-jinja2/lib/index.js
+	@rm packages/swig-jinja2/lib/index.js.bak
+	@sed -i.bak 's/exports\.version = "${VERSION_REGEX}"/exports.version = "${VERSION}"/' packages/swig-django/lib/index.js
+	@rm packages/swig-django/lib/index.js.bak
 
 browser/comments.js: FORCE
 	@sed -i.bak 's/v${VERSION_REGEX}/v${VERSION}/' $@

@@ -7,6 +7,16 @@
  * @rhinostone/swig.
  */
 
+/**
+ * Package version number as a string. The packages of the family are
+ * released together, so they share one version.
+ * @example
+ * if (require('@rhinostone/swig-core').version === "2.8.2") { ... }
+ *
+ * @type {String}
+ */
+exports.version = "2.8.1";
+
 exports.utils = require('./utils');
 exports.security = require('./security');
 exports.ir = require('./ir');
