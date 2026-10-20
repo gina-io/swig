@@ -47,11 +47,11 @@ Runs every `*.test.js` file under `./tests` with the Node.js built-in test runne
 
 ### make test-bundles
 
-Runs `make build`, then loads each of the four bundles in a Node vm context and checks that it reports the package version and renders a template set exactly as the Node library does, and that the runtime-only bundles compile nothing. CI runs it on every push.
+Runs `make build`, then loads each of the four bundles in a Node vm context and checks that it reports the package version and renders a template set exactly as the Node library does, and that the runtime-only bundles compile nothing. CI runs it on pushes and pull requests to develop and master.
 
 ### make coverage
 
-Runs the tests with coverage over `lib/` and each `packages/*/lib/`, and fails below 95% line coverage overall. Then `scripts/coverage-check.js` holds each of those directories to the line and branch floors set in the Makefile, and fails if a source file is never loaded by any test.
+Runs the tests with coverage over `lib/` and each `packages/*/lib/`, and fails below 95% line coverage overall. Then `scripts/coverage-check.js` holds each of those directories to the line and branch floors set in the Makefile, and fails if a source file is never loaded by any test. CI runs it on pushes and pull requests to develop and master.
 
 ### make version
 
