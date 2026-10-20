@@ -97,7 +97,7 @@ opts =
 test:
 	@node --require ./tests/lib/mocha-compat.js --test-reporter=${reporter} ${opts} --test ${tests}
 
-files := $(shell find . -name '*.js' ! -path "./node_modules/*" ! -path "./dist/*" ! -path "./browser*" ! -path "./docs*" ! -path "./tmp*")
+files := $(shell find . -name '*.js' ! -path "*/node_modules/*" ! -path "./dist/*" ! -path "./browser*" ! -path "./docs*" ! -path "./tmp*")
 lint:
 	@${BIN}/eslint ${files}
 
