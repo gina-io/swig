@@ -177,7 +177,7 @@ exports.count = exports.length;
 
 /**
  * Return the first item of an array, the first character of a string, or
- * the first value of an object.
+ * the first key of a mapping (Jinja2 iterates a mapping's keys).
  *
  * @example
  * {{ ["a", "b", "c"]|first }}
@@ -188,8 +188,7 @@ exports.count = exports.length;
  */
 exports.first = function (input) {
   if (typeof input === 'object' && input !== null && !utils.isArray(input)) {
-    var keys = utils.keys(input);
-    return input[keys[0]];
+    return utils.keys(input)[0];
   }
   if (typeof input === 'string') {
     return input.substr(0, 1);
@@ -202,7 +201,7 @@ exports.first = function (input) {
 
 /**
  * Return the last item of an array, the last character of a string, or
- * the last value of an object.
+ * the last key of a mapping (Jinja2 iterates a mapping's keys).
  *
  * @example
  * {{ ["a", "b", "c"]|last }}
@@ -214,7 +213,7 @@ exports.first = function (input) {
 exports.last = function (input) {
   if (typeof input === 'object' && input !== null && !utils.isArray(input)) {
     var keys = utils.keys(input);
-    return input[keys[keys.length - 1]];
+    return keys[keys.length - 1];
   }
   if (typeof input === 'string') {
     return input.charAt(input.length - 1);
@@ -254,13 +253,13 @@ exports.join = function (input, glue) {
 
 /**
  * Reverse an array or string. Does not sort — items come out in reverse
- * input order.
+ * input order. A mapping gives its keys in reverse order.
  *
  * @example
  * {{ [1, 2, 3]|reverse|join(",") }}
  * // => 3,2,1
  *
- * @param  {array|string} input
+ * @param  {array|string|object} input
  * @return {array|string}
  */
 exports.reverse = function (input) {
@@ -269,6 +268,9 @@ exports.reverse = function (input) {
   }
   if (typeof input === 'string') {
     return input.split('').reverse().join('');
+  }
+  if (input && typeof input === 'object') {
+    return utils.keys(input).reverse();
   }
   return input;
 };
@@ -974,7 +976,8 @@ exports.list = function (input) {
 /**
  * Return the unique items of a sequence, preserving first-seen order
  * (Jinja2's `unique`). String comparison is case-insensitive by default;
- * pass a truthy `caseSensitive` to compare exactly.
+ * pass a truthy `caseSensitive` to compare exactly. A mapping gives its
+ * unique keys.
  *
  * @example
  * {{ [1, 2, 2, 3, 1]|unique|join(",") }}
@@ -988,6 +991,8 @@ exports.unique = function (input, caseSensitive) {
   var seen = [], out = [];
   if (typeof input === 'string') {
     input = input.split('');
+  } else if (input && typeof input === 'object' && !utils.isArray(input)) {
+    input = utils.keys(input);
   } else if (!utils.isArray(input)) {
     return input;
   }
@@ -1049,7 +1054,8 @@ exports.batch = function (input, size, fill) {
  * Distribute items across `slices` columns (Jinja2's `slice` filter — the
  * inverse of `batch`, and distinct from the `seq[start:stop:step]`
  * subscript). The first columns receive the extra items when the count
- * does not divide evenly; an optional `fill` pads the shorter columns.
+ * does not divide evenly; an optional `fill` pads the shorter columns. A
+ * string distributes its characters and a mapping its keys.
  *
  * @example
  * {% for col in [1,2,3,4,5,6,7,8,9,10]|slice(3) %}[{{ col|join(",") }}]{% endfor %}
@@ -1067,8 +1073,7 @@ exports.slice = function (input, slices, fill) {
   } else if (typeof input === 'string') {
     seq = input.split('');
   } else if (input && typeof input === 'object') {
-    seq = [];
-    utils.each(input, function (v) { seq.push(v); });
+    seq = utils.keys(input);
   } else {
     return [];
   }
@@ -1186,13 +1191,11 @@ exports.sum = function (input, attribute, start) {
  * numerically. @private
  */
 function minmax(input, caseSensitive, want) {
-  var best, found = false, vals;
+  var best, found = false;
   if (typeof input === 'string') {
     input = input.split('');
   } else if (input && typeof input === 'object' && !utils.isArray(input)) {
-    vals = [];
-    utils.each(input, function (v) { vals.push(v); });
-    input = vals;
+    input = utils.keys(input);
   } else if (!utils.isArray(input)) {
     return input;
   }
@@ -1219,7 +1222,8 @@ function minmax(input, caseSensitive, want) {
 
 /**
  * Return the smallest item of a sequence (Jinja2's `min`). String
- * comparison is case-insensitive unless `caseSensitive` is truthy.
+ * comparison is case-insensitive unless `caseSensitive` is truthy. A
+ * mapping compares its keys.
  *
  * @example
  * {{ [3, 1, 2]|min }}
@@ -1235,7 +1239,8 @@ exports.min = function (input, caseSensitive) {
 
 /**
  * Return the largest item of a sequence (Jinja2's `max`). String
- * comparison is case-insensitive unless `caseSensitive` is truthy.
+ * comparison is case-insensitive unless `caseSensitive` is truthy. A
+ * mapping compares its keys.
  *
  * @example
  * {{ [3, 1, 2]|max }}
