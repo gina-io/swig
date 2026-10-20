@@ -72,6 +72,14 @@ describe('Regressions', function () {
     expect(function () { swig.render('{% set foo["prototype"] = "x" %}'); }).to.throwError(/Unsafe assignment/);
   });
 
+  it('prototype-chain guard: a dot after a bracket or a space is checked in set tag', function () {
+    // The lexer folds `foo.__proto__` into one VAR token, but a dot after a
+    // bracket or after whitespace lexes as its own DOTKEY token.
+    expect(function () { swig.render('{% set foo["bar"].__proto__ = "x" %}'); }).to.throwError(/Unsafe assignment/);
+    expect(function () { swig.render('{% set foo .__proto__ = "x" %}'); }).to.throwError(/Unsafe assignment/);
+    expect(function () { swig.render('{% set foo .constructor = "x" %}'); }).to.throwError(/Unsafe assignment/);
+  });
+
   it('CVE-2023-25345: dangerous loop variable names are blocked in for tag', function () {
     expect(function () { swig.render('{% for __proto__ in items %}x{% endfor %}', { locals: { items: [1] } }); }).to.throwError(/Unsafe loop variable/);
     expect(function () { swig.render('{% for constructor in items %}x{% endfor %}', { locals: { items: [1] } }); }).to.throwError(/Unsafe loop variable/);
@@ -97,6 +105,16 @@ describe('Regressions', function () {
     expect(function () { swig.render('{% macro prototype() %}test{% endmacro %}'); }).to.throwError(/Unsafe macro name/);
     // No-args variant
     expect(function () { swig.render('{% macro __proto__() %}test{% endmacro %}'); }).to.throwError(/Unsafe macro name/);
+  });
+
+  it('prototype-chain guard: dangerous macro argument names are blocked', function () {
+    expect(function () { swig.render('{% macro foo(__proto__) %}test{% endmacro %}'); }).to.throwError(/Unsafe macro argument/);
+    expect(function () { swig.render('{% macro foo(a, constructor) %}test{% endmacro %}'); }).to.throwError(/Unsafe macro argument/);
+  });
+
+  it('prototype-chain guard: dangerous macro names are blocked when the macro takes arguments', function () {
+    expect(function () { swig.render('{% macro __proto__(a) %}test{% endmacro %}'); }).to.throwError(/Unsafe macro name/);
+    expect(function () { swig.render('{% macro constructor(a, b) %}test{% endmacro %}'); }).to.throwError(/Unsafe macro name/);
   });
 
   it('CVE-2023-25345: dangerous import aliases are blocked', function () {

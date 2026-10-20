@@ -965,6 +965,15 @@ describe('@rhinostone/swig-twig — parser.parse — {% set %} tag', function ()
     });
   });
 
+  it('rejects __proto__ after a space before the dot (its own DOTKEY token)', function () {
+    expect(function () {
+      parser.parse(undefined, '{% set foo .__proto__ = "x" %}', { filename: 'tpl.twig' }, tags, {});
+    }).to.throwException(function (e) {
+      expect(e.message).to.match(/Unsafe assignment to "__proto__"/);
+      expect(e.message).to.match(/tpl\.twig/);
+    });
+  });
+
   it('rejects bracket-notation LHS with a filename-aware throw', function () {
     expect(function () {
       parser.parse(undefined, '{% set foo["bar"] = 1 %}', { filename: 'tpl.twig' }, tags, {});

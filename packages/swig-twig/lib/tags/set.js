@@ -88,9 +88,10 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     }
   });
 
-  // DOTKEY tail — the Twig lexer already folds dotted paths into the
-  // VAR match, but a defensive DOTKEY consumer here keeps this tag
-  // robust if a future lexer tightening splits `foo.bar` into VAR + DOTKEY.
+  // DOTKEY tail — the Twig lexer folds `foo.bar` into one VAR match, but a
+  // dot after whitespace (`foo .bar`) lexes as its own DOTKEY token, so this
+  // loop runs today; it also keeps the tag safe if a future lexer splits
+  // `foo.bar` into VAR + DOTKEY.
   while (peek() && peek().type === types.DOTKEY) {
     var dk = consume();
     if (_dangerousProps.indexOf(dk.match) !== -1) {

@@ -60,6 +60,12 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
       }).to.throwError(/CVE-2023-25345/);
     });
 
+    it('blocks a dangerous name after a space before the dot (its own DOTKEY token)', function () {
+      expect(function () {
+        render('{% set foo .__proto__ = 1 %}');
+      }).to.throwError(/Unsafe assignment to "__proto__"/);
+    });
+
   });
 
   describe('{% if %} / {% elif %} / {% else %}', function () {
