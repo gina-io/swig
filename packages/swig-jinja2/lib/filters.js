@@ -315,6 +315,14 @@ exports.sort = function (input, reverse) {
 };
 
 /*!
+ * Split a string into code points, keeping a surrogate pair together as
+ * Python's `str` iteration does. @private
+ */
+function codePoints(s) {
+  return s.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\s\S]/g) || [];
+}
+
+/*!
  * Resolve a possibly-dotted attribute path against an object. Returns
  * undefined if any segment is missing. @private
  */
@@ -1007,9 +1015,13 @@ exports.unique = function (input, caseSensitive) {
 };
 
 /**
- * Batch items into rows of `size` (Jinja2's `batch`). The last row holds
+ * Batch items into rows of `size` (Jinja2's `batch`). A new row starts
+ * when the current one holds exactly `size` items, so the last row holds
  * the remainder; an optional `fill` pads the last row up to `size`. A
- * mapping batches its values.
+ * string batches its characters and a mapping its keys; any other input
+ * that is not a list gives an empty list. As in Jinja2, a size of 0 gives
+ * an empty first row, and a size that no row length can equal (negative,
+ * fractional or not a number) gives a single row.
  *
  * @example
  * {% for row in [1,2,3,4,5]|batch(2) %}[{{ row|join(",") }}]{% endfor %}
@@ -1021,31 +1033,32 @@ exports.unique = function (input, caseSensitive) {
  * @return {Array}
  */
 exports.batch = function (input, size, fill) {
-  var items, n, out, i, last;
+  var items, out = [], tmp = [], i;
   if (utils.isArray(input)) {
     items = input;
+  } else if (typeof input === 'string') {
+    items = codePoints(input);
   } else if (input && typeof input === 'object') {
-    items = [];
-    utils.each(input, function (v) { items.push(v); });
+    items = utils.keys(input);
   } else {
     return [];
   }
-  n = Number(size);
-  if (!isFinite(n) || n <= 0) {
-    return [];
-  }
-  n = Math.ceil(n);
-  out = [];
-  i = 0;
-  while (i < items.length) {
-    out.push(items.slice(i, i + n));
-    i += n;
-  }
-  if (fill !== undefined && out.length > 0) {
-    last = out[out.length - 1];
-    while (last.length < n) {
-      last.push(fill);
+  for (i = 0; i < items.length; i += 1) {
+    if (tmp.length === size) {
+      out.push(tmp);
+      tmp = [];
     }
+    tmp.push(items[i]);
+  }
+  if (tmp.length) {
+    // Pad only up to a finite numeric size, since a non-finite one would
+    // never end the loop (Jinja2 raises unless the size is an integer).
+    if (fill !== undefined && typeof size === 'number' && isFinite(size)) {
+      while (tmp.length < size) {
+        tmp.push(fill);
+      }
+    }
+    out.push(tmp);
   }
   return out;
 };

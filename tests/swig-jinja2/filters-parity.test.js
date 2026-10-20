@@ -53,4 +53,36 @@ describe('@rhinostone/swig-jinja2 — filter parity with Jinja2', function () {
       expect(render('{% for col in m|slice(2) %}[{{ col|join }}]{% endfor %}', { m: { b: 1, a: 2, c: 3 } })).to.equal('[ba][c]');
     });
   });
+
+  describe('batch', function () {
+    it('a size that no row length can equal gives a single row', function () {
+      expect(filters.batch([1, 2, 3], 'x')).to.eql([[1, 2, 3]]);
+      expect(filters.batch([1, 2, 3], -1)).to.eql([[1, 2, 3]]);
+      expect(filters.batch([1, 2, 3], 2.5)).to.eql([[1, 2, 3]]);
+      expect(filters.batch([1, 2, 3], '2')).to.eql([[1, 2, 3]]);
+    });
+    it('a size of 0 gives an empty first row', function () {
+      expect(filters.batch([1, 2, 3], 0)).to.eql([[], [1, 2, 3]]);
+      expect(filters.batch([], 0)).to.eql([]);
+      expect(filters.batch('ab', 0)).to.eql([[], ['a', 'b']]);
+    });
+    it('a mapping batches its keys', function () {
+      expect(filters.batch({ a: 1, b: 2, c: 3 }, 2)).to.eql([['a', 'b'], ['c']]);
+      expect(filters.batch({ a: 1, b: 2, c: 3 }, 2, 'x')).to.eql([['a', 'b'], ['c', 'x']]);
+    });
+    it('a string batches its characters', function () {
+      expect(filters.batch('abcde', 2)).to.eql([['a', 'b'], ['c', 'd'], ['e']]);
+      expect(filters.batch('abcde', 2, 'x')).to.eql([['a', 'b'], ['c', 'd'], ['e', 'x']]);
+      expect(filters.batch('', 2)).to.eql([]);
+      expect(filters.batch('\uD83D\uDE00a', 1)).to.eql([['\uD83D\uDE00'], ['a']]);
+    });
+    it('pads only up to a finite numeric size, where Jinja2 raises', function () {
+      expect(filters.batch([1, 2, 3], Infinity, 'x')).to.eql([[1, 2, 3]]);
+      expect(filters.batch([1], '5', 'x')).to.eql([[1]]);
+    });
+    it('renders rows of characters and keys', function () {
+      expect(render('{% for r in "abcde"|batch(2) %}[{{ r|join }}]{% endfor %}')).to.equal('[ab][cd][e]');
+      expect(render('{% for r in m|batch(2, "x") %}[{{ r|join }}]{% endfor %}', { m: { a: 1, b: 2, c: 3 } })).to.equal('[ab][cx]');
+    });
+  });
 });

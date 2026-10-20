@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Jinja2 batch now follows Jinja2. A new row starts when the current one holds exactly size items, so a size of 0 gives an empty first row and a size that no row length can equal (negative, fractional or not a number, such as "2") gives a single row; batch returned an empty list for those sizes and rounded a fractional size up. A string is batched by its characters and a mapping by its keys (it returned an empty list for a string and used the values of a mapping). The fill pads the last row only up to a finite numeric size.'
+time: 2026-10-20T17:13:40.000000Z
+custom:
+  Issue: ""
