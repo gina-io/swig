@@ -34,24 +34,31 @@ var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'd
  * FUNCTION/FUNCTIONEMPTY callee names — same checkpoints as the native
  * frontend.
  *
- * Binding-power table (shared subset; higher binds tighter):
+ * Binding levels, loosest first, following Jinja2's parser (parse_condexpr,
+ * parse_or, parse_and, parse_not, parse_compare ... parse_pow,
+ * parse_unary, parse_postfix, parse_filter_expr):
  *
- *   Level | Tokens                             | Assoc
- *   ------+------------------------------------+------
- *     1   | || / or  (LOGIC)                   | left
- *     2   | && / and (LOGIC)                   | left
- *     3   | == != === !== (COMPARATOR)          | left
- *     4   | < > <= >= in  (COMPARATOR)          | left
- *     6   | + - (OPERATOR)                     | left
- *     8   | * / % (OPERATOR)                   | left
- *   post  | DOTKEY BRACKETOPEN PARENOPEN        | —
- *          | FILTER FILTEREMPTY                 |
- *   pfx   | NOT, unary +/-                     | —
+ *   Level  | Tokens                                   | Assoc
+ *   -------+------------------------------------------+--------
+ *     0    | inline `a if c else b`                   | right
+ *     1    | || / or  (LOGIC)                         | left
+ *     2    | && / and (LOGIC)                         | left
+ *    not   | NOT starting an operand of the levels    | prefix
+ *          | above; its operand runs at level 3       |
+ *     3    | == != === !== (COMPARATOR)               | left
+ *     4    | < > <= >= in  (COMPARATOR)               | left
+ *     6    | + - (OPERATOR)                           | left
+ *     7    | ~ (TILDE)                                | left
+ *     8    | * / % (OPERATOR), // (FLOORDIV)          | left
+ *    pow   | ** (POWER), over unary operands          | left
+ *   filter | FILTER FILTEREMPTY, IS ISNOT tests       | postfix
+ *   unary  | unary + / -                              | prefix
+ *   post   | DOTKEY BRACKETOPEN PARENOPEN             | postfix
  *
- * The Jinja2-only operators (`~` concat, `**` power, `//` floor-division,
- * inline `if`/`else`, `is` / `is not` tests) are added in subsequent
- * commits; their precedence slots into the gaps left here (`~` at 7,
- * `**` above `*`, `//` alongside `*`, inline-if at the loosest level).
+ * So `not a == b` is not (a == b), `1 + 2 is number` tests 2, `-x|abs` is
+ * abs(-x) and `2 ** 3 ** 2` is (2 ** 3) ** 2. A NOT in any other operand
+ * position (`a == not b`) binds its unary operand; Jinja2 rejects that
+ * form.
  *
  * @param  {object[]} tokens     LexerToken[] from swig-jinja2's lexer.
  * @param  {object}   [filters]  Filter catalog for name validation.
@@ -419,17 +426,6 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     return parsePostfix(node, withFilter);
   }
 
-  // A `not` at the start of an operand negates the whole power-level
-  // expression after it, filters included (`not x|f`, `not x ** 2`).
-  function parseNotPrefix() {
-    var tok = peek();
-    if (tok && tok.type === _t.NOT) {
-      consume();
-      return ir.unaryOp('!', parseNotPrefix());
-    }
-    return parsePower();
-  }
-
   function parsePower() {
     var left = parseUnary(true);
     var next = peek();
@@ -448,8 +444,18 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     return left;
   }
 
+  // Jinja2's parse_not: a `not` that starts an operand of `and`, `or` or
+  // the whole expression (minPrec up to the comparison level) negates a
+  // level-3 expression, so `not a == b` is not (a == b) and `not x + y` is
+  // not (x + y).
   function parseExpression(minPrec) {
-    var left = parseNotPrefix();
+    var left, ntok = peek();
+    if (ntok && ntok.type === _t.NOT && minPrec <= 3) {
+      consume();
+      left = ir.unaryOp('!', parseExpression(3));
+    } else {
+      left = parsePower();
+    }
     while (true) {
       var tok = peek();
       if (!tok) { break; }

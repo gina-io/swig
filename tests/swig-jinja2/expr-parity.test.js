@@ -96,4 +96,22 @@ describe('@rhinostone/swig-jinja2 — expression parity with Jinja2', function (
       expect(render('{% if (x is defined) is sameas true %}Y{% else %}N{% endif %}', { x: 1 })).to.equal('Y');
     });
   });
+
+  describe('not binds below the comparisons and arithmetic, as in Jinja2', function () {
+    it('not negates a whole comparison', function () {
+      expect(render('{% if not 1 == 2 %}Y{% else %}N{% endif %}', {})).to.equal('Y');
+      expect(render('{% if not x == y %}Y{% else %}N{% endif %}', { x: 1, y: 2 })).to.equal('Y');
+      expect(render('{% if not x < y %}Y{% else %}N{% endif %}', { x: 1, y: 2 })).to.equal('N');
+      expect(render('{% if x or not y == 1 %}Y{% else %}N{% endif %}', { x: 0, y: 2 })).to.equal('Y');
+    });
+    it('not negates a whole arithmetic expression', function () {
+      expect(render('{% if not x + y %}Y{% else %}N{% endif %}', { x: 0, y: 1 })).to.equal('N');
+      expect(render('{% if not x ** 2 %}Y{% else %}N{% endif %}', { x: 0 })).to.equal('Y');
+    });
+    it('not still binds tighter than and and or', function () {
+      expect(render('{% if not x and y %}Y{% else %}N{% endif %}', { x: 0, y: 1 })).to.equal('Y');
+      expect(render('{% if x and not y %}Y{% else %}N{% endif %}', { x: 1, y: 0 })).to.equal('Y');
+      expect(render('{% if not not x %}Y{% else %}N{% endif %}', { x: 1 })).to.equal('Y');
+    });
+  });
 });
