@@ -657,8 +657,18 @@ exports.iriencode = function (input) {
   return out;
 };
 
+/*!
+ * Split a string into code points, keeping a surrogate pair together as
+ * Python's `str` iteration does. @private
+ */
+function codePoints(s) {
+  return s.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\s\S]/g) || [];
+}
+
 /**
- * Join a list with a string (Django's `join`).
+ * Join a list with a string (Django's `join`). A string joins its
+ * characters and a mapping its keys, as Python's `str.join` iterates them;
+ * any other input is returned unchanged.
  *
  * @example
  * {{ list|join:", " }}  // list = ['a', 'b', 'c']
@@ -669,8 +679,15 @@ exports.iriencode = function (input) {
  * @return {*}
  */
 exports.join = function (input, glue) {
+  if (glue === undefined) { glue = ''; }
+  if (typeof input === 'string') {
+    return codePoints(input).join(glue);
+  }
   if (utils.isArray(input)) {
-    return input.join(glue !== undefined ? glue : '');
+    return input.join(glue);
+  }
+  if (input && typeof input === 'object') {
+    return utils.keys(input).join(glue);
   }
   return input;
 };

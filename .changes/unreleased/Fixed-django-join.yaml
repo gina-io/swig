@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Django join now joins the characters of a string and the keys of a mapping, as Django does. It returned a string unchanged, so "abc"|join:"," gave "abc" where Django gives "a,b,c", and it returned a mapping itself, which rendered as [object Object].'
+time: 2026-10-20T17:19:33.000000Z
+custom:
+  Issue: ""
