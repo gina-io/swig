@@ -394,16 +394,17 @@ exports.parseExpr = function (tokens, filters, _posOut) {
   function parsePower() {
     var left = parseUnary(true);
     var next = peek();
-    if (next && next.type === _t.POWER) {
+    while (next && next.type === _t.POWER) {
       consume();
-      // Right-associative (2 ** 3 ** 2 === 2 ** (3 ** 2)). The base is a
-      // unary operand, as in Jinja2's parse_pow, so a leading minus belongs
-      // to it: `-2 ** 2` is (-2) ** 2 = 4, as Jinja2 renders (Python gives
-      // -4). Lowered to Math.pow because the emit is parenthesis-safe — a
-      // bare `a ** b` emission would mis-group when an operand is itself a
-      // binary op and would SyntaxError when the base is a unary (`-2 ** 3`).
-      var right = parsePower();
-      return ir.fnCall(ir.varRef(['Math', 'pow']), [left, right]);
+      // Left-associative, as Jinja2's parse_pow reads its unary operands in
+      // a loop: `2 ** 3 ** 2` is (2 ** 3) ** 2 = 64 (Python gives 512). The
+      // base is a unary operand, so a leading minus belongs to it: `-2 ** 2`
+      // is (-2) ** 2 = 4, as Jinja2 renders (Python gives -4). Lowered to
+      // Math.pow because the emit is parenthesis-safe — a bare `a ** b`
+      // emission would mis-group when an operand is itself a binary op and
+      // would SyntaxError when the base is a unary (`-2 ** 3`).
+      left = ir.fnCall(ir.varRef(['Math', 'pow']), [left, parseUnary(true)]);
+      next = peek();
     }
     return left;
   }

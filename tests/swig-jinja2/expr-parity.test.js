@@ -32,4 +32,15 @@ describe('@rhinostone/swig-jinja2 — expression parity with Jinja2', function (
       expect(render('{{ 10 - x|abs }}', { x: -3 })).to.equal('7');
     });
   });
+
+  describe('** reads its operands left to right, as in Jinja2', function () {
+    it('a chain of ** groups from the left', function () {
+      expect(render('{{ 2 ** 3 ** 2 }}', {})).to.equal('64');
+      expect(render('{{ 2 ** 2 ** 3 }}', {})).to.equal('64');
+      expect(render('{{ 3 ** 2 ** 0 }}', {})).to.equal('1');
+    });
+    it('** still binds tighter than *', function () {
+      expect(render('{{ 2 * 3 ** 2 }}', {})).to.equal('18');
+    });
+  });
 });

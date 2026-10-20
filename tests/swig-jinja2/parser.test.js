@@ -195,12 +195,13 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(ir.args[1]).to.eql({ type: 'Literal', kind: 'number', value: 3 });
   });
 
-  it('parses ** right-associatively', function () {
+  it('parses ** left-associatively, as Jinja2 does', function () {
     var ir = parse('2 ** 3 ** 2');
     expect(ir.callee.path).to.eql(['Math', 'pow']);
-    expect(ir.args[0]).to.eql({ type: 'Literal', kind: 'number', value: 2 });
-    expect(ir.args[1].type).to.equal('FnCall');
-    expect(ir.args[1].callee.path).to.eql(['Math', 'pow']);
+    expect(ir.args[0].type).to.equal('FnCall');
+    expect(ir.args[0].callee.path).to.eql(['Math', 'pow']);
+    expect(ir.args[0].args).to.eql([{ type: 'Literal', kind: 'number', value: 2 }, { type: 'Literal', kind: 'number', value: 3 }]);
+    expect(ir.args[1]).to.eql({ type: 'Literal', kind: 'number', value: 2 });
   });
 
   it('applies a leading minus to the ** base, as Jinja2 does ((-2) ** 2)', function () {
