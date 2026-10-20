@@ -189,9 +189,9 @@ exports.throwError = function (message, line, file) {
  * Inclusive range generator. Mirrors Twig's `..` operator semantics and
  * PHP's range(): numeric bounds produce [from, from±1, ..., to]; single-
  * character string bounds produce a char array across the charCode span.
- * Descending when `from > to`. Mismatched or unsupported argument shapes
- * return an empty array so compiled templates degrade silently rather
- * than throwing at render time.
+ * Descending when `from > to`. Mismatched or unsupported argument shapes,
+ * and a numeric bound that is not finite, return an empty array so
+ * compiled templates degrade silently rather than throwing at render time.
  *
  * @param  {number|string} from
  * @param  {number|string} to
@@ -200,6 +200,13 @@ exports.throwError = function (message, line, file) {
 exports.range = function (from, to) {
   var out = [], i, fc, tc;
   if (typeof from === 'number' && typeof to === 'number') {
+    // An infinite bound is never reached, so the loop below ran until the
+    // array overflowed (seconds, and gigabytes, before a RangeError); plain
+    // JSON yields Infinity for a number such as 1e999. PHP 8.3's range()
+    // rejects such a bound; the range is empty here, as for NaN.
+    if (!isFinite(from) || !isFinite(to)) {
+      return out;
+    }
     if (from <= to) {
       for (i = from; i <= to; i += 1) { out.push(i); }
     } else {
