@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Django truncatechars and truncatewords now return the empty string for a count of 0 or less, as Django does, where truncatechars gave the ellipsis alone and truncatewords kept a word or added an ellipsis ("a"|truncatewords:0 gave " …"). They also read the count as Python int() does, so a count string int() rejects, such as "3abc" or "2.5", returns the value unchanged where swig truncated on its leading digits.'
-time: 2026-10-20T17:21:26.000000Z
-custom:
-  Issue: ""

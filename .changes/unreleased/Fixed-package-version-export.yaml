@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-core, swig-twig, swig-jinja2 and swig-django export their version as a string, as swig always has; the property was undefined.'
-time: 2026-10-20T22:52:45.000000Z
-custom:
-  Issue: ""

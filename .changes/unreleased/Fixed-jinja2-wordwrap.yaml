@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-jinja2 wordwrap keeps the separating space when a line is exactly full before a long word, as Python textwrap does, so the output is "abcd |xxxxx|xxxxx" where it was "abcd|xxxxx|xxxxx".'
-time: 2026-10-20T17:18:50.000000Z
-custom:
-  Issue: ""

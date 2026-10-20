@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Jinja2 replace now follows Python. A number input is converted to a string first, so 5|replace("5", "X") gives "X" where it returned the number 5; an empty search string inserts the replacement before each character and at the end, honouring the count, so "abc"|replace("", "X") gives "XaXbXcX" where it returned "abc"; and a negative count replaces every occurrence, where it replaced none.'
-time: 2026-10-20T17:15:13.000000Z
-custom:
-  Issue: ""

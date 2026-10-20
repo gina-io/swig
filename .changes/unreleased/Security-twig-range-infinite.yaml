@@ -1,5 +1,0 @@
-kind: security
-body: 'swig-twig ranges no longer hang on an infinite bound. With a bound of Infinity, which plain JSON produces for a number such as 1e999, a..b looped until the array overflowed, taking one to three seconds and more than 2 GB of memory before a RangeError. The range is now empty, as it already was for NaN (PHP 8.3 rejects such a bound). Every release since 2.0.0-alpha.5 has the hang; reaching it takes an application that passes a number from the request into a range bound.'
-time: 2026-10-20T22:48:40.000000Z
-custom:
-  Issue: ""

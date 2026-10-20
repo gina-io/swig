@@ -1,5 +1,0 @@
-kind: fixed
-body: 'An error raised while a template is compiled is now reported when render, compile or precompile is called without an options object; it used to surface as TypeError: Cannot read properties of undefined (reading ''filename''), hiding the template error. An error whose message already names the template file, such as Multiple "else" branches in "if" tag in file page.html, now names it once instead of twice, and an error with no file name to add is thrown unchanged instead of being wrapped again with an "Error: " prefix and a doubled period. All four frontends.'
-time: 2026-10-20T16:32:48.000000Z
-custom:
-  Issue: ""

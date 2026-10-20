@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Parenthesized sub-expressions keep their grouping when a template compiles, in every flavor. Since 2.0.0-alpha.2 the emitted JavaScript could lose the parentheses of a group, so a group whose operator binds more loosely than the operator outside it was evaluated wrongly ({{ (1 + 2) * 3 }} rendered 7, and {% if (x or y) and z %} took its branch with x true and z false), as were a comparison grouped inside a comparison and a subscript on a + group (("a" + "b")[1] rendered aundefined), and {{ -(-x) }} failed to compile. A group that JavaScript reads the same way without the parentheses, not (...), -(...) and a group followed by a filter rendered correctly.'
-time: 2026-10-20T20:58:48.000000Z
-custom:
-  Issue: ""

@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-jinja2 reads a chain of ** from the left, as Jinja2 does: 2 ** 3 ** 2 is (2 ** 3) ** 2, so it gives 64 where it gave 512.'
-time: 2026-10-20T21:04:24.000000Z
-custom:
-  Issue: ""

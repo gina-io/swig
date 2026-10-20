@@ -1,5 +1,0 @@
-kind: fixed
-body: 'SECURITY.md''s supported-versions table now names 2.8.x as the supported release line; it still listed 2.7.x.'
-time: 2026-10-20T01:18:02.000000Z
-custom:
-  Issue: ""

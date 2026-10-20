@@ -1,5 +1,0 @@
-kind: fixed
-body: 'The Jinja2 lower and upper tests now need a cased letter, as Python''s islower and isupper do: an empty string, digits, punctuation, whitespace or an uncased script such as Chinese is neither lower nor upper, and so is a null or missing variable; they used to be both.'
-time: 2026-10-20T19:32:03.000000Z
-custom:
-  Issue: ""

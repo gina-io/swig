@@ -43,14 +43,24 @@ Features
 * Robust without the bloat — a single runtime dependency ([`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core)).
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
-What's new in v2.8.1
+What's new in v2.8.2
 --------------------
 
-* **Fixed — README corrections now on npm.** The 2.8.0 README listed CVE-2023-25345 under the prototype-chain hardening; it is the directory-traversal fix, and the security bullet now says so without pinning an exact CVE regression-test count. The benchmark summary reflects the latest measured run (swig leads on all five workloads; the previous table predated the 2.2.0 escape-filter rewrite and showed nunjucks ahead on simple var output). The Jinja2/Django migration notes no longer list the `default` filter as absent — it has been built into native swig since upstream 2014.
-* **Fixed — README completeness for the 2.x line.** The feature list now covers the async-loader render path (callback dispatch with `loader.async`, dynamic `extends` included) and the single-runtime-dependency posture, and "How it works" explains the runtime-only strict-CSP path.
-* **Added — a "What's new" section.** The README now opens with a section like this one, regenerated from the release notes at every cut.
-* **Fixed — attribution and changelog links.** The bundled DateZ attribution banner points at `https://github.com/tn0ms/DateZ` after the upstream account's rename, and the v0.9.0 changelog's PHP date-format citation links to the canonical HTTPS `php.net` page. Both old links still resolved; documentation only, no runtime or API change.
-* **Changed — ESLint 10 for development.** ESLint 9 is no longer supported by its maintainers, so the lint toolchain moves to ESLint 10 with the flat config unchanged. Running `make lint` now needs Node ^20.19.0, ^22.13.0 or >=24; the published package and its runtime Node floor are unaffected.
+> **Upgrade if a template takes a `wordwrap` width or a range bound from request data.** swig-jinja2's `wordwrap` hung on a width below 1 and swig-twig's `a..b` on an infinite bound, which plain JSON produces for a number such as `1e999`; each took seconds and more than 2 GB of memory before failing.
+
+> **Error text changed.** The prototype-chain guards' messages end with `(prototype-chain guard)` instead of `(CVE-2023-25345)`; code that matches the old text has to match the new one.
+
+* **Security — swig-jinja2 `wordwrap` no longer hangs on a width below 1.** A width of 0 or less, as a number or as a string such as `"0"`, ran for four to six seconds and took more than 2 GB of memory before a RangeError; it now returns the input unchanged (Jinja2 raises). A width between 0 and 1 now breaks one character at a time, as Python does. Every swig-jinja2 release since 2.5.0 has the hang.
+* **Security — swig-twig ranges no longer hang on an infinite bound.** `a..b` with a bound of Infinity looped until the array overflowed, taking up to about three seconds and more than 2 GB of memory before a RangeError; the range is now empty, as it already was for NaN. Every release since 2.0.0-alpha.5 has the hang.
+* **Fixed — parenthesized sub-expressions keep their grouping, in every flavor.** Since 2.0.0-alpha.2 a group whose operator binds more loosely than the operator outside it was evaluated wrongly (`{{ (1 + 2) * 3 }}` rendered 7, and `{% if (x or y) and z %}` took its branch with x true and z false), as were a comparison grouped inside a comparison and a subscript on a `+` group, and `{{ -(-x) }}` failed to compile. Groups that JavaScript reads the same way, `not (…)`, `-(…)` and a group followed by a filter were not affected.
+* **Fixed — swig-jinja2 expressions follow Jinja2's precedence.** A unary minus applies before the filters and the `**` that follow it (`-2 ** 2` is 4); `**` reads from the left (`2 ** 3 ** 2` is 64); a test binds to the operand next to it (`{{ 1 + 2 is number }}` tests 2, and `not x is defined` negates the test) and takes one argument without parentheses (`x is divisibleby 3`); and `not` sits below the comparisons and arithmetic (`not x == y` is `not (x == y)`).
+* **Fixed — swig-jinja2 tests.** `lower` and `upper` need a cased letter, `odd` follows Python's `n % 2 == 1`, and `number` accepts NaN, as in Jinja2.
+* **Fixed — swig-jinja2 filters follow Jinja2.** `first`, `last`, `reverse`, `unique`, `min`, `max` and `slice` use a mapping's keys; `batch` starts a row at exactly `size` items and batches a string by its characters; `sort` of a string returns its sorted characters; `replace` converts a number first and handles an empty search string and a negative count as Python does; `format` prints `%e` with at least two exponent digits and `%g` as Python does; and `wordwrap` keeps the separating space when a line is exactly full.
+* **Fixed — swig-django filters follow Django.** `join` joins a string's characters and a mapping's keys; `pluralize` reads a boolean, a string and a mapping as Django does; `truncatechars` and `truncatewords` return the empty string for a count of 0 or less and the value unchanged for a count that Python's `int()` rejects.
+* **Fixed — the shared engine, in all four frontends.** An async-mode compile no longer shares its cache entry with a sync compile of the same file (a sync include of such a file rendered `[object Promise]`); an error raised while a template compiles is reported when no options object is passed, instead of a TypeError, and names its file once; and the `varControls`, `tagControls` and `cmtControls` options reject a control that is not a string, with the open and close controls named the right way round.
+* **Fixed — guard messages and version exports.** The prototype-chain guards' messages end with `(prototype-chain guard)`, and `swig-core`, `swig-twig`, `swig-jinja2` and `swig-django` export their `version`, as `swig` always has.
+* **Fixed — documentation.** SECURITY.md names 2.8.x as the supported line; the issue and pull-request templates no longer open with the original project's "no longer maintained" notice; and the README says that `compileFile` needs `codegenMode: 'async'` for an async loader, that its compiled function then returns a promise of `{ output, exports }`, and how to port `not in` to native swig; the swig-jinja2 and swig-django READMEs lead with `renderFile` against an async loader.
+* **Changed — development only.** The `globals` dev dependency moves to 17.x; `make lint` reports the same clean result.
 
 See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 
@@ -63,7 +73,7 @@ Benchmarks
 cd benchmarks && npm install && node render.js
 ```
 
-In production-typical settings (autoescape on), `@rhinostone/swig` leads Nunjucks on all five workload shapes — from ~1.8× on simple variable output to 3.5–5.5× on iteration-heavy templates (median of 3 runs, 2026-08). See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
+In production-typical settings (autoescape on), `@rhinostone/swig` leads Nunjucks on all five workload shapes — from ~1.3× on simple variable output to 5.3–5.9× on iteration-heavy templates (median of 5 runs, 2026-10). See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
 
 Need Help? Have Questions? Comments?
 ------------------------------------
@@ -143,7 +153,7 @@ Migrating from Jinja2 or Django
 
 Swig is *inspired by* Jinja2 and Django, not a drop-in replacement. Common pitfalls when porting existing templates:
 
-* **No `is` / `is not` / `not in` operators** — rewrite `{% if x is defined %}` as `{% if x !== undefined %}`, `{% if x not in xs %}` as `{% if not (x in xs) %}`.
+* **No `is` / `is not` / `not in` operators** — rewrite `{% if x is defined %}` as `{% if x !== undefined %}`, and `{% if x not in xs %}` for a list as `{% if xs.indexOf(x) === -1 %}` (`in` tests an object's keys or an array's indices, not membership).
 * **Django `forloop.counter` → Swig `loop.index`** (Swig follows Jinja2 loop-variable naming).
 * **`{{ super() }}` / `{{ block.super }}` → `{% parent %}`** — Swig uses a dedicated tag inside the overriding block.
 * **Django filter args use a colon (`|date:"Y-m-d"`) — Swig uses parens (`|date("Y-m-d")`)**.

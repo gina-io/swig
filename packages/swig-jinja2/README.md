@@ -33,7 +33,7 @@ A near-subset of Python Jinja2 — everything below was cross-checked against Ji
 * **Operators** — `**` power, `//` floor-division, `~` string concat, inline-if (`a if c else b`), Python slicing (`seq[start:stop:step]`), `is <test>` / `is not <test>`, plus `{{- … -}}` / `{%- … -%}` whitespace control.
 * **Built-in `is` tests** — `defined`, `undefined`, `none`, `even`, `odd`, `divisibleby`, `iterable`, `mapping`, `sequence`, `string`, `number`, `boolean`, `callable`, `lower`, `upper`, `sameas`.
 * **Filters** — 39 built-ins (`upper`, `lower`, `capitalize`, `title`, `trim`, `truncate`, `replace`, `striptags`, `format`, `wordcount`, `wordwrap`, `indent`, `center`, `urlencode`, `escape` / `e`, `safe`, `first`, `last`, `join`, `reverse`, `sort`, `length` / `count`, `list`, `unique`, `batch`, `slice`, `dictsort`, `groupby`, `min`, `max`, `sum`, `random`, `abs`, `round`, `int`, `float`, `default` / `d`, `tojson`, `date`). See `lib/filters.js` for the full list.
-* **Async** — `renderFileAsync` / `compileFileAsync` for async loaders.
+* **Async** — `renderFile(path, locals, cb)` against a loader with `async === true`, or `compileFile` with `codegenMode: 'async'`; `renderFileAsync` / `compileFileAsync` still work but are deprecated.
 
 Explicitly unsupported (parse-time throw or absent)
 ---------------------------------------------------

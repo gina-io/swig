@@ -8,7 +8,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Next
 
-_No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upcoming work._
+| Status | Item |
+| --- | --- |
+| Planned | `in` tests membership in all four flavors: `x in list` tests the elements and `x in "text"` the substring. Today `in` tests an object's keys or an array's indices, so `3 in [1, 2, 3]` is false. |
+| Planned | swig-jinja2 parity: loop filters (`{% for x in xs if cond %}`), `not(x)` written without a space, the `none` / `True` / `False` constants, for-loops over a mapping and over a list of pairs as Jinja2 iterates them, and the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
+| Planned | swig-django: two-variable for-loops over a list of pairs unpack each pair, as Django does. |
+| Planned | Unknown filter and test names rejected when a Twig, Jinja2 or Django template compiles; today the error comes only at render, or never when the branch does not run. Native swig already rejects an unknown filter. |
 
 ## Future (post-2.0)
 
@@ -21,6 +26,16 @@ _No near-term scheduled items. See [Future (post-2.0)](#future-post-20) for upco
 ---
 
 ## Completed
+
+### v2.8.2 (October 2026)
+
+- Fixed two hangs that request data can reach. swig-jinja2's `wordwrap` with a width below 1, as a number or as a string such as `"0"`, ran for four to six seconds and took more than 2 GB of memory before a RangeError; it now returns the input unchanged, and a width between 0 and 1 breaks one character at a time. swig-twig's `a..b` with an infinite bound, which plain JSON produces for a number such as `1e999`, looped until the array overflowed; the range is now empty.
+- Fixed parenthesized sub-expressions in every flavor. Since 2.0.0-alpha.2 a group whose operator binds more loosely than the operator outside it, a comparison grouped inside a comparison and a subscript on a `+` group were evaluated without their parentheses, and `-(-x)` failed to compile.
+- Fixed swig-jinja2 expression precedence to follow Jinja2 (a unary minus before the filters and `**`, `**` read from the left, tests bound at the filter level and taking a bare argument, `not` below the comparisons) and its `lower`, `upper`, `odd` and `number` tests.
+- Fixed swig-jinja2 and swig-django filters that diverged from the reference engines: Jinja2 `first`, `last`, `reverse`, `unique`, `min`, `max`, `slice`, `batch`, `sort`, `replace`, `format` and `wordwrap`, and Django `join`, `pluralize`, `truncatechars` and `truncatewords`.
+- Fixed the shared engine in all four frontends: an async-mode compile has its own cache entry, a compile error is reported when no options object is passed, and the control options must be strings.
+- The prototype-chain guards' error messages end with `(prototype-chain guard)` instead of `(CVE-2023-25345)`, which is the loader's directory-traversal CVE, and every package exports its `version`.
+- All five packages released in lockstep at `2.8.2`.
 
 ### v2.8.0 (August 2026)
 

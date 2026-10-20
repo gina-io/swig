@@ -1,3 +1,64 @@
+[2.8.2](https://github.com/gina-io/swig/tree/v2.8.2) / 2026-10-20
+-----------------------------------------------------------------
+
+* **Fixed** SECURITY.md's supported-versions table now names 2.8.x as the supported release line; it still listed 2.7.x.
+
+* **Fixed** The issue and pull-request templates no longer open with the original project's "Swig is no longer maintained" notice. The issue template asks for the package and version, the environment, and a template with locals that reproduces the problem, and sends security reports to SECURITY.md; the pull-request template points to the develop branch and the test, lint and bundle checks.
+
+* **Fixed** The README no longer says a callback to compileFile is enough to load templates through an async loader: compileFile also needs codegenMode set to async in its options, as its API documentation says, while renderFile switches on loader.async alone. It now also says that, in that mode, the compiled function returns a promise of { output, exports }. The README's documentation section now names packages/swig-core/lib/loaders/, where the loader JSDoc lives, instead of the one-line lib/loaders/ re-exports, and the swig-jinja2 and swig-django READMEs lead with renderFile against an async loader and mark renderFileAsync and compileFileAsync as deprecated.
+
+* **Fixed** A template compiled with codegenMode set to async no longer shares its cache entry with a sync compile of the same file. A sync render or include of a file first compiled in async mode now renders its output instead of [object Promise], and an async-mode compile after a sync one now returns an async function instead of the cached sync one. The fix is in the shared engine, so all four frontends get it; the async entry is cached under its own key.
+
+* **Fixed** An error raised while a template is compiled is now reported when render, compile or precompile is called without an options object; it used to surface as TypeError: Cannot read properties of undefined (reading 'filename'), hiding the template error. An error whose message already names the template file, such as Multiple "else" branches in "if" tag in file page.html, now names it once instead of twice, and an error with no file name to add is thrown unchanged instead of being wrapped again with an "Error: " prefix and a doubled period. All four frontends.
+
+* **Fixed** The varControls, tagControls and cmtControls options are rejected when a control is not a string, with the message Option "<name>" must be an array containing 2 different control strings. A number or a nested array used to pass validation and fail at the first render with str.replace is not a function, and null failed inside the validator with a TypeError. All four frontends.
+
+* **Fixed** The error for a control option that is too short now names the right control: a short open control is reported as the open control and a short close control as the close control; the two words were swapped. All four frontends.
+
+* **Fixed** Jinja2 first, last, reverse, unique, min, max and slice now use the keys of a mapping, as Jinja2 iterates a mapping. first and last give the first and last key, reverse gives the keys in reverse order, unique the unique keys, min and max compare the keys, and slice distributes them; they used the values before. sum and random keep their results on a mapping, where Jinja2 raises.
+
+* **Fixed** Jinja2 batch now follows Jinja2. A new row starts when the current one holds exactly size items, so a size of 0 gives an empty first row and a size that no row length can equal (negative, fractional or not a number) gives a single row; batch returned an empty list for a size of 0, a negative size or one that is not a number, rounded a fractional size up, and read a numeric string such as "2" as a number. A string is now batched by its characters and a mapping by its keys; batch returned an empty list for a string and used the values of a mapping. The fill pads the last row only up to a finite numeric size.
+
+* **Fixed** Jinja2 sort of a string now returns its characters as a sorted list, as Jinja2 does; it joined them back into a string, so "cba" gave "abc" where Jinja2 gives ["a", "b", "c"].
+
+* **Fixed** Jinja2 replace now follows Python. A number input is converted to a string first, so 5|replace("5", "X") gives "X" where it returned the number 5; an empty search string inserts the replacement before each character and at the end, honouring the count, so "abc"|replace("", "X") gives "XaXbXcX" where it returned "abc"; and a negative count replaces every occurrence, where it replaced none.
+
+* **Fixed** Jinja2 format now prints %e and %E with at least two exponent digits, as Python does, so 12345.678 gives "1.234568e+04" where it gave "1.234568e+4". %g and %G now follow Python too: the precision (6 by default) counts significant digits, the number is printed in fixed notation when its decimal exponent is at least -4 and below the precision and in exponential notation otherwise, and trailing zeros are removed; they printed the number as JavaScript does, so 1234567 gave "1234567" where Python gives "1.23457e+06".
+
+* **Fixed** swig-jinja2 wordwrap keeps the separating space when a line is exactly full before a long word, as Python textwrap does, so the output is "abcd |xxxxx|xxxxx" where it was "abcd|xxxxx|xxxxx".
+
+* **Fixed** Django join now joins the characters of a string and the keys of a mapping, as Django does. It returned a string unchanged, so "abc"|join:"," gave "abc" where Django gives "a,b,c", and it returned a mapping itself, which rendered as [object Object].
+
+* **Fixed** Django pluralize now reads its input as Django does. A boolean is compared with 1, so true gives the singular and false the plural, where both gave the empty string; a string must parse as a Python float, so "abc" and the empty string give the empty string where they gave the plural, and "1_000" gives the plural where it gave the singular; a mapping counts its keys, so an empty mapping gives the plural where it gave the empty string.
+
+* **Fixed** Django truncatechars and truncatewords now return the empty string for a count of 0 or less, as Django does, where truncatechars gave the ellipsis alone and truncatewords kept a word or added an ellipsis ("a"|truncatewords:0 gave " …"). They also read the count as Python int() does, so a count string int() rejects, such as "3abc" or "2.5", returns the value unchanged where swig truncated on its leading digits.
+
+* **Fixed** The Jinja2 lower and upper tests now need a cased letter, as Python's islower and isupper do: an empty string, digits, punctuation, whitespace or an uncased script such as Chinese is neither lower nor upper, and so is a null or missing variable; they used to be both.
+
+* **Fixed** The Jinja2 odd test now follows Python's n % 2 == 1, so a non-integer such as 1.5, or an infinity, is not odd, as in Jinja2; it used to call them odd. A negative odd integer is still odd.
+
+* **Fixed** The Jinja2 number test now accepts NaN, as Python's numbers.Number does; it used to reject it.
+
+* **Fixed** Parenthesized sub-expressions keep their grouping when a template compiles, in every flavor. Since 2.0.0-alpha.2 the emitted JavaScript could lose the parentheses of a group, so a group whose operator binds more loosely than the operator outside it was evaluated wrongly ({{ (1 + 2) * 3 }} rendered 7, and {% if (x or y) and z %} took its branch with x true and z false), as were a comparison grouped inside a comparison and a subscript on a + group (("a" + "b")[1] rendered aundefined), and {{ -(-x) }} failed to compile. A group that JavaScript reads the same way without the parentheses, not (...), -(...) and a group followed by a filter rendered correctly.
+
+* **Fixed** swig-jinja2 applies a unary minus or plus before the filters and the ** that follow it, as Jinja2 does: {{ -x|abs }} is the absolute value of -x, so it gives 5 for x 5 where it gave -5, and -2 ** 2 is (-2) ** 2, so it gives 4 where it gave -4.
+
+* **Fixed** swig-jinja2 reads a chain of ** from the left, as Jinja2 does: 2 ** 3 ** 2 is (2 ** 3) ** 2, so it gives 64 where it gave 512.
+
+* **Fixed** swig-jinja2 binds a test to the operand next to it, as Jinja2 does: {{ 1 + 2 is number }} tests 2, so it gives 2 where it gave true, and {% if not x is defined %} negates the test, so it is false for a defined x where it was true. A test also takes one argument without parentheses, as in Jinja2 (x is divisibleby 3, x is sameas false), where that threw an Unexpected token error.
+
+* **Fixed** swig-jinja2 gives not its Jinja2 level, below the comparisons and arithmetic: {% if not x == y %} is not (x == y), so it is true for x 1 and y 2 where it was false, and {% if not x + y %} negates the sum, so it is false for x 0 and y 1 where it was true. A not in another operand position (x == not y) still binds its operand.
+
+* **Fixed** The error messages of the prototype-chain guards, in every package, end with (prototype-chain guard) instead of (CVE-2023-25345). That CVE is the directory traversal through include and extends that 2.7.1 fixed in the filesystem loader, whose message keeps the label; the guards block access to __proto__, constructor and prototype. Code that matched the old text has to match the new one.
+
+* **Fixed** swig-core, swig-twig, swig-jinja2 and swig-django export their version as a string, as swig always has; the property was undefined.
+
+* **Changed** Upgraded the globals dev dependency, which the ESLint config reads, from 16.x to 17.x. Its node global set drops DisposableStack, AsyncDisposableStack and SuppressedError, which no linted file uses, and its mocha set is unchanged, so make lint reports the same clean result.
+
+* **Security** swig-jinja2 wordwrap no longer hangs on a width below 1. A width of 0 or less, given as a number or as a string such as "0", ran for four to six seconds and took more than 2 GB of memory before a RangeError; it now returns the input unchanged (Jinja2 raises). A width between 0 and 1, which hung the same way, now breaks one character at a time, as Python does. Every swig-jinja2 release since 2.5.0 has the hang; reaching it takes an application that passes a width from the request into the filter.
+
+* **Security** swig-twig ranges no longer hang on an infinite bound. With a bound of Infinity, which plain JSON produces for a number such as 1e999, a..b looped until the array overflowed, taking up to about three seconds and more than 2 GB of memory before a RangeError. The range is now empty, as it already was for NaN (PHP 8.3 rejects such a bound). Every release since 2.0.0-alpha.5 has the hang; reaching it takes an application that passes a number from the request into a range bound.
+
 [2.8.1](https://github.com/gina-io/swig/tree/v2.8.1) / 2026-10-20
 -----------------------------------------------------------------
 

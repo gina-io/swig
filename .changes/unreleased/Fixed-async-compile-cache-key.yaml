@@ -1,5 +1,0 @@
-kind: fixed
-body: 'A template compiled with codegenMode set to async no longer shares its cache entry with a sync compile of the same file. A sync render or include of a file first compiled in async mode now renders its output instead of [object Promise], and an async-mode compile after a sync one now returns an async function instead of the cached sync one. The fix is in the shared engine, so all four frontends get it; the async entry is cached under its own key.'
-time: 2026-10-20T16:30:40.000000Z
-custom:
-  Issue: ""

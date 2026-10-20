@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Django pluralize now reads its input as Django does. A boolean is compared with 1, so true gives the singular and false the plural, where both gave the empty string; a string must parse as a Python float, so "abc" and the empty string give the empty string where they gave the plural, and "1_000" gives the plural where it gave the singular; a mapping counts its keys, so an empty mapping gives the plural where it gave the empty string.'
-time: 2026-10-20T17:20:22.000000Z
-custom:
-  Issue: ""

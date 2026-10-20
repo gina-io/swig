@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-jinja2 gives not its Jinja2 level, below the comparisons and arithmetic: {% if not x == y %} is not (x == y), so it is true for x 1 and y 2 where it was false, and {% if not x + y %} negates the sum, so it is false for x 0 and y 1 where it was true. A not in another operand position (x == not y) still binds its operand.'
-time: 2026-10-20T21:09:52.000000Z
-custom:
-  Issue: ""

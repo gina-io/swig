@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Jinja2 first, last, reverse, unique, min, max and slice now use the keys of a mapping, as Jinja2 iterates a mapping. first and last give the first and last key, reverse gives the keys in reverse order, unique the unique keys, min and max compare the keys, and slice distributes them; they used the values before. sum and random keep their results on a mapping, where Jinja2 raises.'
-time: 2026-10-20T17:12:36.000000Z
-custom:
-  Issue: ""

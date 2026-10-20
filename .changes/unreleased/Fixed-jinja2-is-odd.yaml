@@ -1,5 +1,0 @@
-kind: fixed
-body: 'The Jinja2 odd test now follows Python''s n % 2 == 1, so a non-integer such as 1.5, or an infinity, is not odd, as in Jinja2; it used to call them odd. A negative odd integer is still odd.'
-time: 2026-10-20T19:33:21.000000Z
-custom:
-  Issue: ""

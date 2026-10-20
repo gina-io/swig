@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Jinja2 format now prints %e and %E with at least two exponent digits, as Python does, so 12345.678 gives "1.234568e+04" where it gave "1.234568e+4". %g and %G now follow Python too: the precision (6 by default) counts significant digits, the number is printed in fixed notation when its decimal exponent is at least -4 and below the precision and in exponential notation otherwise, and trailing zeros are removed; they printed the number as JavaScript does, so 1234567 gave "1234567" where Python gives "1.23457e+06".'
-time: 2026-10-20T17:16:47.000000Z
-custom:
-  Issue: ""

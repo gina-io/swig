@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Jinja2 sort of a string now returns its characters as a sorted list, as Jinja2 does; it joined them back into a string, so "cba" gave "abc" where Jinja2 gives ["a", "b", "c"].'
-time: 2026-10-20T17:14:46.000000Z
-custom:
-  Issue: ""

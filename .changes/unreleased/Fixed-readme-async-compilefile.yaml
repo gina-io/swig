@@ -1,5 +1,0 @@
-kind: fixed
-body: 'The README no longer says a callback to compileFile is enough to load templates through an async loader: compileFile also needs codegenMode set to async in its options, as its API documentation says, while renderFile switches on loader.async alone. It now also says that the function compileFile then compiles returns a promise of { output, exports }. The README''s documentation section now names packages/swig-core/lib/loaders/, where the loader JSDoc lives, instead of the one-line lib/loaders/ re-exports.'
-time: 2026-10-20T01:58:39.000000Z
-custom:
-  Issue: ""
