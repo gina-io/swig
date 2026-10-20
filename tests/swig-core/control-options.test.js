@@ -6,7 +6,9 @@ var swigModule = require('../../lib/swig'),
 
 /*!
  * Each frontend validates the varControls, tagControls and cmtControls
- * options when an instance is created: both controls must be strings.
+ * options when an instance is created: both controls must be strings, and
+ * an error about a control that is too short names it open or close by its
+ * position in the pair.
  */
 
 var flavors = [
@@ -27,6 +29,18 @@ flavors.forEach(function (flavor) {
           o[key] = pair;
           expect(function () { new Ctor(o); }).to.throwException(new RegExp('^Option "' + key + '" must be an array containing 2 different control strings\\.$'));
         });
+      });
+
+      it('names the open ' + key + ' control when it is too short', function () {
+        var o = {};
+        o[key] = ['{', '}}'];
+        expect(function () { new Ctor(o); }).to.throwException(new RegExp('^Option "' + key + '" open control must be at least 2 characters\\. Saw "\\{" instead\\.$'));
+      });
+
+      it('names the close ' + key + ' control when it is too short', function () {
+        var o = {};
+        o[key] = ['{{', '}'];
+        expect(function () { new Ctor(o); }).to.throwException(new RegExp('^Option "' + key + '" close control must be at least 2 characters\\. Saw "\\}" instead\\.$'));
       });
     });
   });

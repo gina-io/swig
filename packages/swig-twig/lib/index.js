@@ -83,7 +83,7 @@ function validateOptions(options) {
     }
     utils.each(options[key], function (a, i) {
       if (a.length < 2) {
-        throw new Error('Option "' + key + '" ' + ((i) ? 'open ' : 'close ') + 'control must be at least 2 characters. Saw "' + a + '" instead.');
+        throw new Error('Option "' + key + '" ' + ((i) ? 'close ' : 'open ') + 'control must be at least 2 characters. Saw "' + a + '" instead.');
       }
     });
   });
