@@ -68,4 +68,35 @@ describe('@rhinostone/swig-django — filter parity with Django', function () {
       expect(render('cherr{{ x|pluralize:"y,ies" }}', { x: 'abc' })).to.equal('cherr');
     });
   });
+
+  describe('truncatechars and truncatewords', function () {
+    it('a count of 0 or less gives the empty string', function () {
+      expect(filters.truncatechars('abcdef', 0)).to.equal('');
+      expect(filters.truncatechars('abcdef', -1)).to.equal('');
+      expect(filters.truncatechars('abcdef', -0.5)).to.equal('');
+      expect(filters.truncatewords('a b', -1)).to.equal('');
+      expect(filters.truncatewords('a', 0)).to.equal('');
+    });
+    it('blank text gives the empty string for a positive count', function () {
+      expect(filters.truncatewords('   ', 2)).to.equal('');
+    });
+    it('a count that Python int() cannot read returns the value', function () {
+      expect(filters.truncatechars('abcdef', '3abc')).to.equal('abcdef');
+      expect(filters.truncatechars('abcdef', '2.5')).to.equal('abcdef');
+      expect(filters.truncatewords('a b c', '1x')).to.equal('a b c');
+      expect(filters.truncatewords('a b c', '2.5')).to.equal('a b c');
+    });
+    it('a count is read as Python int() reads it', function () {
+      expect(filters.truncatechars('abcdef', ' 3 ')).to.equal('ab\u2026');
+      expect(filters.truncatechars('abcdef', '0_3')).to.equal('ab\u2026');
+      expect(filters.truncatechars('abcdef', 2.7)).to.equal('a\u2026');
+      expect(filters.truncatechars('abcdef', true)).to.equal('\u2026');
+      expect(filters.truncatewords('a b c', true)).to.equal('a \u2026');
+      expect(filters.truncatewords('a b c', '+2')).to.equal('a b \u2026');
+    });
+    it('renders the value for an unreadable count and nothing for 0', function () {
+      expect(render('[{{ x|truncatechars:n }}]', { x: 'abcdef', n: '3abc' })).to.equal('[abcdef]');
+      expect(render('[{{ x|truncatechars:n }}]', { x: 'abcdef', n: 0 })).to.equal('[]');
+    });
+  });
 });

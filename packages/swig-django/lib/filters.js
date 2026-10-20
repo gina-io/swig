@@ -1103,9 +1103,31 @@ exports.title = function (input) {
   });
 };
 
+/*!
+ * Convert a count as Python's `int()` does: a number truncates toward
+ * zero, a boolean gives 0 or 1, and a string must be an optionally signed
+ * run of digits (single underscores allowed between them, surrounding
+ * whitespace allowed). Returns NaN where Python raises. @private
+ */
+function pyInt(arg) {
+  if (typeof arg === 'number') {
+    if (!isFinite(arg)) { return NaN; }
+    return (arg < 0) ? Math.ceil(arg) : Math.floor(arg);
+  }
+  if (typeof arg === 'boolean') {
+    return arg ? 1 : 0;
+  }
+  if (typeof arg === 'string' && /^\s*[+-]?\d(_?\d)*\s*$/.test(arg)) {
+    return parseInt(arg.replace(/_/g, ''), 10);
+  }
+  return NaN;
+}
+
 /**
  * Truncate the value to a number of characters, ending with an ellipsis
  * (Django's `truncatechars`). The ellipsis (`…`) counts toward the length.
+ * A length of 0 or less gives the empty string; a length Python's `int()`
+ * cannot read (such as `"3abc"` or `"2.5"`) returns the value unchanged.
  *
  * @example
  * {{ "Joel is a slug"|truncatechars:7 }}
@@ -1117,20 +1139,24 @@ exports.title = function (input) {
  */
 exports.truncatechars = function (input, arg) {
   var s = String(input),
-    n = parseInt(arg, 10);
+    n = pyInt(arg);
   if (isNaN(n)) {
     return s;
+  }
+  if (n <= 0) {
+    return '';
   }
   if (s.length <= n) {
     return s;
   }
-  return s.substr(0, n - 1 < 0 ? 0 : n - 1) + '…';
+  return s.substr(0, n - 1) + '…';
 };
 
 /**
  * Truncate the value to a number of words, ending with a space + ellipsis
  * (Django's `truncatewords`). Whitespace runs within the kept portion are
- * collapsed to single spaces.
+ * collapsed to single spaces. A count of 0 or less gives the empty string;
+ * a count Python's `int()` cannot read returns the value unchanged.
  *
  * @example
  * {{ "Joel is a slug"|truncatewords:2 }}
@@ -1141,10 +1167,13 @@ exports.truncatechars = function (input, arg) {
  * @return {string}
  */
 exports.truncatewords = function (input, arg) {
-  var n = parseInt(arg, 10),
+  var n = pyInt(arg),
     words;
   if (isNaN(n)) {
     return String(input);
+  }
+  if (n <= 0) {
+    return '';
   }
   words = String(input).replace(/^\s+|\s+$/g, '').split(/\s+/);
   if (words.length === 1 && words[0] === '') {
