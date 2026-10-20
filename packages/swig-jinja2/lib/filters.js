@@ -278,8 +278,8 @@ exports.reverse = function (input) {
 /**
  * Sort an array ascending, returning a copy (does not mutate the input).
  * Numbers sort numerically; everything else compares case-insensitively.
- * A string sorts its characters; an object sorts its keys. Pass a truthy
- * first argument to sort descending.
+ * A string gives its characters as a sorted list, as in Jinja2; a mapping
+ * gives its sorted keys. Pass a truthy first argument to sort descending.
  *
  * @example
  * {{ [3, 1, 2]|sort|join(",") }}
@@ -294,12 +294,11 @@ exports.reverse = function (input) {
  * @return {*}
  */
 exports.sort = function (input, reverse) {
-  var arr, isString = false;
+  var arr;
   if (utils.isArray(input)) {
     arr = utils.extend([], input);
   } else if (typeof input === 'string') {
     arr = input.split('');
-    isString = true;
   } else if (input && typeof input === 'object') {
     arr = utils.keys(input);
   } else {
@@ -311,7 +310,7 @@ exports.sort = function (input, reverse) {
     return sa < sb ? -1 : sa > sb ? 1 : 0;
   });
   if (reverse) { arr.reverse(); }
-  return isString ? arr.join('') : arr;
+  return arr;
 };
 
 /*!

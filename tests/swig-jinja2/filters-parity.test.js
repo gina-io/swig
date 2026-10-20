@@ -85,4 +85,13 @@ describe('@rhinostone/swig-jinja2 — filter parity with Jinja2', function () {
       expect(render('{% for r in m|batch(2, "x") %}[{{ r|join }}]{% endfor %}', { m: { a: 1, b: 2, c: 3 } })).to.equal('[ab][cx]');
     });
   });
+
+  describe('sort', function () {
+    it('a string gives its characters as a sorted list', function () {
+      expect(filters.sort('cba')).to.eql(['a', 'b', 'c']);
+      expect(filters.sort('cba', true)).to.eql(['c', 'b', 'a']);
+      expect(filters.sort('bAc')).to.eql(['A', 'b', 'c']);
+      expect(render('{{ "cba"|sort|join("-") }}')).to.equal('a-b-c');
+    });
+  });
 });
