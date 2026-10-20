@@ -76,7 +76,7 @@ function validateOptions(options) {
     if (!options.hasOwnProperty(key)) {
       return;
     }
-    if (!utils.isArray(options[key]) || options[key].length !== 2) {
+    if (!utils.isArray(options[key]) || options[key].length !== 2 || typeof options[key][0] !== 'string' || typeof options[key][1] !== 'string') {
       throw new Error('Option "' + key + '" must be an array containing 2 different control strings.');
     }
     if (options[key][0] === options[key][1]) {
