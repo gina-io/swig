@@ -409,8 +409,8 @@ exports.parseExpr = function (tokens, filters, _posOut) {
 
   // Jinja2 parse_unary: a unary minus/plus takes its operand without the
   // filters that follow, which then apply to the negated value (`-x|abs`
-  // is abs(-x)). A `not` reached here is not at the start of an operand
-  // (`-not x`, `2 ** not x`); it binds its unary operand.
+  // is abs(-x)). A `not` reached here sits where Jinja2 has no not-level
+  // (`a == not b`, `-not x`, `2 ** not x`); it binds its unary operand.
   function parseUnary(withFilter) {
     var tok = peek(), node;
     if (tok && tok.type === _t.NOT) {
