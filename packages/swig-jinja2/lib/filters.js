@@ -654,7 +654,10 @@ exports.trim = function (input, chars) {
  * Replace occurrences of a literal substring with another. Unlike the
  * native swig `replace` (regex) and the Twig `replace` (mapping), Jinja2's
  * `replace` is a plain left-to-right literal substitution. An optional
- * count limits how many occurrences are replaced.
+ * count limits how many occurrences are replaced. As in Python, an empty
+ * search string inserts the replacement before each character and at the
+ * end, a negative count replaces every occurrence, and a number input is
+ * converted to a string first.
  *
  * @example
  * {{ "Hello World"|replace("Hello", "Goodbye") }}
@@ -671,20 +674,36 @@ exports.trim = function (input, chars) {
  * @return {*}
  */
 exports.replace = function (input, old, neu, count) {
-  var limited, max, out, i, n;
+  var max, out, chars, i, n;
+  if (typeof input === 'number') {
+    input = String(input);
+  }
   if (typeof input !== 'string') {
     return input;
   }
   old = String(old);
   neu = (neu === undefined || neu === null) ? '' : String(neu);
-  if (old === '') {
-    return input;
+  max = (count !== undefined && count !== null) ? Number(count) : Infinity;
+  if (max < 0) {
+    max = Infinity;
   }
-  limited = (count !== undefined && count !== null);
-  max = limited ? Number(count) : Infinity;
   out = '';
-  i = 0;
   n = 0;
+  if (old === '') {
+    chars = codePoints(input);
+    for (i = 0; i < chars.length; i += 1) {
+      if (n < max) {
+        out += neu;
+        n += 1;
+      }
+      out += chars[i];
+    }
+    if (n < max) {
+      out += neu;
+    }
+    return out;
+  }
+  i = 0;
   while (i < input.length) {
     if (n < max && input.substr(i, old.length) === old) {
       out += neu;

@@ -94,4 +94,26 @@ describe('@rhinostone/swig-jinja2 — filter parity with Jinja2', function () {
       expect(render('{{ "cba"|sort|join("-") }}')).to.equal('a-b-c');
     });
   });
+
+  describe('replace', function () {
+    it('a number input is converted to a string', function () {
+      expect(filters.replace(5, '5', 'X')).to.equal('X');
+      expect(filters.replace(1.5, '.', 'X')).to.equal('1X5');
+      expect(render('{{ n|replace("5", "X") }}', { n: 5 })).to.equal('X');
+    });
+    it('an empty search string inserts the replacement before each character and at the end', function () {
+      expect(filters.replace('abc', '', 'X')).to.equal('XaXbXcX');
+      expect(filters.replace('abc', '', 'X', 0)).to.equal('abc');
+      expect(filters.replace('abc', '', 'X', 2)).to.equal('XaXbc');
+      expect(filters.replace('', '', 'X')).to.equal('X');
+      expect(filters.replace('\uD83D\uDE00', '', '|')).to.equal('|\uD83D\uDE00|');
+    });
+    it('a negative count replaces every occurrence', function () {
+      expect(filters.replace('aaa', 'a', 'b', -1)).to.equal('bbb');
+      expect(filters.replace('aaa', 'a', '', -2)).to.equal('');
+      expect(filters.replace('abc', '', 'X', -1)).to.equal('XaXbXcX');
+      expect(filters.replace(5, '5', 'X', -1)).to.equal('X');
+      expect(render('{{ "aaa"|replace("a", "b", -1) }}')).to.equal('bbb');
+    });
+  });
 });
