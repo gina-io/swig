@@ -1,0 +1,5 @@
+kind: security
+body: 'swig-jinja2 wordwrap no longer hangs on a width below 1. A width of 0 or less, given as a number or as a string such as "0", ran for four to six seconds and took more than 2 GB of memory before a RangeError; it now returns the input unchanged (Jinja2 raises). A width between 0 and 1, which hung the same way, now breaks one character at a time, as Python does. Every swig-jinja2 release since 2.5.0 has the hang; reaching it takes an application that passes a width from the request into the filter.'
+time: 2026-10-20T17:18:50.000000Z
+custom:
+  Issue: ""
