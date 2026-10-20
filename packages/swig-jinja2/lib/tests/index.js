@@ -218,13 +218,14 @@ exports['even'] = function (v) {
 };
 
 /**
- * `n is odd` — true for numbers whose remainder mod 2 is non-zero.
+ * `n is odd` — true for an odd integer, as Python's `n % 2 == 1`: a
+ * negative odd integer is odd; a non-integer or an infinity is not.
  *
  * @param  {number} v
  * @return {boolean}
  */
 exports['odd'] = function (v) {
-  return isNumber(v) && v % 2 !== 0;
+  return isNumber(v) && ((v % 2) + 2) % 2 === 1;
 };
 
 /**

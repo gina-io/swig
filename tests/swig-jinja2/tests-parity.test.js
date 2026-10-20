@@ -56,4 +56,25 @@ describe('@rhinostone/swig-jinja2 — is-test parity with Jinja2', function () {
       expect(cond('upper', { x: 'A\u00aa' })).to.equal('N');
     });
   });
+
+  describe('odd follows Python\'s n % 2 == 1', function () {
+    it('a non-integer or an infinity is not odd', function () {
+      expect(cond('odd', { x: 1.5 })).to.equal('N');
+      expect(cond('odd', { x: -1.5 })).to.equal('N');
+      expect(cond('odd', { x: 0.5 })).to.equal('N');
+      expect(cond('odd', { x: 2.5 })).to.equal('N');
+      expect(cond('odd', { x: Infinity })).to.equal('N');
+      expect(cond('odd', { x: -Infinity })).to.equal('N');
+    });
+    it('an integer is odd or even by its remainder, negatives included', function () {
+      expect(cond('odd', { x: -3 })).to.equal('Y');
+      expect(cond('even', { x: -3 })).to.equal('N');
+      expect(cond('odd', { x: -4 })).to.equal('N');
+      expect(cond('even', { x: -4 })).to.equal('Y');
+      expect(cond('odd', { x: 3 })).to.equal('Y');
+      expect(cond('odd', { x: 4 })).to.equal('N');
+      expect(cond('even', { x: 0 })).to.equal('Y');
+      expect(cond('even', { x: 2.5 })).to.equal('N');
+    });
+  });
 });
