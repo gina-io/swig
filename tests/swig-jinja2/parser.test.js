@@ -203,12 +203,12 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
     expect(ir.args[1].callee.path).to.eql(['Math', 'pow']);
   });
 
-  it('groups a leading minus outside ** (Python -(2 ** 2))', function () {
+  it('applies a leading minus to the ** base, as Jinja2 does ((-2) ** 2)', function () {
     var ir = parse('-2 ** 2');
-    expect(ir.type).to.equal('UnaryOp');
-    expect(ir.op).to.equal('-');
-    expect(ir.operand.type).to.equal('FnCall');
-    expect(ir.operand.callee.path).to.eql(['Math', 'pow']);
+    expect(ir.type).to.equal('FnCall');
+    expect(ir.callee.path).to.eql(['Math', 'pow']);
+    expect(ir.args[0]).to.eql({ type: 'UnaryOp', op: '-', operand: { type: 'Literal', kind: 'number', value: 2 } });
+    expect(ir.args[1]).to.eql({ type: 'Literal', kind: 'number', value: 2 });
   });
 
   it('binds ** tighter than *', function () {

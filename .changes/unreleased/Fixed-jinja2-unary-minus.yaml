@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-jinja2 applies a unary minus or plus before the filters and the ** that follow it, as Jinja2 does: {{ -x|abs }} is the absolute value of -x, so it gives 5 for x 5 where it gave -5, and -2 ** 2 is (-2) ** 2, so it gives 4 where it gave -4.'
+time: 2026-10-20T21:03:22.000000Z
+custom:
+  Issue: ""

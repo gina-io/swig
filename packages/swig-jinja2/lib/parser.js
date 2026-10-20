@@ -268,7 +268,10 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     ]);
   }
 
-  function parsePostfix(expr) {
+  // Subscripts and calls, then (when `withFilter`) filters. A unary
+  // minus/plus operand is read without its filters (Jinja2's
+  // parse_unary(False)); they then apply to the negated value.
+  function parsePostfix(expr, withFilter) {
     while (true) {
       var tok = peek();
       if (!tok) { break; }
@@ -286,7 +289,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       } else if (tok.type === _t.PARENOPEN) {
         consume();
         expr = ir.fnCall(expr, parseArgList(_t.PARENCLOSE));
-      } else if (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY) {
+      } else if (withFilter && (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY)) {
         consume();
         var fname = tok.match;
         if (filters.hasOwnProperty(fname) && typeof filters[fname] !== 'function') {
@@ -317,22 +320,22 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     var m;
     switch (tok.type) {
     case _t.STRING:
-      return parsePostfix(ir.literal('string', unquoteString(tok.match)));
+      return ir.literal('string', unquoteString(tok.match));
     case _t.NUMBER:
-      return parsePostfix(ir.literal('number', parseFloat(tok.match)));
+      return ir.literal('number', parseFloat(tok.match));
     case _t.BOOL:
-      return parsePostfix(ir.literal('bool', tok.match === 'true'));
+      return ir.literal('bool', tok.match === 'true');
     case _t.PARENOPEN:
       var grouped = parseExpression(0);
       var close = consume();
       if (!close || close.type !== _t.PARENCLOSE) {
         bail('Mismatched nesting state');
       }
-      return parsePostfix(grouped);
+      return grouped;
     case _t.BRACKETOPEN:
-      return parsePostfix(ir.arrayLiteral(parseArgList(_t.BRACKETCLOSE)));
+      return ir.arrayLiteral(parseArgList(_t.BRACKETCLOSE));
     case _t.CURLYOPEN:
-      return parsePostfix(parseObjectLiteral());
+      return parseObjectLiteral();
     case _t.VAR:
       var path = tok.match.split('.');
       if (_reserved.indexOf(path[0]) !== -1) {
@@ -341,7 +344,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       utils.each(path, function (segment) {
         guardSegment(segment);
       });
-      return parsePostfix(ir.varRef(path));
+      return ir.varRef(path);
     case _t.FUNCTION:
     case _t.FUNCTIONEMPTY:
       m = tok.match;
@@ -350,47 +353,63 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       }
       guardSegment(m);
       if (tok.type === _t.FUNCTIONEMPTY) {
-        return parsePostfix(ir.fnCall(ir.varRef([m]), []));
+        return ir.fnCall(ir.varRef([m]), []);
       }
-      return parsePostfix(ir.fnCall(ir.varRef([m]), parseArgList(_t.PARENCLOSE)));
+      return ir.fnCall(ir.varRef([m]), parseArgList(_t.PARENCLOSE));
     }
     bail('Unexpected token "' + tok.match + '"');
     return null;
   }
 
-  function parseUnary() {
-    var tok = peek();
+  // Jinja2 parse_unary: a unary minus/plus takes its operand without the
+  // filters that follow, which then apply to the negated value (`-x|abs`
+  // is abs(-x)). A `not` reached here is not at the start of an operand
+  // (`-not x`, `2 ** not x`); it binds its unary operand.
+  function parseUnary(withFilter) {
+    var tok = peek(), node;
     if (tok && tok.type === _t.NOT) {
       consume();
-      return ir.unaryOp('!', parseUnary());
+      return ir.unaryOp('!', parseUnary(withFilter));
     }
     if (tok && tok.type === _t.OPERATOR && (tok.match === '+' || tok.match === '-')) {
       consume();
-      return ir.unaryOp(tok.match, parseUnary());
+      node = ir.unaryOp(tok.match, parseUnary(false));
+    } else {
+      node = parsePrimary();
+    }
+    return parsePostfix(node, withFilter);
+  }
+
+  // A `not` at the start of an operand negates the whole power-level
+  // expression after it, filters included (`not x|f`, `not x ** 2`).
+  function parseNotPrefix() {
+    var tok = peek();
+    if (tok && tok.type === _t.NOT) {
+      consume();
+      return ir.unaryOp('!', parseNotPrefix());
     }
     return parsePower();
   }
 
   function parsePower() {
-    var left = parsePrimary();
+    var left = parseUnary(true);
     var next = peek();
     if (next && next.type === _t.POWER) {
       consume();
-      // Right-associative (2 ** 3 ** 2 === 2 ** (3 ** 2)); the exponent is a
-      // full unary so `2 ** -3` parses. Lowered to Math.pow because the emit
-      // is parenthesis-safe — a bare `a ** b` emission would mis-group when an
-      // operand is itself a binary op and would SyntaxError when the base is a
-      // unary (`-2 ** 3`). The base is a parsePrimary (not parseUnary), so a
-      // leading minus stays with the caller: `-2 ** 2` groups as `-(2 ** 2)`,
-      // matching Jinja2/Python.
-      var right = parseUnary();
+      // Right-associative (2 ** 3 ** 2 === 2 ** (3 ** 2)). The base is a
+      // unary operand, as in Jinja2's parse_pow, so a leading minus belongs
+      // to it: `-2 ** 2` is (-2) ** 2 = 4, as Jinja2 renders (Python gives
+      // -4). Lowered to Math.pow because the emit is parenthesis-safe — a
+      // bare `a ** b` emission would mis-group when an operand is itself a
+      // binary op and would SyntaxError when the base is a unary (`-2 ** 3`).
+      var right = parsePower();
       return ir.fnCall(ir.varRef(['Math', 'pow']), [left, right]);
     }
     return left;
   }
 
   function parseExpression(minPrec) {
-    var left = parseUnary();
+    var left = parseNotPrefix();
     while (true) {
       var tok = peek();
       if (!tok) { break; }
