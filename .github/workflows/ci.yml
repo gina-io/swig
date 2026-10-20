@@ -17,3 +17,4 @@ jobs:
       - run: npm install --ignore-scripts --depth=100 --loglevel=error
       - run: make lint
       - run: make test
+      - run: make test-bundles

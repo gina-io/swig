@@ -104,8 +104,11 @@ lint:
 coverage:
 	@node --require ./tests/lib/mocha-compat.js --test --experimental-test-coverage --test-coverage-include='lib/**' --test-coverage-lines=95 ${opts} ${tests}
 
+test-bundles: build
+	@node scripts/test-bundles.js
+
 FORCE:
 
 .PHONY: all version \
 	build \
-	test lint coverage
+	test lint coverage test-bundles
