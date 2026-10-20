@@ -22,6 +22,21 @@ var AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 function efn() { return ''; }
 
 /**
+ * Cache key for a compiled template. An async-mode compile returns a
+ * different function shape (a Promise of `{ output, exports }`), so it is
+ * stored under its own key: neither mode is served, or replaces, the other
+ * mode's entry for the same file.
+ *
+ * @param  {string} filename  Template identifier (the resolved path for files).
+ * @param  {object} [options] Compile options; `codegenMode` is read.
+ * @return {string}           Cache key.
+ * @private
+ */
+function compileCacheKey(filename, options) {
+  return (options && options.codegenMode === 'async') ? filename + '#async' : filename;
+}
+
+/**
  * Runtime engine plumbing shared across @rhinostone/swig-family frontends.
  *
  * Owns the `extends`-chain walker and block-remap helpers.
@@ -537,7 +552,7 @@ exports.install = function (self, frontend) {
   };
 
   self.compile = function (source, options) {
-    var key = options ? options.filename : null,
+    var key = (options && options.filename) ? compileCacheKey(options.filename, options) : null,
       cached = key ? cacheGet(key, options) : null,
       context,
       contextLength,
@@ -591,7 +606,7 @@ exports.install = function (self, frontend) {
     if (!options.filename) {
       options = utils.extend({ filename: pathname }, options);
     }
-    cached = cacheGet(pathname, options);
+    cached = cacheGet(compileCacheKey(pathname, options), options);
 
     if (cached) {
       if (cb) {
@@ -641,11 +656,9 @@ exports.install = function (self, frontend) {
    * load a child template at render time.
    *
    * Cache semantics — bypasses the cache via `options.cache = false` on
-   * the inner compile call. The sync compile cache and the async compile
-   * cache would otherwise share a key (the resolved filename) and serve
-   * a mode-mismatched compiled fn to the wrong caller. Cleaner
-   * namespacing (separate sync/async cache buckets, or a key suffix) is
-   * deferred to a follow-up slice.
+   * the inner compile call. `compile` and `compileFile` keep async-mode
+   * entries under their own key (see `compileCacheKey`), so a compile in
+   * either mode is never served the other mode's function.
    *
    * @param  {string} pathname    Template path; resolved via the active loader.
    * @param  {object} [options]   Per-call options. Honored: `resolveFrom`,
