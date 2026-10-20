@@ -762,7 +762,7 @@ function checkDangerousSegment(segment, d, node) {
   if (d.dangerousProps.indexOf(segment) !== -1) {
     var line = (node && node.loc && node.loc.line) || undefined;
     var filename = (node && node.loc && node.loc.filename) || undefined;
-    d.throwError('Unsafe access to "' + segment + '" is not allowed in templates (CVE-2023-25345)', line, filename);
+    d.throwError('Unsafe access to "' + segment + '" is not allowed in templates (prototype-chain guard)', line, filename);
   }
 }
 

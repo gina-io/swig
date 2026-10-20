@@ -108,7 +108,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
 
   function checkName(name) {
     if (_dangerousProps.indexOf(name) !== -1) {
-      utils.throwError('Unsafe filter name "' + name + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+      utils.throwError('Unsafe filter name "' + name + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
   }
 

@@ -57,7 +57,7 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
     it('blocks a dangerous assignment target', function () {
       expect(function () {
         render('{% set __proto__ = 1 %}');
-      }).to.throwError(/CVE-2023-25345/);
+      }).to.throwError(/prototype-chain guard/);
     });
 
     it('blocks a dangerous name after a space before the dot (its own DOTKEY token)', function () {
@@ -152,7 +152,7 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
     });
 
     it('rejects a dangerous loop variable', function () {
-      expect(function () { render('{% for __proto__ in items %}x{% endfor %}'); }).to.throwError(/CVE-2023-25345/);
+      expect(function () { render('{% for __proto__ in items %}x{% endfor %}'); }).to.throwError(/prototype-chain guard/);
     });
 
     it('rejects a dotted loop variable', function () {
@@ -172,7 +172,7 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
     });
 
     it('rejects a dangerous block name', function () {
-      expect(function () { render('{% block __proto__ %}x{% endblock %}'); }).to.throwError(/CVE-2023-25345/);
+      expect(function () { render('{% block __proto__ %}x{% endblock %}'); }).to.throwError(/prototype-chain guard/);
     });
 
     it('rejects a dotted block name', function () {
@@ -294,11 +294,11 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
     });
 
     it('rejects a dangerous macro name', function () {
-      expect(function () { render('{% macro __proto__() %}x{% endmacro %}'); }).to.throwError(/CVE-2023-25345/);
+      expect(function () { render('{% macro __proto__() %}x{% endmacro %}'); }).to.throwError(/prototype-chain guard/);
     });
 
     it('rejects a dangerous parameter name', function () {
-      expect(function () { render('{% macro f(constructor) %}x{% endmacro %}'); }).to.throwError(/CVE-2023-25345/);
+      expect(function () { render('{% macro f(constructor) %}x{% endmacro %}'); }).to.throwError(/prototype-chain guard/);
     });
 
     it('rejects a dotted macro name', function () {
@@ -362,7 +362,7 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
         'forms.html': '{% macro a() %}A{% endmacro %}',
         'page.html': '{% import "forms.html" as __proto__ %}'
       });
-      expect(function () { mj.renderFile('page.html', {}); }).to.throwError(/CVE-2023-25345/);
+      expect(function () { mj.renderFile('page.html', {}); }).to.throwError(/prototype-chain guard/);
     });
 
     it('rejects a dotted import alias', function () {
@@ -433,7 +433,7 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
         'forms.html': '{% macro a() %}A{% endmacro %}',
         'page.html': '{% from "forms.html" import a as __proto__ %}'
       });
-      expect(function () { mj.renderFile('page.html', {}); }).to.throwError(/CVE-2023-25345/);
+      expect(function () { mj.renderFile('page.html', {}); }).to.throwError(/prototype-chain guard/);
     });
 
   });
@@ -489,7 +489,7 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
     });
 
     it('rejects a dangerous filter name', function () {
-      expect(function () { render('{% filter __proto__ %}x{% endfilter %}'); }).to.throwError(/CVE-2023-25345/);
+      expect(function () { render('{% filter __proto__ %}x{% endfilter %}'); }).to.throwError(/prototype-chain guard/);
     });
 
   });
@@ -522,7 +522,7 @@ describe('@rhinostone/swig-jinja2 — tags', function () {
     });
 
     it('rejects a dangerous assignment target', function () {
-      expect(function () { render('{% with __proto__ = 1 %}{% endwith %}'); }).to.throwError(/CVE-2023-25345/);
+      expect(function () { render('{% with __proto__ = 1 %}{% endwith %}'); }).to.throwError(/prototype-chain guard/);
     });
 
     it('rejects a dotted assignment target', function () {

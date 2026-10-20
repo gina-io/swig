@@ -43,7 +43,7 @@ describe('@rhinostone/swig-django — region tags', function () {
   });
 
   it('rejects a dangerous with-assignment name', function () {
-    expect(threw(function () { r('{% with __proto__=1 %}x{% endwith %}'); })).to.contain('CVE-2023-25345');
+    expect(threw(function () { r('{% with __proto__=1 %}x{% endwith %}'); })).to.contain('prototype-chain guard');
   });
 
   it('rejects a bare with tag (no assignments)', function () {

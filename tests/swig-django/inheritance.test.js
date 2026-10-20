@@ -41,7 +41,7 @@ describe('@rhinostone/swig-django — block / extends / include', function () {
   });
 
   it('rejects a dangerous block name', function () {
-    expect(threw(function () { r('{% block __proto__ %}x{% endblock %}'); })).to.contain('CVE-2023-25345');
+    expect(threw(function () { r('{% block __proto__ %}x{% endblock %}'); })).to.contain('prototype-chain guard');
   });
 
   it('rejects a dotted block name', function () {
@@ -130,7 +130,7 @@ describe('@rhinostone/swig-django — block / extends / include', function () {
 
   it('rejects a dangerous with-assignment name', function () {
     var m = inst({ 'page.html': '{% include "p.html" with __proto__=1 %}', 'p.html': 'x' });
-    expect(threw(function () { m.renderFile('page.html', {}); })).to.contain('CVE-2023-25345');
+    expect(threw(function () { m.renderFile('page.html', {}); })).to.contain('prototype-chain guard');
   });
 
   it('rejects a with clause with no assignments', function () {

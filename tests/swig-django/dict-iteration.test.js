@@ -101,7 +101,7 @@ describe('@rhinostone/swig-django — dict iteration', function () {
 
   it('rejects a dangerous segment before the pseudo-method', function () {
     expect(threw(function () { r('{% for k, v in d.__proto__.items %}{% endfor %}', { d: d }); }))
-      .to.contain('CVE-2023-25345');
+      .to.contain('prototype-chain guard');
   });
 
   /* ---- documented divergences (locked) ------------------------ */

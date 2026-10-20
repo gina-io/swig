@@ -67,13 +67,13 @@ describe('swig-core/lib/backend — emitExpr', function () {
     it('throws CVE-2023-25345 on a dangerous segment in the path', function () {
       expect(function () {
         backend.emitExpr(ir.varRef(['__proto__']));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
       expect(function () {
         backend.emitExpr(ir.varRef(['foo', 'constructor']));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
       expect(function () {
         backend.emitExpr(ir.varRef(['foo', 'prototype', 'bar']));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
     });
 
     it('throws on an empty path', function () {
@@ -106,10 +106,10 @@ describe('swig-core/lib/backend — emitExpr', function () {
     it('still applies the parse-time CVE-2023-25345 guard with the flag set', function () {
       expect(function () {
         backend.emitExpr(resolveVar(['__proto__']));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
       expect(function () {
         backend.emitExpr(resolveVar(['foo', 'constructor']));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
     });
   });
 
@@ -142,13 +142,13 @@ describe('swig-core/lib/backend — emitExpr', function () {
     it('throws CVE-2023-25345 on a dangerous segment in the path', function () {
       expect(function () {
         backend.emitExpr(ir.varRefExists(['__proto__']));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
       expect(function () {
         backend.emitExpr(ir.varRefExists(['foo', 'constructor']));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
       expect(function () {
         backend.emitExpr(ir.varRefExists(['foo', 'prototype', 'bar']));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
     });
 
     it('throws on an empty path', function () {
@@ -174,13 +174,13 @@ describe('swig-core/lib/backend — emitExpr', function () {
     it('throws CVE-2023-25345 on a dangerous string-literal key', function () {
       expect(function () {
         backend.emitExpr(ir.access(ir.varRef(['foo']), ir.literal('string', '__proto__')));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
       expect(function () {
         backend.emitExpr(ir.access(ir.varRef(['foo']), ir.literal('string', 'constructor')));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
       expect(function () {
         backend.emitExpr(ir.access(ir.varRef(['foo']), ir.literal('string', 'prototype')));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
     });
 
     it('does not guard non-literal (runtime) keys — matches the documented scope', function () {
@@ -327,10 +327,10 @@ describe('swig-core/lib/backend — emitExpr', function () {
     it('throws CVE-2023-25345 on a dangerous segment in the callee path', function () {
       expect(function () {
         backend.emitExpr(ir.fnCall(ir.varRef(['constructor']), []));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
       expect(function () {
         backend.emitExpr(ir.fnCall(ir.varRef(['foo', 'constructor']), []));
-      }).to.throwException(/CVE-2023-25345/);
+      }).to.throwException(/prototype-chain guard/);
     });
   });
 
@@ -404,7 +404,7 @@ describe('swig-core/lib/backend — emitExpr', function () {
       expect(function () {
         backend.emitExpr(node, deps);
       }).to.throwException();
-      expect(captured.msg).to.match(/CVE-2023-25345/);
+      expect(captured.msg).to.match(/prototype-chain guard/);
       expect(captured.line).to.be(12);
       expect(captured.filename).to.be('tpl.html');
     });

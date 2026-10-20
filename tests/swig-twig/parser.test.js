@@ -952,7 +952,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% set %} tag', function ()
       parser.parse(undefined, '{% set __proto__ = "x" %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe assignment to "__proto__"/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
       expect(e.message).to.match(/tpl\.twig/);
     });
   });
@@ -1063,7 +1063,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% set %} tag', function ()
       parser.parse(undefined, '{% set __proto__ %}x{% endset %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe assignment to "__proto__"/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
       expect(e.message).to.match(/tpl\.twig/);
     });
   });
@@ -1335,7 +1335,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% for %} tag', function ()
       parser.parse(undefined, '{% for __proto__ in xs %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe loop variable "__proto__"/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
       expect(e.message).to.match(/tpl\.twig/);
     });
   });
@@ -1345,7 +1345,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% for %} tag', function ()
       parser.parse(undefined, '{% for constructor, v in xs %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe loop variable "constructor"/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1354,7 +1354,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% for %} tag', function ()
       parser.parse(undefined, '{% for k, prototype in xs %}body{% endfor %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe loop variable "prototype"/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1462,7 +1462,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% block %} tag', function 
       parser.parse(undefined, '{% block __proto__ %}body{% endblock %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe block name "__proto__"/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1768,7 +1768,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% macro %} tag', function 
       parser.parse(undefined, '{% macro __proto__() %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe macro name "__proto__" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1777,7 +1777,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% macro %} tag', function 
       parser.parse(undefined, '{% macro constructor() %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe macro name "constructor" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1786,7 +1786,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% macro %} tag', function 
       parser.parse(undefined, '{% macro prototype %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe macro name "prototype" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1795,7 +1795,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% macro %} tag', function 
       parser.parse(undefined, '{% macro foo(__proto__) %}hi{% endmacro %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe parameter "__proto__" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1965,7 +1965,7 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
       parser.parse(undefined, '{% import "forms.twig" as __proto__ %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe import alias "__proto__" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1974,7 +1974,7 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
       parser.parse(undefined, '{% import "forms.twig" as constructor %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe import alias "constructor" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -1983,7 +1983,7 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
       parser.parse(undefined, '{% import "forms.twig" as prototype %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe import alias "prototype" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -2237,7 +2237,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% apply %} tag', function 
       parser.parse(undefined, '{% apply __proto__ %}x{% endapply %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe filter name "__proto__"/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
       expect(e.message).to.match(/tpl\.twig/);
     });
   });
@@ -2507,7 +2507,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% from import %} tag', fun
       parser.parse(undefined, '{% from "forms.twig" import __proto__ %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe macro name "__proto__" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -2516,7 +2516,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% from import %} tag', fun
       parser.parse(undefined, '{% from "forms.twig" import constructor %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe macro name "constructor" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 
@@ -2525,7 +2525,7 @@ describe('@rhinostone/swig-twig — parser.parse — {% from import %} tag', fun
       parser.parse(undefined, '{% from "forms.twig" import foo as prototype %}', { filename: 'tpl.twig' }, tags, {});
     }).to.throwException(function (e) {
       expect(e.message).to.match(/Unsafe import alias "prototype" is not allowed/);
-      expect(e.message).to.match(/CVE-2023-25345/);
+      expect(e.message).to.match(/prototype-chain guard/);
     });
   });
 

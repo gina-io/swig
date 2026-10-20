@@ -107,7 +107,7 @@ function parsePairs(clause, parser, types, line, opts) {
       utils.throwError('"with" assignment target "' + nameTok.match + '" must be a bare identifier in "include" tag', line, opts.filename);
     }
     if (_dangerousProps.indexOf(nameTok.match) !== -1) {
-      utils.throwError('Unsafe "with" assignment to "' + nameTok.match + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+      utils.throwError('Unsafe "with" assignment to "' + nameTok.match + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
     pos = j + 1;
     skipWS();

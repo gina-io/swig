@@ -166,7 +166,7 @@ TokenParser.prototype = {
       if (lastState === _t.BRACKETOPEN) {
         var strippedMatch = match.replace(/^['"]|['"]$/g, '');
         if (_dangerousProps.indexOf(strippedMatch) !== -1) {
-          utils.throwError('Unsafe access to "' + strippedMatch + '" via bracket notation is not allowed in templates (CVE-2023-25345)', self.line, self.filename);
+          utils.throwError('Unsafe access to "' + strippedMatch + '" via bracket notation is not allowed in templates (prototype-chain guard)', self.line, self.filename);
         }
       }
       self.filterApplyIdx.push(self.out.length);
@@ -372,7 +372,7 @@ TokenParser.prototype = {
       }
       // CVE-2023-25345: block prototype-chain traversal via dot notation
       if (_dangerousProps.indexOf(match) !== -1) {
-        utils.throwError('Unsafe access to "' + match + '" is not allowed in templates (CVE-2023-25345)', self.line, self.filename);
+        utils.throwError('Unsafe access to "' + match + '" is not allowed in templates (prototype-chain guard)', self.line, self.filename);
       }
       self.out.push('.' + match);
       break;
@@ -404,7 +404,7 @@ TokenParser.prototype = {
     // CVE-2023-25345: block prototype-chain property access
     utils.each(match, function (segment) {
       if (_dangerousProps.indexOf(segment) !== -1) {
-        utils.throwError('Unsafe access to "' + segment + '" is not allowed in templates (CVE-2023-25345)', self.line, self.filename);
+        utils.throwError('Unsafe access to "' + segment + '" is not allowed in templates (prototype-chain guard)', self.line, self.filename);
       }
     });
 
@@ -472,12 +472,12 @@ TokenParser.prototype = {
     }
     function guardSegment(segment) {
       if (_dangerousProps.indexOf(segment) !== -1) {
-        bail('Unsafe access to "' + segment + '" is not allowed in templates (CVE-2023-25345)');
+        bail('Unsafe access to "' + segment + '" is not allowed in templates (prototype-chain guard)');
       }
     }
     function guardBracketString(value) {
       if (_dangerousProps.indexOf(value) !== -1) {
-        bail('Unsafe access to "' + value + '" via bracket notation is not allowed in templates (CVE-2023-25345)');
+        bail('Unsafe access to "' + value + '" via bracket notation is not allowed in templates (prototype-chain guard)');
       }
     }
 

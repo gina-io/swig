@@ -163,7 +163,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
       utils.throwError('Loop variable "' + tok.match + '" must be a bare identifier in "for" tag', line, opts.filename);
     }
     if (_dangerousProps.indexOf(tok.match) !== -1) {
-      utils.throwError('Unsafe loop variable "' + tok.match + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+      utils.throwError('Unsafe loop variable "' + tok.match + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
     return tok.match;
   }

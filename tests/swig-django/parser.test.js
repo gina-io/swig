@@ -162,22 +162,22 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
   /* ---- CVE-2023-25345 guards ---------------------------------- */
 
   it('blocks __proto__ / constructor / prototype as a bare identifier', function () {
-    expect(function () { parse('__proto__'); }).to.throwError(/CVE-2023-25345/);
-    expect(function () { parse('constructor'); }).to.throwError(/CVE-2023-25345/);
-    expect(function () { parse('prototype'); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse('__proto__'); }).to.throwError(/prototype-chain guard/);
+    expect(function () { parse('constructor'); }).to.throwError(/prototype-chain guard/);
+    expect(function () { parse('prototype'); }).to.throwError(/prototype-chain guard/);
   });
 
   it('blocks a dangerous dotted-path segment', function () {
-    expect(function () { parse('foo.__proto__'); }).to.throwError(/CVE-2023-25345/);
-    expect(function () { parse('foo.constructor'); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse('foo.__proto__'); }).to.throwError(/prototype-chain guard/);
+    expect(function () { parse('foo.constructor'); }).to.throwError(/prototype-chain guard/);
   });
 
   it('blocks a dangerous bracket-string access', function () {
-    expect(function () { parse('foo["__proto__"]'); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse('foo["__proto__"]'); }).to.throwError(/prototype-chain guard/);
   });
 
   it('blocks a dangerous variable inside a colon-filter argument', function () {
-    expect(function () { parse('x|default:__proto__'); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse('x|default:__proto__'); }).to.throwError(/prototype-chain guard/);
   });
 
 });

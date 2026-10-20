@@ -106,7 +106,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     utils.throwError('Import alias "' + aliasTok.match + '" must be a bare identifier in "import" tag', line, opts.filename);
   }
   if (_dangerousProps.indexOf(aliasTok.match) !== -1) {
-    utils.throwError('Unsafe import alias "' + aliasTok.match + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+    utils.throwError('Unsafe import alias "' + aliasTok.match + '" is not allowed (prototype-chain guard)', line, opts.filename);
   }
 
   if (peek()) {

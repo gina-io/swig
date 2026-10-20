@@ -59,7 +59,7 @@ function guardName(name, line, opts) {
     utils.throwError('"with" assignment target "' + name + '" must be a bare identifier', line, opts.filename);
   }
   if (_dangerousProps.indexOf(name) !== -1) {
-    utils.throwError('Unsafe "with" assignment to "' + name + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+    utils.throwError('Unsafe "with" assignment to "' + name + '" is not allowed (prototype-chain guard)', line, opts.filename);
   }
 }
 

@@ -133,11 +133,11 @@ describe('@rhinostone/swig-django — for / empty / forloop', function () {
   /* ---- security + bare-identifier guards (CVE-2023-25345) ------ */
 
   it('rejects __proto__ as a loop variable', function () {
-    expect(threw('{% for __proto__ in items %}{% endfor %}', { items: ['a'] })).to.contain('CVE-2023-25345');
+    expect(threw('{% for __proto__ in items %}{% endfor %}', { items: ['a'] })).to.contain('prototype-chain guard');
   });
 
   it('rejects constructor as a loop key', function () {
-    expect(threw('{% for constructor, v in items %}{% endfor %}', { items: ['a'] })).to.contain('CVE-2023-25345');
+    expect(threw('{% for constructor, v in items %}{% endfor %}', { items: ['a'] })).to.contain('prototype-chain guard');
   });
 
   it('rejects a dotted loop variable', function () {

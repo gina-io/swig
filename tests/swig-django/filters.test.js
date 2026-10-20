@@ -277,7 +277,7 @@ describe('@rhinostone/swig-django — filters', function () {
 
     it('a dangerous prop in a filter input is rejected', function () {
       expect(threw(function () { r('{{ foo.__proto__|upper }}', { foo: {} }); }))
-        .to.contain('CVE-2023-25345');
+        .to.contain('prototype-chain guard');
     });
 
     it('a filter chain does not leak an arg onto a later filter', function () {

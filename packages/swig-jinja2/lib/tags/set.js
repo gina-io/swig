@@ -81,7 +81,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   var path = lhsTok.match.split('.');
   utils.each(path, function (segment) {
     if (_dangerousProps.indexOf(segment) !== -1) {
-      utils.throwError('Unsafe assignment to "' + segment + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+      utils.throwError('Unsafe assignment to "' + segment + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
   });
 
@@ -92,7 +92,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   while (peek() && peek().type === types.DOTKEY) {
     var dk = consume();
     if (_dangerousProps.indexOf(dk.match) !== -1) {
-      utils.throwError('Unsafe assignment to "' + dk.match + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+      utils.throwError('Unsafe assignment to "' + dk.match + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
     path.push(dk.match);
   }

@@ -352,24 +352,24 @@ describe('@rhinostone/swig-jinja2 — parser (expression subset)', function () {
   /* ---- CVE-2023-25345 guards ----------------------------------- */
 
   it('blocks __proto__ as a bare variable', function () {
-    expect(function () { parse('__proto__'); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse('__proto__'); }).to.throwError(/prototype-chain guard/);
   });
 
   it('blocks a dangerous segment inside a dotted path', function () {
-    expect(function () { parse('a.__proto__'); }).to.throwError(/CVE-2023-25345/);
-    expect(function () { parse('a.constructor'); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse('a.__proto__'); }).to.throwError(/prototype-chain guard/);
+    expect(function () { parse('a.constructor'); }).to.throwError(/prototype-chain guard/);
   });
 
   it('blocks a dangerous DOTKEY after a bracket access', function () {
-    expect(function () { parse('arr[0].__proto__'); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse('arr[0].__proto__'); }).to.throwError(/prototype-chain guard/);
   });
 
   it('blocks a dangerous string bracket key', function () {
-    expect(function () { parse("obj['__proto__']"); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse("obj['__proto__']"); }).to.throwError(/prototype-chain guard/);
   });
 
   it('blocks a dangerous function callee name', function () {
-    expect(function () { parse("constructor('return 1')"); }).to.throwError(/CVE-2023-25345/);
+    expect(function () { parse("constructor('return 1')"); }).to.throwError(/prototype-chain guard/);
   });
 
   /* ---- Fail-close ---------------------------------------------- */

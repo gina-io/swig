@@ -80,9 +80,9 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
     });
 
     it('fires CVE-2023-25345 on every path segment', function () {
-      expect(function () { parse('__proto__'); }).to.throwException(/CVE-2023-25345/);
-      expect(function () { parse('foo.constructor'); }).to.throwException(/CVE-2023-25345/);
-      expect(function () { parse('foo.prototype.bar'); }).to.throwException(/CVE-2023-25345/);
+      expect(function () { parse('__proto__'); }).to.throwException(/prototype-chain guard/);
+      expect(function () { parse('foo.constructor'); }).to.throwException(/prototype-chain guard/);
+      expect(function () { parse('foo.prototype.bar'); }).to.throwException(/prototype-chain guard/);
     });
   });
 
@@ -105,9 +105,9 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
     });
 
     it('fires CVE-2023-25345 on a dangerous string-literal key', function () {
-      expect(function () { parse('foo["__proto__"]'); }).to.throwException(/CVE-2023-25345/);
-      expect(function () { parse('foo["constructor"]'); }).to.throwException(/CVE-2023-25345/);
-      expect(function () { parse('foo["prototype"]'); }).to.throwException(/CVE-2023-25345/);
+      expect(function () { parse('foo["__proto__"]'); }).to.throwException(/prototype-chain guard/);
+      expect(function () { parse('foo["constructor"]'); }).to.throwException(/prototype-chain guard/);
+      expect(function () { parse('foo["prototype"]'); }).to.throwException(/prototype-chain guard/);
     });
 
     it('does not guard a runtime (variable) key — matches documented scope', function () {
@@ -123,7 +123,7 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
     });
 
     it('fires CVE-2023-25345 on a DOTKEY after BRACKETCLOSE', function () {
-      expect(function () { parse('foo["bar"].__proto__'); }).to.throwException(/CVE-2023-25345/);
+      expect(function () { parse('foo["bar"].__proto__'); }).to.throwException(/prototype-chain guard/);
     });
   });
 
@@ -153,11 +153,11 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
     });
 
     it('fires CVE-2023-25345 on a dangerous function name', function () {
-      expect(function () { parse('constructor()'); }).to.throwException(/CVE-2023-25345/);
+      expect(function () { parse('constructor()'); }).to.throwException(/prototype-chain guard/);
     });
 
     it('fires CVE-2023-25345 on a dangerous method-call path', function () {
-      expect(function () { parse('foo.constructor(x)'); }).to.throwException(/CVE-2023-25345/);
+      expect(function () { parse('foo.constructor(x)'); }).to.throwException(/prototype-chain guard/);
     });
   });
 

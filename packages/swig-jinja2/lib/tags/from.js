@@ -91,7 +91,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
       utils.throwError(role + ' "' + name + '" must be a bare identifier in "from" tag', line, opts.filename);
     }
     if (_dangerousProps.indexOf(name) !== -1) {
-      utils.throwError('Unsafe ' + role.toLowerCase() + ' "' + name + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+      utils.throwError('Unsafe ' + role.toLowerCase() + ' "' + name + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
   }
 

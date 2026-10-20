@@ -99,11 +99,11 @@ describe('@rhinostone/swig-django — variable resolver (change B)', function ()
   /* ---- CVE-2023-25345 parse-time guard still fires ------------ */
 
   it('rejects __proto__ in a resolved dotted path (CVE-2023-25345)', function () {
-    expect(threw(function () { r('{{ a.__proto__ }}', { a: {} }); })).to.contain('CVE-2023-25345');
+    expect(threw(function () { r('{{ a.__proto__ }}', { a: {} }); })).to.contain('prototype-chain guard');
   });
 
   it('rejects constructor in a resolved dotted path (CVE-2023-25345)', function () {
-    expect(threw(function () { r('{{ a.constructor }}', { a: {} }); })).to.contain('CVE-2023-25345');
+    expect(threw(function () { r('{{ a.constructor }}', { a: {} }); })).to.contain('prototype-chain guard');
   });
 
 });

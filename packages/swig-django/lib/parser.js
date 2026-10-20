@@ -115,12 +115,12 @@ exports.parseExpr = function (tokens, filters, _posOut) {
 
   function guardSegment(segment) {
     if (_dangerousProps.indexOf(segment) !== -1) {
-      bail('Unsafe access to "' + segment + '" is not allowed in templates (CVE-2023-25345)');
+      bail('Unsafe access to "' + segment + '" is not allowed in templates (prototype-chain guard)');
     }
   }
   function guardBracketString(value) {
     if (_dangerousProps.indexOf(value) !== -1) {
-      bail('Unsafe access to "' + value + '" via bracket notation is not allowed in templates (CVE-2023-25345)');
+      bail('Unsafe access to "' + value + '" via bracket notation is not allowed in templates (prototype-chain guard)');
     }
   }
 

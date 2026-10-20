@@ -56,7 +56,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     utils.throwError('Block name "' + nameTok.match + '" must be a bare identifier', line, opts.filename);
   }
   if (_dangerousProps.indexOf(nameTok.match) !== -1) {
-    utils.throwError('Unsafe block name "' + nameTok.match + '" is not allowed (CVE-2023-25345)', line, opts.filename);
+    utils.throwError('Unsafe block name "' + nameTok.match + '" is not allowed (prototype-chain guard)', line, opts.filename);
   }
 
   pos += 1;

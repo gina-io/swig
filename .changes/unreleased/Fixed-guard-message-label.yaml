@@ -1,0 +1,5 @@
+kind: fixed
+body: 'The error messages of the prototype-chain guards, in every package, end with (prototype-chain guard) instead of (CVE-2023-25345). That CVE is the directory traversal through include and extends that 2.7.1 fixed in the filesystem loader, whose message keeps the label; the guards block access to __proto__, constructor and prototype. Code that matched the old text has to match the new one.'
+time: 2026-10-20T22:51:30.000000Z
+custom:
+  Issue: ""
