@@ -878,10 +878,32 @@ exports.phone2numeric = function (input) {
   });
 };
 
+/*!
+ * Parse a string as Python's `float()` does: surrounding whitespace, an
+ * optional sign, then digits (single underscores allowed between them)
+ * with an optional fraction and exponent, or inf / infinity / nan in any
+ * case. Returns undefined where Python raises ValueError. @private
+ */
+function pyFloat(s) {
+  var t = s.replace(/^\s+|\s+$/g, '');
+  if (/^[+-]?(inf|infinity)$/i.test(t)) {
+    return (t.charAt(0) === '-') ? -Infinity : Infinity;
+  }
+  if (/^[+-]?nan$/i.test(t)) {
+    return NaN;
+  }
+  if (!/^[+-]?(\d(_?\d)*(\.(\d(_?\d)*)?)?|\.\d(_?\d)*)([eE][+-]?\d(_?\d)*)?$/.test(t)) {
+    return undefined;
+  }
+  return parseFloat(t.replace(/_/g, ''));
+}
+
 /**
  * Return a plural suffix based on a count (Django's `pluralize`). With no
  * argument the suffix is `"s"`; a `"singular,plural"` argument supplies both
- * forms. The count may be a number or anything with a `length`.
+ * forms. As in Django, a number or boolean is compared with 1, a string must
+ * parse as a Python float (otherwise the result is the empty string), and a
+ * list or mapping counts its items; any other input gives the empty string.
  *
  * @example
  * message{{ 2|pluralize }}
@@ -911,12 +933,21 @@ exports.pluralize = function (input, arg) {
   singular = bits[0];
   plural = bits[1];
 
-  n = parseFloat(input);
-  if (typeof input === 'number' || (typeof input === 'string' && input.replace(/^\s+|\s+$/g, '') !== '' && !isNaN(n))) {
+  if (typeof input === 'number' || typeof input === 'boolean') {
+    return Number(input) === 1 ? singular : plural;
+  }
+  if (typeof input === 'string') {
+    n = pyFloat(input);
+    if (n === undefined) {
+      return '';
+    }
     return n === 1 ? singular : plural;
   }
-  if (input !== null && input !== undefined && typeof input.length === 'number') {
+  if (utils.isArray(input)) {
     return input.length === 1 ? singular : plural;
+  }
+  if (Object.prototype.toString.call(input) === '[object Object]') {
+    return utils.keys(input).length === 1 ? singular : plural;
   }
   return '';
 };
