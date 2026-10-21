@@ -1,7 +1,7 @@
 @rhinostone/swig-jinja2
 =======================
 
-[![NPM version](https://img.shields.io/npm/v/@rhinostone/swig-jinja2.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig-jinja2) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig-jinja2)](https://socket.dev/npm/package/@rhinostone/swig-jinja2)
+[![NPM version](https://img.shields.io/npm/v/@rhinostone/swig-jinja2.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig-jinja2) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig-jinja2)](https://socket.dev/npm/package/@rhinostone/swig-jinja2) [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/gina-io/swig?label=openssf%20scorecard&style=flat)](https://scorecard.dev/viewer/?uri=github.com/gina-io/swig)
 
 Jinja2-syntax frontend for the [@rhinostone/swig-core](https://www.npmjs.com/package/@rhinostone/swig-core) template engine. Part of the multi-flavor architecture introduced in `2.0.0` — see [ROADMAP.md](https://github.com/gina-io/swig/blob/develop/ROADMAP.md) for the release narrative.
 

@@ -1,7 +1,7 @@
 @rhinostone/swig-core
 =====================
 
-[![NPM version](https://img.shields.io/npm/v/@rhinostone/swig-core.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig-core) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig-core)](https://socket.dev/npm/package/@rhinostone/swig-core)
+[![NPM version](https://img.shields.io/npm/v/@rhinostone/swig-core.svg?style=flat)](https://www.npmjs.com/package/@rhinostone/swig-core) [![Socket Badge](https://socket.dev/api/badge/npm/package/@rhinostone/swig-core)](https://socket.dev/npm/package/@rhinostone/swig-core) [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/gina-io/swig?label=openssf%20scorecard&style=flat)](https://scorecard.dev/viewer/?uri=github.com/gina-io/swig)
 
 > **Shared runtime** for the `@rhinostone/swig` family of template engines. Not intended for direct consumption unless you are building a custom frontend. Install [@rhinostone/swig](https://www.npmjs.com/package/@rhinostone/swig) for the default Swig (Jinja2/Django-inspired) flavor, [@rhinostone/swig-twig](https://www.npmjs.com/package/@rhinostone/swig-twig) for the Twig flavor, [@rhinostone/swig-jinja2](https://www.npmjs.com/package/@rhinostone/swig-jinja2) for the Python Jinja2 flavor, or [@rhinostone/swig-django](https://www.npmjs.com/package/@rhinostone/swig-django) for the Django flavor — they all pull this package in pinned to the matching version.
 
