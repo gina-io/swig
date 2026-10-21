@@ -27,6 +27,11 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Completed
 
+### v2.8.3 (October 2026)
+
+- Security: the template compiler escapes the including template's filename before writing it into the compiled function body, so a double quote in a `filename` option can no longer break out of the generated string literal (GHSA-q89c). Escaping is centralized in the code generator, which also fixes a latent broken-JS bug for backslash paths through `import`, `from` and `extends`.
+- All five packages released in lockstep at `2.8.3`.
+
 ### v2.8.2 (October 2026)
 
 - Fixed two hangs that request data can reach. swig-jinja2's `wordwrap` with a width below 1, as a number or as a string such as `"0"`, ran for four to six seconds and took more than 2 GB of memory before a RangeError; it now returns the input unchanged, and a width between 0 and 1 breaks one character at a time. swig-twig's `a..b` with an infinite bound, which plain JSON produces for a number such as `1e999`, looped until the array overflowed; the range is now empty.
