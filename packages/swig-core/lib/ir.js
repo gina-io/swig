@@ -153,7 +153,7 @@
  * @property {IRExpr} [context]               Explicit locals for the included template.
  * @property {boolean} [isolated]             Maps to Twig's `only`.
  * @property {boolean} [ignoreMissing]        Swallow loader errors when the file is missing.
- * @property {string} [resolveFrom]           Including template's filename (backslash-escaped) for loader-relative resolution.
+ * @property {string} [resolveFrom]           Including template's filename (escaped at emit time) for loader-relative resolution.
  * @property {IRLoc} [loc]
  */
 

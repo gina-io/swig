@@ -391,9 +391,10 @@ exports.compile = function (template, parents, options, blockName) {
       // else verbatim string fallback preserves the userland setTag
       // path (compile functions that still hand in raw JS-source
       // fragments). `resolveFrom` is a plain filesystem path that must
-      // be JSON-escaped into a string literal — the frontend's
-      // include-tag parse handler has already applied a `\\` → `\\\\`
-      // backslash escape before handing it off. `ignoreMissing` wraps
+      // be escaped into a string literal — escapeTextValue below (backslash,
+      // newline, double-quote) is the single chokepoint that does it for all
+      // five node types, every flavor and userland setTag, so no unescaped
+      // filename can break out of the literal (GHSA-q89c). `ignoreMissing` wraps
       // the emission in `try { ... } catch (e) {}` so missing-file
       // errors collapse to the empty string.
       var incPathJS, incCtxJS;
@@ -419,7 +420,7 @@ exports.compile = function (template, parents, options, blockName) {
       }
       out += (node.ignoreMissing ? '  try {\n' : '') +
         '_output += _swig.compileFile(' + incPathJS + ', {' +
-        'resolveFrom: "' + node.resolveFrom + '"' +
+        'resolveFrom: "' + escapeTextValue(node.resolveFrom || '') + '"' +
         '})(' + incSelector + ');\n' +
         (node.ignoreMissing ? '} catch (e) {}\n' : '');
       return;
@@ -453,7 +454,7 @@ exports.compile = function (template, parents, options, blockName) {
       } else {
         incdSelector = '_utils.extend({}, _ctx, ' + incdCtxJS + ')';
       }
-      var incdOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
+      var incdOpts = '{resolveFrom: "' + escapeTextValue(node.resolveFrom || '') + '"}';
       out += (node.ignoreMissing ? '  try {\n' : '') +
         '_output += (await (await _swig.getTemplate(' + incdPathJS + ', ' + incdOpts + '))(' + incdSelector + ')).output;\n' +
         (node.ignoreMissing ? '} catch (e) {}\n' : '');
@@ -475,7 +476,7 @@ exports.compile = function (template, parents, options, blockName) {
       } else {
         impdPathJS = node.path;
       }
-      var impdOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
+      var impdOpts = '{resolveFrom: "' + escapeTextValue(node.resolveFrom || '') + '"}';
       out += '_ctx.' + node.alias + ' = (await (await _swig.getTemplate(' + impdPathJS + ', ' + impdOpts + '))(_ctx)).exports;\n';
       return;
     }
@@ -500,7 +501,7 @@ exports.compile = function (template, parents, options, blockName) {
       } else {
         fromdPathJS = node.path;
       }
-      var fromdOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
+      var fromdOpts = '{resolveFrom: "' + escapeTextValue(node.resolveFrom || '') + '"}';
       var fromdBindings = '';
       utils.each(fromdImports, function (entry) {
         var bindName = entry.alias || entry.name;
@@ -569,7 +570,7 @@ exports.compile = function (template, parents, options, blockName) {
       } else {
         extPathJS = node.path;
       }
-      var extOpts = '{resolveFrom: "' + (node.resolveFrom || '') + '"}';
+      var extOpts = '{resolveFrom: "' + escapeTextValue(node.resolveFrom || '') + '"}';
       out += 'var _parentTpl = await _swig.getTemplate(' + extPathJS + ', ' + extOpts + ');\n';
       out += 'var _parentResult = await _parentTpl(_ctx, _mergedBlocks);\n';
       out += '_output = _parentResult.output;\n';

@@ -1,0 +1,5 @@
+kind: security
+body: 'The template compiler now escapes the including template filename (resolveFrom) before writing it into the compiled function body, so a double quote in a filename option can no longer break out of the generated string literal (GHSA-q89c). Escaping is centralized in the code generator, which also fixes a latent broken-JS bug for backslash paths through import, from and extends.'
+time: 2026-10-21T07:45:49Z
+custom:
+  Issue: ""

@@ -178,7 +178,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   }
   var pathExpr = parser.parseExpr(pathTokens);
 
-  var resolveFrom = (opts.filename || '').replace(/\\/g, '\\\\');
+  var resolveFrom = (opts.filename || '');
   token.irExpr = ir.include(pathExpr, ctxExpr, isolated, false, resolveFrom);
   return true;
 };

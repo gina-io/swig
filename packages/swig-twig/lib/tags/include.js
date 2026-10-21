@@ -28,8 +28,8 @@
  * `try { ... } catch {}` wrapper that collapses missing-file errors to
  * the empty string when `ignoreMissing` is set.
  *
- * `resolveFrom` is the template's own filename (backslash-escaped so
- * Windows paths round-trip through the JSON-literal emit). The native
+ * `resolveFrom` is the template's own filename; the backend escapes it at emit time
+ * (GHSA-q89c), so Windows paths and quotes round-trip through the literal. The native
  * parser's splitter passes it in as a trailing arg; Twig's
  * tag-dispatch shape carries it via `opts.filename`.
  */
@@ -125,7 +125,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     ctxExpr = parser.parseExpr(ctxTokens);
   }
 
-  var resolveFrom = (opts.filename || '').replace(/\\/g, '\\\\');
+  var resolveFrom = (opts.filename || '');
 
   token.irExpr = ir.include(
     pathExpr,

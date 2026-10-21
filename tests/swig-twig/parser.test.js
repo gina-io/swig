@@ -1646,10 +1646,15 @@ describe('@rhinostone/swig-twig — parser.parse — {% include %} tag', functio
     expect(tok.irExpr.ignoreMissing).to.equal(true);
   });
 
-  it('escapes backslashes in resolveFrom for Windows paths', function () {
+  it('escapes backslashes in resolveFrom for Windows paths (at the backend)', function () {
+    var twig = require('@rhinostone/swig-twig');
     var tree = parser.parse(undefined, '{% include "p.twig" %}', { filename: 'C:\\templates\\tpl.twig' }, tags, {});
     var tok = tree.tokens[0];
-    expect(tok.irExpr.resolveFrom).to.equal('C:\\\\templates\\\\tpl.twig');
+    // GHSA-q89c moved resolveFrom escaping from the parser to the backend
+    // emitter: the parser stores the raw filename, the backend escapes it.
+    expect(tok.irExpr.resolveFrom).to.equal('C:\\templates\\tpl.twig');
+    var body = twig.precompile('{% include "p.twig" %}', { filename: 'C:\\templates\\tpl.twig' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "C:\\\\templates\\\\tpl.twig"');
   });
 
   it('throws on missing path', function () {

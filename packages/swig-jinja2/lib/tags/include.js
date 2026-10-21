@@ -122,7 +122,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   }
   var pathExpr = parser.parseExpr(pathTokens);
 
-  var resolveFrom = (opts.filename || '').replace(/\\/g, '\\\\');
+  var resolveFrom = (opts.filename || '');
 
   // `without context` -> empty-object context + isolated, so the backend's
   // Include selector emits `{}` rather than `_ctx`. `with context` (and the

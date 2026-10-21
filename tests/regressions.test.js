@@ -290,3 +290,43 @@ describe('Regressions', function () {
     expect(Object.keys(deps)).to.eql(['@rhinostone/swig-core']);
   });
 });
+
+describe('GHSA-q89c: resolveFrom filename escaping', function () {
+  var twig = require('@rhinostone/swig-twig');
+
+  // A double quote in the `filename` option must not break out of the
+  // resolveFrom string literal in the compiled body (GHSA-q89c). precompile
+  // builds the function via new Function / AsyncFunction, so an unescaped
+  // quote throws here on the unpatched code; the escaped literal is asserted.
+  it('sync include: escapes a double quote in the filename', function () {
+    var body = swig.precompile('{% include "p.html" %}', { filename: 'a"b.html' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "a\\"b.html"');
+  });
+
+  it('async include: escapes a double quote in the filename', function () {
+    var body = swig.precompile('{% include "p.html" %}', { filename: 'a"b.html', codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "a\\"b.html"');
+  });
+
+  it('async import: escapes a double quote in the filename', function () {
+    var body = swig.precompile('{% import "m.html" as m %}', { filename: 'a"b.html', codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "a\\"b.html"');
+  });
+
+  it('async extends: escapes a double quote in the filename', function () {
+    var body = swig.precompile('{% extends "b.html" %}', { filename: 'a"b.html', codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "a\\"b.html"');
+  });
+
+  it('async from import (twig): escapes a double quote in the filename', function () {
+    var body = twig.precompile('{% from "m.twig" import a %}', { filename: 'a"b.html', codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "a\\"b.html"');
+  });
+
+  // import / from / extends passed resolveFrom raw, so a backslash in the
+  // filename produced broken JS before the fix (latent Windows-path bug).
+  it('async import: escapes backslashes in the filename', function () {
+    var body = swig.precompile('{% import "m.html" as m %}', { filename: 'C:\\d\\f.html', codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "C:\\\\d\\\\f.html"');
+  });
+});
