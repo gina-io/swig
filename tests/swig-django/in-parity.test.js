@@ -69,4 +69,34 @@ describe('@rhinostone/swig-django — membership parity with Django', function (
       expect(render('{% if "b" in "abc" %}Y{% else %}N{% endif %}', {})).to.equal('Y');
     });
   });
+
+  describe('`not in` is the negated test, as in the reference engine', function () {
+    it('a list, a string and a mapping', function () {
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 4, y: [1, 2, 3] })).to.equal('Y');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 1, y: [1, 2, 3] })).to.equal('N');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 'z', y: 'abc' })).to.equal('Y');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 'b', y: 'abc' })).to.equal('N');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 'a', y: { a: 1 } })).to.equal('N');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 'z', y: { a: 1 } })).to.equal('Y');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: null, y: { a: 1 } })).to.equal('Y');
+      expect(render('{% if x not  in y %}Y{% else %}N{% endif %}', { x: 4, y: [1, 2, 3] })).to.equal('Y');
+      expect(render('{% if "z" not in "abc" %}Y{% else %}N{% endif %}', {})).to.equal('Y');
+    });
+    it('a test the reference cannot run', function () {
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 1, y: 5 })).to.equal('N');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 1, y: null })).to.equal('N');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 1, y: '123' })).to.equal('N');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: [1], y: { a: 1 } })).to.equal('N');
+    });
+    it('a missing value', function () {
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { y: [1] })).to.equal('Y');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 'a' })).to.equal('N');
+      expect(render('{% if x not in y %}Y{% else %}N{% endif %}', { x: 1 })).to.equal('N');
+    });
+    it('words that start with not or in are still variables', function () {
+      expect(render('{% if not in_stock %}Y{% else %}N{% endif %}', { in_stock: false })).to.equal('Y');
+      expect(render('{% if not inside %}Y{% else %}N{% endif %}', { inside: true })).to.equal('N');
+      expect(render('{% if x not in y and not z %}Y{% else %}N{% endif %}', { x: 4, y: [1, 2, 3], z: false })).to.equal('Y');
+    });
+  });
 });

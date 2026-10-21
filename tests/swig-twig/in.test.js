@@ -68,3 +68,37 @@ describe('@rhinostone/swig-twig — in', function () {
     expect(test('not x in y', { x: 5, y: [1, 2, 3] })).to.equal('N');
   });
 });
+
+/*!
+ * `not in` is the negated test, as Twig compiles it (`!inFilter`), at the
+ * level of `in`.
+ */
+describe('@rhinostone/swig-twig — not in', function () {
+
+  function test(expr, locals) {
+    return twig.render('{{ (' + expr + ') ? "Y" : "N" }}', { locals: locals });
+  }
+
+  it('negates the in test of a list, a string and a mapping', function () {
+    expect(test('x not in y', { x: 4, y: [1, 2, 3] })).to.equal('Y');
+    expect(test('x not in y', { x: 1, y: [1, 2, 3] })).to.equal('N');
+    expect(test('x not in y', { x: 'z', y: 'abc' })).to.equal('Y');
+    expect(test('x not in y', { x: 'a', y: { a: 1 } })).to.equal('Y');
+    expect(test('x not in y', { x: 1, y: { a: 1 } })).to.equal('N');
+    expect(test('1 not in [1, 2, 3]', {})).to.equal('N');
+    expect(test('"z" not in "abc"', {})).to.equal('Y');
+    expect(test('x not  in y', { x: 4, y: [1, 2, 3] })).to.equal('Y');
+  });
+
+  it('is true for a container that holds nothing', function () {
+    expect(test('x not in y', { x: 1, y: 5 })).to.equal('Y');
+    expect(test('x not in y', { x: 1, y: null })).to.equal('Y');
+    expect(test('x not in y', { x: 1 })).to.equal('Y');
+  });
+
+  it('leaves names that start with not or in to the variables', function () {
+    expect(test('not in_stock', { in_stock: false })).to.equal('Y');
+    expect(test('not inside', { inside: true })).to.equal('N');
+    expect(test('x not in y and z', { x: 4, y: [1, 2, 3], z: true })).to.equal('Y');
+  });
+});

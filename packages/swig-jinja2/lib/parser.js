@@ -22,18 +22,23 @@ function escapeRegExp(str) {
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
 /**
- * Build the IR of `left in right`: a BinaryOp `in` flagged with this
- * flavor's name, so swig-core emits Jinja2's membership test (`_utils.isIn`)
- * instead of the JavaScript `in` operator, which tests keys.
+ * Build the IR of `left in right`, or of `left not in right` when `negate`
+ * is set: a BinaryOp `in` flagged with this flavor's name, so swig-core
+ * emits Jinja2's membership test (`_utils.isIn`) instead of the JavaScript
+ * `in` operator, which tests keys.
  *
- * @param  {object} left   The needle.
- * @param  {object} right  The container.
- * @return {object}        IRBinaryOp.
+ * @param  {object}  left     The needle.
+ * @param  {object}  right    The container.
+ * @param  {boolean} [negate] The `not in` form.
+ * @return {object}           IRBinaryOp.
  * @private
  */
-function membership(left, right) {
+function membership(left, right, negate) {
   var node = ir.binaryOp('in', left, right);
   node.membership = 'jinja2';
+  if (negate) {
+    node.negate = true;
+  }
   return node;
 }
 
@@ -125,6 +130,9 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       m = tok.match;
       if (m === '===' || m === '!==' || m === '==' || m === '!=') {
         return { op: m, prec: 3 };
+      }
+      if (/^not\s+in$/.test(m)) {
+        return { op: 'not in', prec: 4 };
       }
       return { op: m, prec: 4 };
     }
@@ -484,8 +492,8 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         // Math.floor(a / b). Matches Python `//` for ints and floats,
         // including negative operands (floors toward negative infinity).
         left = ir.fnCall(ir.varRef(['Math', 'floor']), [ir.binaryOp('/', left, right)]);
-      } else if (info.op === 'in') {
-        left = membership(left, right);
+      } else if (info.op === 'in' || info.op === 'not in') {
+        left = membership(left, right, info.op === 'not in');
       } else {
         left = ir.binaryOp(info.op, left, right);
       }

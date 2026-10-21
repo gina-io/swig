@@ -74,6 +74,22 @@ describe('swig-core utils.isIn', function () {
     });
   });
 
+  describe('not in', function () {
+    it('negates the test', function () {
+      expect(utils.isIn(4, [1, 2, 3], 'jinja2', true)).to.be(true);
+      expect(utils.isIn(1, [1, 2, 3], 'django', true)).to.be(false);
+      expect(utils.isIn('a', { a: 1 }, 'twig', true)).to.be(true);
+    });
+
+    it('is false in Django, and true in Jinja2 and Twig, for a test that cannot run', function () {
+      expect(utils.isIn(1, 5, 'django', true)).to.be(false);
+      expect(utils.isIn(1, undefined, 'django', true)).to.be(false);
+      expect(utils.isIn([1], { a: 1 }, 'django', true)).to.be(false);
+      expect(utils.isIn(1, 5, 'jinja2', true)).to.be(true);
+      expect(utils.isIn(1, 5, 'twig', true)).to.be(true);
+    });
+  });
+
   describe('backend emission', function () {
     function inNode(flavor) {
       var node = ir.binaryOp('in', ir.literal('string', 'a'), ir.varRef(['items']));
@@ -87,6 +103,13 @@ describe('swig-core utils.isIn', function () {
       expect(js).to.match(/, "django"\)$/);
       expect(backend.emitExpr(inNode('twig'))).to.match(/, "twig"\)$/);
       expect(backend.emitExpr(inNode('jinja2'))).to.match(/, "jinja2"\)$/);
+    });
+
+    it('passes true as a fourth argument for not in', function () {
+      var node = inNode('twig');
+      node.negate = true;
+      expect(backend.emitExpr(node)).to.match(/, "twig", true\)$/);
+      expect(backend.emitExpr(inNode('twig'))).to.not.match(/true\)$/);
     });
 
     it('writes only a known flavor name into the code', function () {

@@ -108,7 +108,7 @@ var rules = [
   {
     type: TYPES.COMPARATOR,
     regex: [
-      /^(===|==|\!==|\!=|<=|<|>=|>|in\s)\s*/
+      /^(===|==|\!==|\!=|<=|<|>=|>|not\s+in\s|in\s)\s*/
     ],
     idx: 1
   },

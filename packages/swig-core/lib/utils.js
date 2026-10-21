@@ -464,12 +464,19 @@ function membership(needle, haystack, twig) {
  *
  * A test the engine cannot run (Jinja2 raises; Django's if tag reads it as
  * false) gives false, as does any other container, rather than an error.
+ * With `negate` (the `not in` operator) the result is negated, except that
+ * Django reads a test it cannot run as false for `not in` too.
  *
- * @param  {*}      needle
- * @param  {*}      haystack
- * @param  {string} mode     "twig", "jinja2" or "django".
+ * @param  {*}       needle
+ * @param  {*}       haystack
+ * @param  {string}  mode      "twig", "jinja2" or "django".
+ * @param  {boolean} [negate]  The `not in` form.
  * @return {boolean}
  */
-exports.isIn = function (needle, haystack, mode) {
-  return membership(needle, haystack, mode === 'twig') === true;
+exports.isIn = function (needle, haystack, mode, negate) {
+  var found = membership(needle, haystack, mode === 'twig');
+  if (found === null) {
+    return negate === true && mode !== 'django';
+  }
+  return negate === true ? !found : found;
 };

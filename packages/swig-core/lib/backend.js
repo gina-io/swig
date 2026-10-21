@@ -926,10 +926,11 @@ function emitBinaryOp(node, d) {
   }
   if (node.op === 'in') {
     // A Twig, Jinja2 or Django `in` carries its flavor name in
-    // `membership` and calls that engine's membership test; native swig
-    // keeps the JavaScript `in` operator, which tests keys.
+    // `membership` and calls that engine's membership test, which `negate`
+    // turns into `not in`; native swig keeps the JavaScript `in` operator,
+    // which tests keys.
     if (node.membership) {
-      return '_utils.isIn(' + left + ', ' + right + ', "' + membershipMode(node.membership) + '")';
+      return '_utils.isIn(' + left + ', ' + right + ', "' + membershipMode(node.membership) + '"' + (node.negate ? ', true' : '') + ')';
     }
     return left + ' in ' + right;
   }
