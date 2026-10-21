@@ -910,6 +910,14 @@ function groupOperand(node, js, unary) {
   return js;
 }
 
+/*!
+ * The flavor name `emitBinaryOp` writes into an `_utils.isIn` call: one of
+ * the three names `isIn` knows, never the flag's own text. @private
+ */
+function membershipMode(flag) {
+  return (flag === 'twig' || flag === 'django') ? flag : 'jinja2';
+}
+
 function emitBinaryOp(node, d) {
   var left = groupOperand(node.left, emitExpr(node.left, d)),
     right = groupOperand(node.right, emitExpr(node.right, d));
@@ -917,6 +925,12 @@ function emitBinaryOp(node, d) {
     return left + ' ' + node.op + ' ' + right;
   }
   if (node.op === 'in') {
+    // A Twig, Jinja2 or Django `in` carries its flavor name in
+    // `membership` and calls that engine's membership test; native swig
+    // keeps the JavaScript `in` operator, which tests keys.
+    if (node.membership) {
+      return '_utils.isIn(' + left + ', ' + right + ', "' + membershipMode(node.membership) + '")';
+    }
     return left + ' in ' + right;
   }
   // Twig/Jinja2 `~` is explicit string-concat: both sides coerce to

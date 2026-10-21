@@ -22,6 +22,22 @@ function escapeRegExp(str) {
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
 /**
+ * Build the IR of `left in right`: a BinaryOp `in` flagged with this
+ * flavor's name, so swig-core emits Twig's membership test (`_utils.isIn`)
+ * instead of the JavaScript `in` operator, which tests keys.
+ *
+ * @param  {object} left   The needle.
+ * @param  {object} right  The container.
+ * @return {object}        IRBinaryOp.
+ * @private
+ */
+function membership(left, right) {
+  var node = ir.binaryOp('in', left, right);
+  node.membership = 'twig';
+  return node;
+}
+
+/**
  * Twig expression parser — Pratt-style recursive descent.
  *
  * Consumes a flat LexerToken[] (produced by swig-twig's lexer) and
@@ -398,6 +414,8 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       var right = parseExpression(info.prec + 1);
       if (info.op === '..') {
         left = ir.fnCall(ir.varRef(['_utils', 'range']), [left, right]);
+      } else if (info.op === 'in') {
+        left = membership(left, right);
       } else {
         left = ir.binaryOp(info.op, left, right);
       }

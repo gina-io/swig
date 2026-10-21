@@ -22,6 +22,22 @@ function escapeRegExp(str) {
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
 /**
+ * Build the IR of `left in right`: a BinaryOp `in` flagged with this
+ * flavor's name, so swig-core emits Django's membership test (`_utils.isIn`)
+ * instead of the JavaScript `in` operator, which tests keys.
+ *
+ * @param  {object} left   The needle.
+ * @param  {object} right  The container.
+ * @return {object}        IRBinaryOp.
+ * @private
+ */
+function membership(left, right) {
+  var node = ir.binaryOp('in', left, right);
+  node.membership = 'django';
+  return node;
+}
+
+/**
  * Build a VarRef IR node flagged for Django-style runtime resolution. The
  * `resolve` flag makes swig-core's emitVarRef emit `_utils.resolve(_ctx,
  * path)` — dictionary / attribute / method lookup, numeric index access
@@ -453,7 +469,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         continue;
       }
       var right = parseExpression(info.prec + 1);
-      left = ir.binaryOp(info.op, left, right);
+      left = info.op === 'in' ? membership(left, right) : ir.binaryOp(info.op, left, right);
     }
     return left;
   }

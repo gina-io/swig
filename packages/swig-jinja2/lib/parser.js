@@ -22,6 +22,22 @@ function escapeRegExp(str) {
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
 /**
+ * Build the IR of `left in right`: a BinaryOp `in` flagged with this
+ * flavor's name, so swig-core emits Jinja2's membership test (`_utils.isIn`)
+ * instead of the JavaScript `in` operator, which tests keys.
+ *
+ * @param  {object} left   The needle.
+ * @param  {object} right  The container.
+ * @return {object}        IRBinaryOp.
+ * @private
+ */
+function membership(left, right) {
+  var node = ir.binaryOp('in', left, right);
+  node.membership = 'jinja2';
+  return node;
+}
+
+/**
  * Jinja2 expression parser — Pratt-style recursive descent.
  *
  * Consumes a flat LexerToken[] (produced by swig-jinja2's lexer) and
@@ -468,6 +484,8 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         // Math.floor(a / b). Matches Python `//` for ints and floats,
         // including negative operands (floors toward negative infinity).
         left = ir.fnCall(ir.varRef(['Math', 'floor']), [ir.binaryOp('/', left, right)]);
+      } else if (info.op === 'in') {
+        left = membership(left, right);
       } else {
         left = ir.binaryOp(info.op, left, right);
       }

@@ -446,6 +446,7 @@
  * @property {string} op
  * @property {IRExpr} left
  * @property {IRExpr} right
+ * @property {string} [membership] Opt-in for `in`: "twig", "jinja2" or "django" emits `_utils.isIn(left, right, mode)`, that engine's membership test; without it, the JavaScript `in` operator (native swig).
  * @property {IRLoc} [loc]
  */
 

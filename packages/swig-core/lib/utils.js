@@ -388,3 +388,88 @@ exports.resolve = function (obj, path) {
   }
   return cur;
 };
+
+/*!
+ * Item equality for `isIn`. Jinja2 and Django compare with `===` and treat
+ * null and a missing value as equal (Django reads both as None). Twig
+ * compares two scalars with `==`, as swig-twig's `==` does, and anything
+ * else by identity. @private
+ */
+function sameItem(a, b, twig) {
+  if (a === b) {
+    return true;
+  }
+  if (!twig) {
+    return (a === null || a === undefined) && (b === null || b === undefined);
+  }
+  if ((a !== null && typeof a === 'object') || (b !== null && typeof b === 'object') ||
+      typeof a === 'function' || typeof b === 'function') {
+    return false;
+  }
+  return a == b;
+}
+
+/*!
+ * The membership test of `isIn`: true or false, or null when Jinja2 and
+ * Django cannot run it, where Python raises a TypeError: a container that is
+ * not a list, a string or a mapping, a needle that is not a string tested
+ * against a string, or a list or an object tested against a mapping's keys.
+ * Twig runs every test. @private
+ */
+function membership(needle, haystack, twig) {
+  var keys, i;
+  if (typeof haystack === 'string') {
+    if (typeof needle === 'string' || (twig && typeof needle === 'number')) {
+      return haystack.indexOf(String(needle)) !== -1;
+    }
+    return twig ? false : null;
+  }
+  if (haystack === null || typeof haystack !== 'object') {
+    return twig ? false : null;
+  }
+  if (exports.isArray(haystack)) {
+    for (i = 0; i < haystack.length; i += 1) {
+      if (sameItem(needle, haystack[i], twig)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (twig) {
+    keys = Object.keys(haystack);
+    for (i = 0; i < keys.length; i += 1) {
+      if (sameItem(needle, haystack[keys[i]], true)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (typeof needle === 'string' || typeof needle === 'number') {
+    return Object.prototype.hasOwnProperty.call(haystack, String(needle));
+  }
+  return (needle !== null && typeof needle === 'object') ? null : false;
+}
+
+/**
+ * Membership test behind the `in` operator of the Twig, Jinja2 and Django
+ * frontends, which set `IRBinaryOp.membership` to their flavor name; native
+ * swig keeps the JavaScript `in` operator, which tests keys. Each flavor
+ * follows its reference engine:
+ *
+ * - Jinja2 and Django (Python's `in`): a list holds an equal item, a string
+ *   a substring (the needle must be a string), a mapping a key (a number
+ *   needle tests the key with the same digits).
+ * - Twig: a list or a mapping holds an equal value, compared loosely; a
+ *   string holds a string or number needle as a substring.
+ *
+ * A test the engine cannot run (Jinja2 raises; Django's if tag reads it as
+ * false) gives false, as does any other container, rather than an error.
+ *
+ * @param  {*}      needle
+ * @param  {*}      haystack
+ * @param  {string} mode     "twig", "jinja2" or "django".
+ * @return {boolean}
+ */
+exports.isIn = function (needle, haystack, mode) {
+  return membership(needle, haystack, mode === 'twig') === true;
+};
