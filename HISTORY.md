@@ -1,3 +1,10 @@
+[2.8.4](https://github.com/gina-io/swig/tree/v2.8.4) / 2026-10-21
+-----------------------------------------------------------------
+
+* **Fixed** A filename option that is not a string, such as a number, compiles again with import, from and extends on the async render path, as it did in 2.8.2, and include, which failed with a number in 2.8.2 as well, now compiles too. 2.8.3 escaped the filename as a string before writing it into the compiled template, so a number failed with value.replace is not a function; the filename is now converted to a string first. All four frontends.
+
+* **Fixed** The autoescape option of @rhinostone/swig now takes the name of an escape strategy, as documented: autoescape set to 'js' gives JavaScript escaping and 'html' HTML escaping. The option was written into the compiled template as code, so these values failed with ReferenceError: js is not defined, and an autoescape option built from untrusted input could run as code in the template. A value already wrapped in quotes keeps working, and a value holding a double quote or a line break is now rejected with an error. The Twig, Jinja2 and Django frontends already passed the option to the escape filter as a string.
+
 [2.8.3](https://github.com/gina-io/swig/tree/v2.8.3) / 2026-10-21
 -----------------------------------------------------------------
 

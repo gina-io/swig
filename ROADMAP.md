@@ -27,6 +27,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Completed
 
+### v2.8.4 (October 2026)
+
+- Fixed the `autoescape` option of `@rhinostone/swig` set to an escape strategy name: `'js'` and `'html'` work as documented. The value was written into the compiled template as code, so these failed with a ReferenceError and an option built from untrusted input could run as code; a value holding a double quote or a line break is now rejected with an error.
+- Fixed a `filename` option that is not a string, such as a number, which 2.8.3 no longer compiled with `import`, `from` and `extends` on the async render path; `include` now compiles with a number too. All four frontends.
+- All five packages released in lockstep at `2.8.4`.
+
 ### v2.8.3 (October 2026)
 
 - Security: the template compiler escapes the including template's filename before writing it into the compiled function body, so a double quote in a `filename` option can no longer break out of the generated string literal (GHSA-q89c). Escaping is centralized in the code generator, which also fixes a latent broken-JS bug for backslash paths through `import`, `from` and `extends`.

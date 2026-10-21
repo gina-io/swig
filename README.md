@@ -43,12 +43,12 @@ Features
 * Robust without the bloat — a single runtime dependency ([`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core)).
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
-What's new in v2.8.3
+What's new in v2.8.4
 --------------------
 
-> **Security.** If your application passes untrusted data as the `filename` option to `render`, `compile`, `precompile`, `renderFile` or `compileFile` (or a flavor equivalent), upgrade to `2.8.3`.
+* **Fixed — a string `autoescape` option names the escape strategy.** In `@rhinostone/swig`, `autoescape: 'js'` now gives JavaScript escaping and `autoescape: 'html'` HTML escaping, as documented. The option was written into the compiled template as code, so these values failed with `ReferenceError: js is not defined`, and an autoescape option built from untrusted input could run as code in the template. A value already wrapped in quotes keeps working, and a value holding a double quote or a line break is now rejected with an error. The Twig, Jinja2 and Django frontends already passed the option to the escape filter as a string.
 
-* **Security — the compiled template escapes the including filename (GHSA-q89c).** The code generator now escapes a template's filename (`resolveFrom`) before writing it into the compiled function body, so a double quote in a `filename` option can no longer break out of the generated string literal. The escape is centralized in the generator, which also fixes a latent broken-JS bug for backslash paths through `import`, `from` and `extends`.
+* **Fixed — a numeric `filename` option compiles again.** A filename that is not a string, such as a number, compiles again with `import`, `from` and `extends` on the async render path, as it did in 2.8.2, and `include`, which failed with a number in 2.8.2 as well, now compiles too. 2.8.3 escaped the filename as a string and failed with `value.replace is not a function`; it is now converted to a string first. All four frontends.
 
 See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 

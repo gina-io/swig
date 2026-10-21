@@ -1,5 +1,0 @@
-kind: fixed
-body: 'A filename option that is not a string, such as a number, compiles again with import, from and extends on the async render path, as it did in 2.8.2, and include, which failed with a number in 2.8.2 as well, now compiles too. 2.8.3 escaped the filename as a string before writing it into the compiled template, so a number failed with value.replace is not a function; the filename is now converted to a string first. All four frontends.'
-time: 2026-10-21T12:34:27Z
-custom:
-  Issue: ""
