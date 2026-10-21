@@ -330,3 +330,50 @@ describe('GHSA-q89c: resolveFrom filename escaping', function () {
     expect(body).to.contain('resolveFrom: "C:\\\\d\\\\f.html"');
   });
 });
+
+describe('Non-string filename option', function () {
+  var twig = require('@rhinostone/swig-twig');
+
+  // The code generator escapes the filename (resolveFrom) before writing it
+  // into the compiled body; a number used to reach the escape as a number and
+  // throw "value.replace is not a function". It is converted to a string
+  // first, so the body carries the text a number had before the escape.
+  it('sync include: compiles with a numeric filename', function () {
+    var body = swig.precompile('{% include "p.html" %}', { filename: 123 }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "123"');
+  });
+
+  it('async include: compiles with a numeric filename', function () {
+    var body = swig.precompile('{% include "p.html" %}', { filename: 123, codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "123"');
+  });
+
+  it('async import: compiles with a numeric filename', function () {
+    var body = swig.precompile('{% import "m.html" as m %}', { filename: 123, codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "123"');
+  });
+
+  it('async extends: compiles with a numeric filename', function () {
+    var body = swig.precompile('{% extends "b.html" %}', { filename: 123, codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "123"');
+  });
+
+  it('async from import (twig): compiles with a numeric filename', function () {
+    var body = twig.precompile('{% from "m.twig" import a %}', { filename: 123, codegenMode: 'async' }).tpl.toString();
+    expect(body).to.contain('resolveFrom: "123"');
+  });
+
+  it('include: the loader receives the numeric filename as a string', function () {
+    var seen = [],
+      inst = new swig.Swig({
+        cache: false,
+        loader: {
+          resolve: function (to, from) { seen.push(from); return to; },
+          load: function (id) { return id === 'c.html' ? 'C' : ''; }
+        }
+      });
+    expect(inst.render('[{% include "c.html" %}]', { filename: 123 })).to.equal('[C]');
+    expect(seen.length).to.equal(1);
+    expect(seen[0]).to.equal('123');
+  });
+});
