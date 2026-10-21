@@ -377,3 +377,69 @@ describe('Non-string filename option', function () {
     expect(seen[0]).to.equal('123');
   });
 });
+
+describe('Autoescape option set to an escape strategy name', function () {
+  var x = { x: '<a href="u">' },
+    js = '\\u003Ca href\\u003D\\u0022u\\u0022\\u003E',
+    html = '&lt;a href=&quot;u&quot;&gt;',
+    rejected = /Option "autoescape" must be true, false or an escape strategy name/;
+
+  // The option is handed to the e filter as its strategy argument. It used to
+  // be written into the compiled template as code, so 'js' and 'html' were read
+  // as identifiers and rendering threw a ReferenceError.
+  it('autoescape: "js" escapes for JavaScript', function () {
+    expect(swig.render('{{ x }}', { autoescape: 'js', locals: x })).to.equal(js);
+  });
+
+  it('autoescape: "html" escapes for HTML', function () {
+    expect(swig.render('{{ x }}', { autoescape: 'html', locals: x })).to.equal(html);
+  });
+
+  it('a strategy name the e filter does not know falls back to HTML escaping', function () {
+    expect(swig.render('{{ x }}', { autoescape: 'css', locals: x })).to.equal(html);
+  });
+
+  it('writes the option into the compiled template as a string literal', function () {
+    expect(swig.precompile('{{ x }}', { autoescape: 'js' }).tpl.toString()).to.contain(', "js")');
+  });
+
+  it('a value already wrapped in quotes keeps working', function () {
+    expect(swig.render('{{ x }}', { autoescape: "'js'", locals: x })).to.equal(js);
+    expect(swig.render('{{ x }}', { autoescape: '"js"', locals: x })).to.equal(js);
+  });
+
+  it('a backslash in the value stays part of the strategy name', function () {
+    expect(swig.render('{{ x }}', { autoescape: 'a\\b', locals: x })).to.equal(html);
+  });
+
+  it('rejects a value holding a double quote or a line break', function () {
+    expect(function () { swig.render('{{ x }}', { autoescape: 'a"b', locals: x }); }).to.throwError(rejected);
+    expect(function () { swig.render('{{ x }}', { autoescape: 'a\nb', locals: x }); }).to.throwError(rejected);
+    expect(function () { swig.render('{{ x }}', { autoescape: 'a\rb', locals: x }); }).to.throwError(rejected);
+  });
+
+  it('an empty string still turns escaping off', function () {
+    expect(swig.render('{{ x }}', { autoescape: '', locals: x })).to.equal('<a href="u">');
+  });
+
+  it('applies again after an {% autoescape %} region ends', function () {
+    expect(swig.render('{% autoescape false %}{{ x }}{% endautoescape %}|{{ x }}', { autoescape: 'js', locals: x }))
+      .to.equal('<a href="u">|' + js);
+  });
+
+  it('reaches imported macros, included templates and extended parents', function () {
+    var inst = new swig.Swig({
+      autoescape: 'js',
+      cache: false,
+      loader: swig.loaders.memory({
+        'm.html': '{% macro m(v) %}[{{ v }}]{% endmacro %}',
+        'c.html': '({{ x }})',
+        'p.html': '<{{ x }}{% block b %}{% endblock %}>',
+        'page.html': '{% import "m.html" as lib %}{{ lib.m(x) }}{% include "c.html" %}',
+        'child.html': '{% extends "p.html" %}{% block b %}|{{ x }}{% endblock %}'
+      })
+    });
+    expect(inst.renderFile('page.html', x)).to.equal('[' + js + '](' + js + ')');
+    expect(inst.renderFile('child.html', x)).to.equal('<' + js + '|' + js + '>');
+  });
+});
