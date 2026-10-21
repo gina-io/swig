@@ -408,3 +408,38 @@ describe('@rhinostone/swig-jinja2 — parser.parse — {% extends %} tag', funct
     expect(tree.parentExpr.type).to.equal('Conditional');
   });
 });
+
+describe('@rhinostone/swig-jinja2 — parser.parse — {% include %} tag', function () {
+  var tags = require('@rhinostone/swig-jinja2/lib/tags'),
+    jinja2 = require('@rhinostone/swig-jinja2'),
+    filename = 'C:\\t\\a"b.html';
+
+  // The include tag stores the filename raw; the code generator escapes it
+  // where it writes it into the compiled body, so a double quote or a
+  // backslash in the filename option stays inside the string literal.
+  it('keeps the raw filename in resolveFrom', function () {
+    var tok = parser.parse(undefined, '{% include "p.html" %}', { filename: filename }, tags, {}).tokens[0];
+    expect(tok.irExpr.type).to.equal('Include');
+    expect(tok.irExpr.resolveFrom).to.equal(filename);
+  });
+
+  it('escapes the filename in the compiled body, sync and async', function () {
+    var escaped = 'resolveFrom: "C:\\\\t\\\\a\\"b.html"';
+    expect(jinja2.precompile('{% include "p.html" %}', { filename: filename }).tpl.toString()).to.contain(escaped);
+    expect(jinja2.precompile('{% include "p.html" %}', { filename: filename, codegenMode: 'async' }).tpl.toString()).to.contain(escaped);
+  });
+
+  it('passes the filename to the loader unchanged', function () {
+    var seen = [],
+      inst = new jinja2.Jinja2({
+        cache: false,
+        loader: {
+          resolve: function (to, from) { seen.push(from); return to; },
+          load: function (id) { return id === 'c.html' ? 'C' : ''; }
+        }
+      });
+    expect(inst.render('[{% include "c.html" %}]', { filename: filename })).to.equal('[C]');
+    expect(seen.length).to.equal(1);
+    expect(seen[0]).to.equal(filename);
+  });
+});

@@ -140,4 +140,34 @@ describe('@rhinostone/swig-django — block / extends / include', function () {
   it('rejects an empty include tag', function () {
     expect(threw(function () { r('{% include %}'); })).to.contain('Expected template path');
   });
+
+  // The include tag stores the filename raw; the code generator escapes it
+  // where it writes it into the compiled body, so a double quote or a
+  // backslash in the filename option stays inside the string literal.
+  it('keeps a filename with a double quote and backslashes raw in resolveFrom and escapes it in the compiled body', function () {
+    var parser = require('@rhinostone/swig-django/lib/parser'),
+      tags = require('@rhinostone/swig-django/lib/tags'),
+      filename = 'C:\\t\\a"b.html',
+      escaped = 'resolveFrom: "C:\\\\t\\\\a\\"b.html"',
+      tok = parser.parse(undefined, '{% include "p.html" %}', { filename: filename }, tags, {}).tokens[0];
+    expect(tok.irExpr.type).to.equal('Include');
+    expect(tok.irExpr.resolveFrom).to.equal(filename);
+    expect(django.precompile('{% include "p.html" %}', { filename: filename }).tpl.toString()).to.contain(escaped);
+    expect(django.precompile('{% include "p.html" %}', { filename: filename, codegenMode: 'async' }).tpl.toString()).to.contain(escaped);
+  });
+
+  it('passes a filename with a double quote and backslashes to the loader unchanged', function () {
+    var filename = 'C:\\t\\a"b.html',
+      seen = [],
+      m = new django.Django({
+        cache: false,
+        loader: {
+          resolve: function (to, from) { seen.push(from); return to; },
+          load: function (id) { return id === 'c.html' ? 'C' : ''; }
+        }
+      });
+    expect(m.render('[{% include "c.html" %}]', { filename: filename })).to.equal('[C]');
+    expect(seen.length).to.equal(1);
+    expect(seen[0]).to.equal(filename);
+  });
 });
