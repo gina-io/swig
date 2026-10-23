@@ -446,3 +446,47 @@ describe('@rhinostone/swig-jinja2 — filters', function () {
   });
 
 });
+
+describe('swig-jinja2 filters — linear time on long template data', function () {
+  var n = 100000;
+
+  function msFor(fn) {
+    var t0 = Date.now();
+    fn();
+    return Date.now() - t0;
+  }
+
+  // These regexes took time quadratic in the input length: striptags on many <
+  // or <!-- with no closing > or --> after them, trim on a long run of trimmed
+  // characters inside the string, format on a % followed by a long run of
+  // zeros with no conversion after it.
+  it('striptags renders 100 000 < in well under a second, with the same output', function () {
+    var s = '<'.repeat(n), out;
+    expect(msFor(function () { out = jinja2.render('{{ x|striptags }}', { locals: { x: s } }); })).to.be.lessThan(500);
+    expect(out).to.equal('&lt;'.repeat(n));
+    expect(msFor(function () { filters.striptags('<!--'.repeat(n / 4)); })).to.be.lessThan(500);
+  });
+
+  it('trim runs in linear time on a long inner run, for whitespace and for chars', function () {
+    var ws = 'x' + ' '.repeat(n) + 'y', commas = 'x' + ','.repeat(n) + 'y', out;
+    expect(msFor(function () { out = filters.trim(ws); })).to.be.lessThan(500);
+    expect(out).to.equal(ws);
+    expect(msFor(function () { out = filters.trim(commas, ','); })).to.be.lessThan(500);
+    expect(out).to.equal(commas);
+  });
+
+  it('format runs in linear time on a % followed by many zeros', function () {
+    var s = '%' + '0'.repeat(n) + 'z', out;
+    expect(msFor(function () { out = filters.format(s, 1); })).to.be.lessThan(500);
+    expect(out).to.equal(s);
+  });
+
+  it('striptags, trim and format keep their output', function () {
+    expect(filters.striptags('<!-- c --><p>a \n  b</p> <br/>c')).to.equal('a b c');
+    expect(filters.striptags('a<>b <!-- x')).to.equal('ab <!-- x');
+    expect(filters.trim('--hi__', '-_')).to.equal('hi');
+    expect(filters.trim(']a]b]]', ']')).to.equal('a]b');
+    expect(filters.format('%05.1f|%-4d|%+d|%s', 3.14159, 7, 5, 'x')).to.equal('003.1|7   |+5|x');
+    expect(filters.format('%0 0.2z %%|%.f', 1)).to.equal('%0 0.2z %|%.f');
+  });
+});

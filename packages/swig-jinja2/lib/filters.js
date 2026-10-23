@@ -611,11 +611,16 @@ exports.striptags = function (input) {
   if (out !== undefined) {
     return out;
   }
-  return String(input)
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/^\s+|\s+$/g, '');
+  // The comment and tag regexes take time quadratic in the input length on
+  // many <!-- or < with no --> or > after them, and the trailing \s+$ on a
+  // long run of whitespace; the swig-core helpers give the same output in
+  // linear time.
+  // return String(input)
+  //   .replace(/<!--[\s\S]*?-->/g, '')
+  //   .replace(/<[^>]*>/g, '')
+  //   .replace(/\s+/g, ' ')
+  //   .replace(/^\s+|\s+$/g, '');
+  return utils.strip(utils.stripTags(utils.stripComments(String(input)), true).replace(/\s+/g, ' '));
 };
 
 /**
@@ -645,9 +650,13 @@ exports.trim = function (input, chars) {
   } else {
     pattern = '[' + String(chars).replace(/[\\\[\]\^\-]/g, '\\$&') + ']';
   }
-  return input
-    .replace(new RegExp('^' + pattern + '+'), '')
-    .replace(new RegExp(pattern + '+$'), '');
+  // A pattern + '+$' regex takes quadratic time on a long run of trimmed
+  // characters inside the string; trimEnd removes the same code units in
+  // linear time.
+  // return input
+  //   .replace(new RegExp('^' + pattern + '+'), '')
+  //   .replace(new RegExp(pattern + '+$'), '');
+  return utils.trimEnd(input.replace(new RegExp('^' + pattern + '+'), ''), pattern === '\\s' ? undefined : String(chars));
 };
 
 /**
@@ -753,7 +762,14 @@ function formatGeneral(num, prec) {
  */
 function sprintf(fmt, args) {
   var idx = 0;
-  return fmt.replace(/%([-+ 0]*)(\d+)?(?:\.(\d+))?([sdiufFeEgGxXoc%])/g, function (m, flags, width, prec, conv) {
+  // The flags and the width both take zeros, so on a % followed by a long run
+  // of zeros and no conversion this regex backtracked over every split,
+  // taking quadratic time. Each lookahead below captures its run once and
+  // the backreference consumes it, so nothing backtracks; the matches are
+  // the same, except that an absent width is "" instead of undefined, which
+  // the callback reads the same way.
+  // return fmt.replace(/%([-+ 0]*)(\d+)?(?:\.(\d+))?([sdiufFeEgGxXoc%])/g, function (m, flags, width, prec, conv) {
+  return fmt.replace(/%(?=([-+ 0]*))\1(?=(\d*))\2(?:\.(?=(\d+))\3)?([sdiufFeEgGxXoc%])/g, function (m, flags, width, prec, conv) {
     var arg, hasPrec, sign, s, num, pad;
 
     function withSign(value) {

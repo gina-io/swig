@@ -1,0 +1,5 @@
+kind: security
+body: 'swig-jinja2 striptags, trim and format no longer take time quadratic in the length of their input. striptags ran for about five seconds per 100 000 characters on text with many < or <!-- and nothing closing them, trim took as long on a long run of the trimmed characters inside the text, and format longer still on a % followed by a long run of zeros. A template that applied one of them to request data could be made to block the event loop. All three now run in linear time with the same output (Jinja2 3.1.6 strips tags and trims these inputs in linear time). Every swig-jinja2 release since 2.5.0 has them.'
+time: 2026-10-23T13:11:59Z
+custom:
+  Issue: ""
