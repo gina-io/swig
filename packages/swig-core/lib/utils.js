@@ -2,13 +2,104 @@ var security = require('./security');
 
 var isArray;
 
+/*!
+ * What a \s regex atom matches, tested one code unit at a time.
+ * @private
+ */
+var whitespace = /\s/;
+
 /**
- * Strip leading and trailing whitespace from a string.
+ * Strip leading and trailing whitespace from a string. Linear in the input
+ * length.
  * @param  {string} input
  * @return {string}       Stripped input.
  */
 exports.strip = function (input) {
-  return input.replace(/^\s+|\s+$/g, '');
+  // A /\s+$/ alternative takes quadratic time on a long run of whitespace
+  // that does not end the string; the trailing run is found by trimEnd.
+  // return input.replace(/^\s+|\s+$/g, '');
+  return exports.trimEnd(input.replace(/^\s+/, ''));
+};
+
+/**
+ * Remove trailing characters from a string: whitespace (what `\s` matches)
+ * when `chars` is omitted, otherwise every UTF-16 code unit that `chars`
+ * contains, as a regex character class built from `chars` would. Linear in
+ * the input length, where a `/[...]+$/` regex takes quadratic time on a long
+ * run of those characters that does not end the string. Used by the flavor
+ * filters.
+ * @param  {string} input
+ * @param  {string} [chars] Characters to remove; whitespace when omitted.
+ * @return {string}
+ */
+exports.trimEnd = function (input, chars) {
+  var end = input.length;
+  if (chars === undefined) {
+    while (end > 0 && whitespace.test(input.charAt(end - 1))) {
+      end -= 1;
+    }
+  } else {
+    while (end > 0 && chars.indexOf(input.charAt(end - 1)) !== -1) {
+      end -= 1;
+    }
+  }
+  return input.slice(0, end);
+};
+
+/**
+ * Remove every `<...>` span from a string, with the output of
+ * `input.replace(/<[^>]+>/g, '')`, or of `/<[^>]*>/g` (which also removes
+ * `<>`) when `allowEmpty` is true. Linear in the input length, where those
+ * regexes take quadratic time when many `<` have no `>` after them. Used by
+ * the flavor filters.
+ * @param  {string}  input
+ * @param  {boolean} [allowEmpty] Remove `<>` too.
+ * @return {string}
+ */
+exports.stripTags = function (input, allowEmpty) {
+  var out = '',
+    from = 0,
+    lt = input.indexOf('<'),
+    gt;
+  while (lt !== -1) {
+    gt = input.indexOf('>', lt + 1);
+    if (gt === -1) {
+      break;
+    }
+    if (gt === lt + 1 && !allowEmpty) {
+      lt = input.indexOf('<', lt + 1);
+      continue;
+    }
+    out += input.slice(from, lt);
+    from = gt + 1;
+    lt = input.indexOf('<', from);
+  }
+  return out + input.slice(from);
+};
+
+/**
+ * Remove every `<!-- ... -->` comment from a string, with the output of
+ * `input.replace(/<!--[\s\S]*?-->/g, '')`. Linear in the input length, where
+ * that regex takes quadratic time when many `<!--` have no `-->` after them.
+ * Used by the flavor filters.
+ * @param  {string} input
+ * @return {string}
+ */
+exports.stripComments = function (input) {
+  var out = '',
+    from = 0,
+    open = input.indexOf('<!--'),
+    close;
+  while (open !== -1) {
+    close = input.indexOf('-->', open + 4);
+    if (close === -1) {
+      break;
+    }
+    out += input.slice(from, open);
+    from = close + 3;
+    open = input.indexOf('<!--', from);
+  }
+  return out + input.slice(from);
 };
 
 /**
