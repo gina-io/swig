@@ -598,3 +598,41 @@ describe('@rhinostone/swig-twig — filters (A-bucket)', function () {
   });
 
 });
+
+describe('swig-twig filters — linear time on long template data', function () {
+  var twig = require('@rhinostone/swig-twig'),
+    n = 100000;
+
+  function msFor(fn) {
+    var t0 = Date.now();
+    fn();
+    return Date.now() - t0;
+  }
+
+  // These regexes took time quadratic in the input length: striptags on many <
+  // with no > after them, trim on a long run of trimmed characters inside the
+  // string (about 5 s and 0.3 s per 100 000 characters).
+  it('striptags renders 100 000 < in well under a second, with the same output', function () {
+    var s = '<'.repeat(n), out;
+    expect(msFor(function () { out = twig.render('{{ x|striptags }}', { locals: { x: s } }); })).to.be.lessThan(500);
+    expect(out).to.equal('&lt;'.repeat(n));
+  });
+
+  it('trim runs in linear time on a long inner run, for whitespace and for chars', function () {
+    var ws = 'x' + ' '.repeat(n) + 'y', commas = 'x' + ','.repeat(n) + 'y', out;
+    expect(msFor(function () { out = filters.trim(ws); })).to.be.lessThan(500);
+    expect(out).to.equal(ws);
+    expect(msFor(function () { out = filters.trim(commas, ','); })).to.be.lessThan(500);
+    expect(out).to.equal(commas);
+    expect(msFor(function () { out = filters.trim(commas, ',', 'right'); })).to.be.lessThan(500);
+    expect(out).to.equal(commas);
+  });
+
+  it('trim keeps its output for chars and sides', function () {
+    expect(filters.trim('--hi__', '-_')).to.equal('hi');
+    expect(filters.trim(']a]b]]', ']')).to.equal('a]b');
+    expect(filters.trim('\\a\\\\', '\\', 'right')).to.equal('\\a');
+    expect(filters.trim('xxhixx', 'x', 'left')).to.equal('hixx');
+    expect(filters.trim(' \n hi \t ')).to.equal('hi');
+  });
+});

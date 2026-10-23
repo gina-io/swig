@@ -206,7 +206,11 @@ exports.striptags = function (input) {
   if (out !== undefined) {
     return out;
   }
-  return input.toString().replace(/(<([^>]+)>)/ig, '');
+  // This regex takes time quadratic in the input length on many < with no >
+  // after them (about 5 s for 100 000 characters); stripTags gives the same
+  // output in linear time.
+  // return input.toString().replace(/(<([^>]+)>)/ig, '');
+  return utils.stripTags(input.toString());
 };
 
 /**
@@ -536,7 +540,11 @@ exports.trim = function (input, chars, side) {
     out = out.replace(new RegExp('^' + pattern + '+'), '');
   }
   if (side !== 'left') {
-    out = out.replace(new RegExp(pattern + '+$'), '');
+    // A pattern + '+$' regex takes quadratic time on a long run of trimmed
+    // characters inside the string; trimEnd removes the same code units in
+    // linear time.
+    // out = out.replace(new RegExp(pattern + '+$'), '');
+    out = utils.trimEnd(out, pattern === '\\s' ? undefined : chars);
   }
   return out;
 };
