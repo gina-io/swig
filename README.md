@@ -32,7 +32,7 @@ Features
 --------
 
 * Available for node.js **and** major web browsers.
-* **Strict-CSP browser runtime** — AOT-compile templates ahead of time (`swig compile --recursive --register`) and render them with the runtime-only bundle (`dist/swig.runtime.min.js`, ~22 KB) — no parser, no `new Function`, no `unsafe-eval` required.
+* **Strict-CSP browser runtime** — AOT-compile templates ahead of time (`swig compile --recursive --register`) and render them with the runtime-only bundle (`dist/swig.runtime.min.js`, ~24 KB) — no parser, no `new Function`, no `unsafe-eval` required.
 * [Express](https://expressjs.com/) compatible.
 * **Async template loading** — back the loader with S3 / Redis / HTTP / any callback API: set `loader.async = true` and pass a callback to `renderFile`, or to `compileFile` with `codegenMode: 'async'` in its options, whose compiled function returns a promise of `{ output, exports }`; `extends` / `include` / `import` resolve at render time, dynamic `{% extends %}` paths included.
 * Object-Oriented template inheritance.
@@ -43,12 +43,14 @@ Features
 * Robust without the bloat — a single runtime dependency ([`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core)).
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
-What's new in v2.8.4
+What's new in v2.9.0
 --------------------
 
-* **Fixed — a string `autoescape` option names the escape strategy.** In `@rhinostone/swig`, `autoescape: 'js'` now gives JavaScript escaping and `autoescape: 'html'` HTML escaping, as documented. The option was written into the compiled template as code, so these values failed with `ReferenceError: js is not defined`, and an autoescape option built from untrusted input could run as code in the template. A value already wrapped in quotes keeps working, and a value holding a double quote or a line break is now rejected with an error. The Twig, Jinja2 and Django frontends already passed the option to the escape filter as a string.
+> **Behaviour change in `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2` and `@rhinostone/swig-django`.** `x in list` now tests the list's items, not its indices, and `x in "text"` a substring, as Twig, Jinja2 and Django do. In swig-twig, `x in mapping` now tests the mapping's values, as Twig does: write `x in mapping|keys` to test a key. Native `@rhinostone/swig` is unchanged.
 
-* **Fixed — a numeric `filename` option compiles again.** A filename that is not a string, such as a number, compiles again with `import`, `from` and `extends` on the async render path, as it did in 2.8.2, and `include`, which failed with a number in 2.8.2 as well, now compiles too. 2.8.3 escaped the filename as a string and failed with `value.replace is not a function`; it is now converted to a string first. All four frontends.
+* **Fixed — `in` tests membership in the Twig, Jinja2 and Django frontends.** In swig-jinja2 and swig-django a list holds an equal item, a string a substring and a mapping a key; in swig-twig a list or a mapping holds a value, compared loosely, and a string holds a string or number as a substring. Until now `in` was the JavaScript operator, which tests keys: `3 in [1, 2, 3]` was false, `0 in [5]` true, and `"b" in "abc"` threw. A test the reference engine cannot run (a number or null container, for instance) is false instead of an error. Native `@rhinostone/swig` keeps the JavaScript `in`, which tests an object's keys or an array's indices.
+* **Added — `not in` in the Twig, Jinja2 and Django frontends.** `x not in y` negates `x in y` and binds at the same level. Where Django cannot run the test it is false, as in Django; where Jinja2 raises, swig gives true. Until now `x not in y` failed to parse. Native `@rhinostone/swig` still rejects `not in`.
+* **Added — an OpenSSF Scorecard badge** at the top of the README of each of the five packages. It shows the score that a Scorecard workflow publishes for the repository on every push to develop and every week, and links to the Scorecard report. Documentation only; no runtime or API change.
 
 See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 

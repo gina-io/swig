@@ -1,3 +1,12 @@
+[2.9.0](https://github.com/gina-io/swig/tree/v2.9.0) / 2026-10-23
+-----------------------------------------------------------------
+
+* **Added** An OpenSSF Scorecard badge at the top of the README of each of the five packages. It shows the score that a Scorecard workflow publishes for the repository on every push to develop and every week, and links to the Scorecard report. Documentation only; no runtime or API change.
+
+* **Added** swig-twig, swig-jinja2 and swig-django: the `not in` operator, as Twig, Jinja2 and Django have it. `x not in y` negates `x in y` and binds at the same level; where Django cannot run the test it is false, as Django gives it, and where Jinja2 raises swig gives true. Until now `x not in y` failed to parse. Native swig still rejects `not in`.
+
+* **Fixed** swig-twig, swig-jinja2 and swig-django: the `in` operator tests membership as Twig, Jinja2 and Django do. In Jinja2 and Django a list holds an equal item, a string a substring and a mapping a key; in Twig a list or a mapping holds a value, compared loosely, and a string holds a string or number as a substring. Until now `in` was the JavaScript operator, which tests keys: `3 in [1, 2, 3]` was false, `0 in [5]` true, and `"b" in "abc"` threw. A test the reference engine cannot run (a number or null container, for instance) is false instead of an error. Native swig keeps the JavaScript `in`.
+
 [2.8.4](https://github.com/gina-io/swig/tree/v2.8.4) / 2026-10-21
 -----------------------------------------------------------------
 

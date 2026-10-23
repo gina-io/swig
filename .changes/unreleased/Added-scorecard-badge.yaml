@@ -1,5 +1,0 @@
-kind: added
-body: 'An OpenSSF Scorecard badge at the top of the README of each of the five packages. It shows the score that a Scorecard workflow publishes for the repository on every push to develop and every week, and links to the Scorecard report. Documentation only; no runtime or API change.'
-time: 2026-10-21T13:58:19Z
-custom:
-  Issue: ""

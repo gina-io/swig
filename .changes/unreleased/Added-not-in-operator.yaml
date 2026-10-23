@@ -1,5 +1,0 @@
-kind: added
-body: 'swig-twig, swig-jinja2 and swig-django: the `not in` operator, as Twig, Jinja2 and Django have it. `x not in y` negates `x in y` and binds at the same level; where Django cannot run the test it is false, as Django gives it, and where Jinja2 raises swig gives true. Until now `x not in y` failed to parse. Native swig still rejects `not in`.'
-time: 2026-10-21T15:20:25Z
-custom:
-  Issue: ""

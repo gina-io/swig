@@ -10,10 +10,11 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 | Status | Item |
 | --- | --- |
-| Planned | `in` tests membership in swig-twig, swig-jinja2 and swig-django, as Twig, Jinja2 and Django do, and those three gain `not in`. Native swig keeps the JavaScript `in`, which tests an object's keys or an array's indices. |
 | Planned | swig-jinja2 parity: loop filters (`{% for x in xs if cond %}`), `not(x)` written without a space, the `none` / `True` / `False` constants, for-loops over a mapping and over a list of pairs as Jinja2 iterates them, and the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
 | Planned | swig-django: two-variable for-loops over a list of pairs unpack each pair, as Django does. |
 | Planned | Unknown filter and test names rejected when a Twig, Jinja2 or Django template compiles; today the error comes only at render, or never when the branch does not run. Native swig already rejects an unknown filter. |
+| Planned | swig-django: `not` binds below the comparisons and `in`, as in Django; today `not x == y` reads as `(not x) == y`. |
+| Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
 
 ## Future (post-2.0)
 
@@ -26,6 +27,13 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.9.0 (October 2026)
+
+- `in` tests membership in swig-twig, swig-jinja2 and swig-django, as Twig, Jinja2 and Django do: a list holds an item, a string a substring, and a mapping a key (Jinja2, Django) or a value (Twig). Native swig keeps the JavaScript `in`, which tests an object's keys or an array's indices.
+- `not in` in swig-twig, swig-jinja2 and swig-django.
+- An OpenSSF Scorecard badge on the README of each package.
+- All five packages released in lockstep at `2.9.0`.
 
 ### v2.8.4 (October 2026)
 
