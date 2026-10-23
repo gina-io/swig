@@ -559,7 +559,10 @@ exports.floatformat = function (input, arg) {
   if (arg === undefined || arg === null || arg === '') {
     p = -1;
   } else {
-    a = String(arg).replace(/[gu]+$/, '');
+    // A /[gu]+$/ regex takes quadratic time on a long run of g or u not at the
+    // end; trimEnd removes the same characters in linear time.
+    // a = String(arg).replace(/[gu]+$/, '');
+    a = utils.trimEnd(String(arg), 'gu');
     p = parseInt(a, 10);
     if (isNaN(p)) {
       return String(input);
@@ -885,7 +888,10 @@ exports.phone2numeric = function (input) {
  * case. Returns undefined where Python raises ValueError. @private
  */
 function pyFloat(s) {
-  var t = s.replace(/^\s+|\s+$/g, '');
+  // A trailing \s+$ takes quadratic time on a long run of whitespace inside
+  // the value; utils.strip gives the same output in linear time.
+  // var t = s.replace(/^\s+|\s+$/g, '');
+  var t = utils.strip(s);
   if (/^[+-]?(inf|infinity)$/i.test(t)) {
     return (t.charAt(0) === '-') ? -Infinity : Infinity;
   }
@@ -1050,7 +1056,10 @@ exports.slugify = function (input) {
     value = value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
   }
   value = value.toLowerCase().replace(/[^\w\s-]/g, '');
-  return value.replace(/[-\s]+/g, '-').replace(/^[-_]+|[-_]+$/g, '');
+  // A trailing [-_]+$ takes quadratic time on a long run of _ inside the
+  // value; trimEnd removes the same characters in linear time.
+  // return value.replace(/[-\s]+/g, '-').replace(/^[-_]+|[-_]+$/g, '');
+  return utils.trimEnd(value.replace(/[-\s]+/g, '-').replace(/^[-_]+/, ''), '-_');
 };
 
 /**
@@ -1064,7 +1073,11 @@ exports.slugify = function (input) {
  * @return {string}
  */
 exports.striptags = function (input) {
-  return String(input).replace(/(<([^>]+)>)/ig, '');
+  // This regex takes time quadratic in the input length on many < with no >
+  // after them (about 5 s for 100 000 characters); stripTags gives the same
+  // output in linear time.
+  // return String(input).replace(/(<([^>]+)>)/ig, '');
+  return utils.stripTags(String(input));
 };
 
 /**
@@ -1175,7 +1188,10 @@ exports.truncatewords = function (input, arg) {
   if (n <= 0) {
     return '';
   }
-  words = String(input).replace(/^\s+|\s+$/g, '').split(/\s+/);
+  // A trailing \s+$ takes quadratic time on a long run of whitespace inside
+  // the value; utils.strip gives the same output in linear time.
+  // words = String(input).replace(/^\s+|\s+$/g, '').split(/\s+/);
+  words = utils.strip(String(input)).split(/\s+/);
   if (words.length === 1 && words[0] === '') {
     return '';
   }

@@ -286,3 +286,52 @@ describe('@rhinostone/swig-django — filters', function () {
     });
   });
 });
+
+describe('swig-django filters — linear time on long template data', function () {
+  var f = django.filters,
+    n = 100000;
+
+  function msFor(fn) {
+    var t0 = Date.now();
+    fn();
+    return Date.now() - t0;
+  }
+
+  // These regexes took time quadratic in the input length: striptags on many <
+  // with no > after them, truncatewords and pluralize on a long run of
+  // whitespace inside the value, slugify on a long run of _, and floatformat
+  // on an argument with a long run of g or u not at its end.
+  it('striptags renders 100 000 < in well under a second, with the same output', function () {
+    var s = '<'.repeat(n), out;
+    expect(msFor(function () { out = django.render('{{ x|striptags }}', { locals: { x: s } }); })).to.be.lessThan(500);
+    expect(out).to.equal('&lt;'.repeat(n));
+  });
+
+  it('truncatewords, pluralize and slugify run in linear time on long inner runs', function () {
+    var ws = 'x' + ' '.repeat(n) + 'y';
+    expect(msFor(function () { f.truncatewords(ws, 2); })).to.be.lessThan(500);
+    expect(msFor(function () { f.pluralize(ws); })).to.be.lessThan(500);
+    expect(msFor(function () { f.slugify('x' + '_'.repeat(n) + 'y'); })).to.be.lessThan(500);
+  });
+
+  it('floatformat runs in linear time on a long argument', function () {
+    var out;
+    expect(msFor(function () { out = f.floatformat(1.5, 'g'.repeat(n) + 'x'); })).to.be.lessThan(500);
+    expect(out).to.equal('1.5');
+  });
+
+  it('striptags, truncatewords, pluralize, slugify and floatformat keep their output', function () {
+    expect(f.striptags('<p>foo</p> <b>bar</b>')).to.equal('foo bar');
+    expect(f.striptags('a<>b<c')).to.equal('a<>b<c');
+    expect(f.truncatewords('  one two three  ', 2)).to.equal('one two …');
+    expect(f.truncatewords('\tone\n', 3)).to.equal('one');
+    expect(f.pluralize(' 1 ')).to.equal('');
+    expect(f.pluralize('2')).to.equal('s');
+    expect(f.pluralize(' 1.0\t', 'y,ies')).to.equal('y');
+    expect(f.slugify('__Hello  World--')).to.equal('hello-world');
+    expect(f.slugify('-_a_-')).to.equal('a');
+    expect(f.floatformat(3.14159, '2g')).to.equal('3.14');
+    expect(f.floatformat(1234.5, '-2u')).to.equal('1234.50');
+    expect(f.floatformat(2, 'gu')).to.equal('2');
+  });
+});
