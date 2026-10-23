@@ -1,5 +1,5 @@
 kind: security
-body: 'swig-twig striptags and trim no longer take time quadratic in the length of their input. striptags ran for about five seconds per 100 000 characters on text with many < and no > after them, and trim took about as long on a long run of the trimmed characters inside the text, so a template that applied either to request data could be made to block the event loop. Both now run in linear time with the same output (Twig strips tags and trims in linear time). Every swig-twig release since 2.0.0-alpha.3 has them.'
+body: 'swig-twig striptags and trim no longer take time quadratic in the length of their input. striptags ran for about five seconds per 100 000 characters on text with many < and no > after them, and trim took about as long on a long run of the trimmed characters inside the text, so a template that applied either to request data could be made to block the event loop. Both now run in linear time with the same output. Every swig-twig release since 2.0.0-alpha.3 has them.'
 time: 2026-10-23T13:09:46Z
 custom:
   Issue: ""
