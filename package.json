@@ -27,6 +27,7 @@
     "esbuild": "^0.28.0",
     "eslint": "^10",
     "express": "^4",
+    "fast-check": "^4.10.2",
     "globals": "^17",
     "lodash": "^4",
     "path-browserify": "^1.0.1",
