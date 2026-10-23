@@ -1,5 +1,0 @@
-kind: security
-body: 'swig-django striptags, truncatewords, pluralize, slugify and floatformat no longer take time quadratic in the length of their input. striptags ran for about five seconds per 100 000 characters on text with many < and no > after them, truncatewords and pluralize took about as long on a long run of whitespace inside the value, slugify on a long run of underscores, and floatformat on an argument with a long run of g or u not at its end. A template that applied one of them to request data could be made to block the event loop. All five now run in linear time with the same output (Django 5.2.18 handles these inputs in linear time). Every swig-django release since 2.7.0 has them, except pluralize, which has had it since 2.8.2.'
-time: 2026-10-23T13:14:12Z
-custom:
-  Issue: ""

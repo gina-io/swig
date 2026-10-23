@@ -43,14 +43,17 @@ Features
 * Robust without the bloat — a single runtime dependency ([`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core)).
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
-What's new in v2.9.0
+What's new in v2.9.1
 --------------------
 
-> **Behaviour change in `@rhinostone/swig-twig`, `@rhinostone/swig-jinja2` and `@rhinostone/swig-django`.** `x in list` now tests the list's items, not its indices, and `x in "text"` a substring, as Twig, Jinja2 and Django do. In swig-twig, `x in mapping` now tests the mapping's values, as Twig does: write `x in mapping|keys` to test a key. Native `@rhinostone/swig` is unchanged.
+> **Security release: upgrade all five packages to 2.9.1.** `striptags` in every flavor, `trim` in swig-twig and swig-jinja2, swig-jinja2 `format`, and swig-django `truncatewords`, `pluralize`, `slugify` and `floatformat` took time quadratic in the length of their input on some inputs, several seconds for 100 000 characters. A template that applied one of them to request data could be made to block the event loop. They now run in linear time with the same output.
 
-* **Fixed — `in` tests membership in the Twig, Jinja2 and Django frontends.** In swig-jinja2 and swig-django a list holds an equal item, a string a substring and a mapping a key; in swig-twig a list or a mapping holds a value, compared loosely, and a string holds a string or number as a substring. Until now `in` was the JavaScript operator, which tests keys: `3 in [1, 2, 3]` was false, `0 in [5]` true, and `"b" in "abc"` threw. A test the reference engine cannot run (a number or null container, for instance) is false instead of an error. Native `@rhinostone/swig` keeps the JavaScript `in`, which tests an object's keys or an array's indices.
-* **Added — `not in` in the Twig, Jinja2 and Django frontends.** `x not in y` negates `x in y` and binds at the same level. Where Django cannot run the test it is false, as in Django; where Jinja2 raises, swig gives true. Until now `x not in y` failed to parse. Native `@rhinostone/swig` still rejects `not in`.
-* **Added — an OpenSSF Scorecard badge** at the top of the README of each of the five packages. It shows the score that a Scorecard workflow publishes for the repository on every push to develop and every week, and links to the Scorecard report. Documentation only; no runtime or API change.
+* **Security — swig `striptags` runs in linear time.** On text with many `<` and no `>` after them it ran for about five seconds per 100 000 characters. The regex dates from the original project, so every earlier release has it.
+* **Security — swig-twig `striptags` and `trim` run in linear time.** `striptags` was slow on text with many `<` and no `>` after them, and `trim` on a long run of the trimmed characters inside the text. Every swig-twig release since 2.0.0-alpha.3 has them.
+* **Security — swig-jinja2 `striptags`, `trim` and `format` run in linear time.** `striptags` was slow on text with many `<` or `<!--` and nothing closing them, `trim` on a long run of the trimmed characters inside the text, and `format` slower still on a `%` followed by a long run of zeros. Every swig-jinja2 release since 2.5.0 has them.
+* **Security — swig-django `striptags`, `truncatewords`, `pluralize`, `slugify` and `floatformat` run in linear time.** `striptags` was slow on text with many `<` and no `>` after them, `truncatewords` and `pluralize` on a long run of whitespace inside the value, `slugify` on a long run of underscores, and `floatformat` on an argument with a long run of `g` or `u` not at its end. Every swig-django release since 2.7.0 has them, except `pluralize`, which has had it since 2.8.2.
+* **Fixed — the Express example no longer has its catch-all route.** The route rendered any `.html` file a URL named as a template, including files outside the views folder. The example is not part of any package; an application built from it should remove or confine that route.
+* **Changed — property-based tests.** The test suite checks properties on many generated inputs, with the new fast-check dev dependency under a fixed seed. Development and CI only; the only runtime dependency remains `@rhinostone/swig-core`.
 
 See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 

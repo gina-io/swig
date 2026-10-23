@@ -28,6 +28,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Completed
 
+### v2.9.1 (October 2026)
+
+- Security: `striptags` in every flavor, `trim` in swig-twig and swig-jinja2, swig-jinja2 `format`, and swig-django `truncatewords`, `pluralize`, `slugify` and `floatformat` run in linear time with the same output. Their regexes took time quadratic in the input length on some inputs, so a template that applied one of them to request data could be made to block the event loop.
+- The Express example no longer has its catch-all route, which rendered any `.html` file a URL named as a template.
+- All five packages released in lockstep at `2.9.1`.
+
 ### v2.9.0 (October 2026)
 
 - `in` tests membership in swig-twig, swig-jinja2 and swig-django, as Twig, Jinja2 and Django do: a list holds an item, a string a substring, and a mapping a key (Jinja2, Django) or a value (Twig). Native swig keeps the JavaScript `in`, which tests an object's keys or an array's indices.

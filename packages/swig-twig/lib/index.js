@@ -27,7 +27,7 @@ exports.name = 'twig';
  *
  * @type {String}
  */
-exports.version = "2.9.0";
+exports.version = "2.9.1";
 
 /**
  * Expression-level parser — Pratt-style recursive descent that consumes

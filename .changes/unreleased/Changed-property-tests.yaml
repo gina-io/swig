@@ -1,5 +1,0 @@
-kind: changed
-body: 'The test suite gains property-based tests, which check each property on many generated inputs: in every flavor the escape filter is idempotent and leaves no raw markup character, `{{ x }}` renders the escaped string, text with no tag renders unchanged apart from line endings, and any template filename reaches the loader unchanged through an include; the membership helper behind the `in` operator matches its definition on lists. They run with the new fast-check dev dependency (MIT, one dependency, pure-rand) under a fixed seed. Development and CI only; the published package is unaffected and its only runtime dependency remains @rhinostone/swig-core.'
-time: 2026-10-23T12:24:55Z
-custom:
-  Issue: ""
