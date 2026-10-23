@@ -27,10 +27,6 @@ app.get('/people/:id', function (req, res) {
   res.render('person', { person: people[req.params.id] });
 });
 
-app.get('/*', function (req, res) {
-  res.render(req.params[0], {});
-});
-
 people = [
   { name: 'Paul', age: 28 },
   { name: 'Jane', age: 26 },

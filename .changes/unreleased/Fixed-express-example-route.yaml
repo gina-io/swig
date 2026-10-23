@@ -1,0 +1,5 @@
+kind: fixed
+body: 'The Express example (examples/express) no longer has its catch-all route, which rendered any .html file a URL named as a template, including files outside the views folder. Its pages link only to the explicit routes, which are unchanged. The example is not part of any package; an application built from it should remove or confine that route.'
+time: 2026-10-23T13:01:52Z
+custom:
+  Issue: ""
