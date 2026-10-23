@@ -443,3 +443,21 @@ describe('Autoescape option set to an escape strategy name', function () {
     expect(inst.renderFile('child.html', x)).to.equal('<' + js + '|' + js + '>');
   });
 });
+
+describe('Regressions — filters in linear time on long template data', function () {
+  // The striptags regex took time quadratic in the input length on many <
+  // with no > after them: about 5 s for 100 000 characters.
+  it('striptags renders 100 000 < in well under a second, with the same output', function () {
+    var s = '<'.repeat(100000), t0 = Date.now(), out;
+    out = swig.render('{{ x|striptags }}', { locals: { x: s } });
+    expect(Date.now() - t0).to.be.lessThan(500);
+    expect(out).to.equal('&lt;'.repeat(100000));
+  });
+
+  it('striptags keeps removing tags and keeps <> and a lone <', function () {
+    var filters = require('../lib/filters');
+    expect(filters.striptags('<p>foo</p> <b class="x">bar</b>')).to.equal('foo bar');
+    expect(filters.striptags('a<>b<c')).to.equal('a<>b<c');
+    expect(filters.striptags('<<a>b>')).to.equal('b>');
+  });
+});

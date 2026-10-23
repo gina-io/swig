@@ -1,0 +1,5 @@
+kind: security
+body: 'swig striptags no longer takes time quadratic in the length of its input. On text with many < and no > after them it ran for about five seconds per 100 000 characters, so a template that applied it to request data could be made to block the event loop. It now runs in linear time with the same output. The regex dates from the original project, so every earlier release has it.'
+time: 2026-10-23T13:08:06Z
+custom:
+  Issue: ""
