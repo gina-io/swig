@@ -101,7 +101,8 @@
  */
 
 /**
- * For-loop. `emptyBody` supports Twig/Django `{% for … %}{% else %}`.
+ * For-loop. `emptyBody` holds the Jinja2 `{% for … %}{% else %}` and the Django
+ * `{% for … %}{% empty %}` branch.
  *
  * `iterable` is typed `IRExpr | string` — the native
  * frontend still hands in a raw JS-source string (its `for` tag has

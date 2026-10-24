@@ -1,0 +1,5 @@
+kind: fixed
+body: 'The swig-jinja2 README no longer says a dynamic {% extends %} takes string-literal paths only: it renders on the async render path (renderFile with an async loader) and throws on the sync path; a dynamic {% import %} or {% from %} still needs a string literal. Documentation only; no runtime or API change.'
+time: 2026-10-24T17:41:40Z
+custom:
+  Issue: ""

@@ -253,7 +253,7 @@ exports.compile = function (template, parents, options, blockName) {
           return;
         }
       });
-      // `emptyBody` (Twig/Jinja2/Django `{% for … %}{% else %}`) runs when
+      // `emptyBody` (Jinja2 `{% for … %}{% else %}`, Django `{% empty %}`) runs when
       // the iterable is absent or has no items. When unset, the early-return
       // guard stays byte-identical to the no-else shape.
       var forEmptyCheck = '  if (!__l) { return; }\n';

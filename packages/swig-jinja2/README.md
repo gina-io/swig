@@ -42,7 +42,7 @@ Explicitly unsupported (parse-time throw or absent)
 * `{% call %}`, `{% do %}`, `{% trans %}` — deferred / Jinja2 extensions.
 * `map` / `select` / `reject` / `selectattr` / `rejectattr` filters — deferred.
 * Macro kwargs — use positional args or an object literal.
-* Dynamic `{% extends %}` / `{% import %}` / `{% from %}` — string-literal paths only.
+* Dynamic `{% import %}` / `{% from %}` — string-literal paths only. A dynamic `{% extends %}` renders on the async render path (`renderFile` with an async loader) and throws on the sync path.
 * Bracket-notation `{% set foo["x"] = … %}` — use dot-path notation.
 
 Repository
