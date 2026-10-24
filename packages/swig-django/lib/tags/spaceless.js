@@ -27,6 +27,7 @@
 
 var ir = require('@rhinostone/swig-core/lib/ir');
 var utils = require('@rhinostone/swig-core/lib/utils');
+var backend = require('@rhinostone/swig-core/lib/backend');
 
 exports.ends = true;
 exports.block = false;
@@ -53,17 +54,16 @@ exports.parse = function (str, line, parser, types, stack, opts) {
 /**
  * Emit the body into a shadowed `_output` local, then append the
  * whitespace-collapsed result to the real output. Returns an IRLegacyJS
- * node carrying the generated JS.
+ * node carrying the generated JS. On the async render path a body that
+ * awaits (an include in it) runs in an awaited async function
+ * (backend.iife).
  *
  * @return {object} IRLegacyJS node.
  */
 exports.compile = function (compiler, args, content, parents, options, blockName) {
   var bodyJS = compiler(content, parents, options, blockName);
   return ir.legacyJS(
-    '_output += (function () {\n' +
-    '  var _output = "";\n' +
-    bodyJS +
-    '  return _output.replace(/>\\s+</g, "><");\n' +
-    '})();\n'
+    '_output += ' +
+    backend.iife('', '  var _output = "";\n' + bodyJS + '  return _output.replace(/>\\s+</g, "><");\n', '', options) + ';\n'
   );
 };

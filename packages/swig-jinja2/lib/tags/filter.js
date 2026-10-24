@@ -172,7 +172,9 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
 /**
  * Emit an `IRLegacyJS` node that captures the body into a local `_output`
  * via an IIFE and folds the filter chain left-to-right into nested
- * `_filters["<name>"](input, ...args)` calls.
+ * `_filters["<name>"](input, ...args)` calls. On the async render path a
+ * body that awaits (an include in it) gets an awaited async function
+ * instead (backend.iife).
  *
  * For `{% filter upper|trim %}body{% endfilter %}` this produces roughly:
  *
@@ -185,7 +187,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
 exports.compile = function (compiler, args, content, parents, options, blockName) {
   var chain = args;
   var bodyJS = compiler(content, parents, options, blockName);
-  var input = '(function () {\n  var _output = "";\n' + bodyJS + '  return _output;\n})()';
+  var input = backend.iife('', '  var _output = "";\n' + bodyJS + '  return _output;\n', '', options);
 
   var expr = input;
   for (var i = 0; i < chain.length; i += 1) {

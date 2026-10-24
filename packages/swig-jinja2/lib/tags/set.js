@@ -36,6 +36,7 @@
 
 var ir = require('@rhinostone/swig-core/lib/ir');
 var utils = require('@rhinostone/swig-core/lib/utils');
+var backend = require('@rhinostone/swig-core/lib/backend');
 var _dangerousProps = require('@rhinostone/swig-core/lib/security').dangerousProps;
 
 var lexer = require('../lexer');
@@ -136,7 +137,8 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
  * Emit the IR for either the inline-assignment or body-capture form.
  * Inline form returns the pre-built IRSet via `token.irExpr`. Body form
  * compiles the captured content and wraps it in an IIFE assigned to the
- * target.
+ * target (an awaited async function on the async render path when the body
+ * awaits; see backend.iife).
  *
  * @param  {Function} compiler   Backend walker (recurses into `content`).
  * @param  {Array}    args       Target path segments (body form only).
@@ -156,10 +158,7 @@ exports.compile = function (compiler, args, content, parents, options, blockName
   var path = args;
   var bodyJS = compiler(content, parents, options, blockName);
   return ir.legacyJS(
-    '_ctx.' + path.join('.') + ' = (function () {\n' +
-    '  var _output = "";\n' +
-    bodyJS +
-    '  return _output;\n' +
-    '})();\n'
+    '_ctx.' + path.join('.') + ' = ' +
+    backend.iife('', '  var _output = "";\n' + bodyJS + '  return _output;\n', '', options) + ';\n'
   );
 };
