@@ -33,6 +33,42 @@ function escapeTextValue(value) {
   return value.replace(/\\/g, '\\\\').replace(/\n|\r/g, '\\n').replace(/"/g, '\\"');
 }
 
+/*!
+ * True when JS emitted for a body in async codegen mode holds an `await` (a
+ * deferred include, import or from, or a block), so the function that wraps
+ * that body must be async and its call awaited. The word `await` in template
+ * text or in a name also matches, which only makes that wrapper async for
+ * nothing. @private
+ */
+function holdsAwait(js, options) {
+  return !!(options && options.codegenMode === 'async' && /\bawait\b/.test(js));
+}
+
+/**
+ * Wrap statements in a function expression that is called at once. In async
+ * codegen mode, when the statements hold an `await`, the function is async and
+ * its call is awaited, so a deferred include, import or block inside a loop,
+ * a with, a filter tag or a set-block works on the async render path; in any
+ * other case the emit is the plain function, unchanged.
+ *
+ * @param  {string} params    Parameter list of the function (`''`, `'_ctx'`).
+ * @param  {string} body      JS of the function body.
+ * @param  {string} args      JS of the call's arguments.
+ * @param  {object} [options] Compile options; `codegenMode` is read.
+ * @return {string}           A JS expression.
+ *
+ * @example
+ * backend.iife('', '  var _output = "";\n' + bodyJS + '  return _output;\n', '', options);
+ * // sync, or no await in bodyJS: '(function () {\n  var _output = "";\n…})()'
+ * // async mode with an await:    '(await (async function () {\n  var _output = "";\n…})())'
+ */
+exports.iife = function (params, body, args, options) {
+  if (holdsAwait(body, options)) {
+    return '(await (async function (' + params + ') {\n' + body + '})(' + args + '))';
+  }
+  return '(function (' + params + ') {\n' + body + '})(' + args + ')';
+};
+
 /**
  * Walk a parsed token tree and emit the JS source body for the compiled
  * template function. Each token is lifted into an IR node (`IRText` for
@@ -276,12 +312,16 @@ exports.compile = function (template, parents, options, blockName) {
       // left undefined cannot fall back to the item through the closure name.
       // Absent both flags the emit is unchanged: native swig and Twig never
       // set them.
-      var forEachHead = '  _utils.each(__l, function (' + forVal + ', ' + forKey + ') {\n',
+      // In async codegen mode a body that awaits (an include in the loop) runs
+      // in an async callback that eachAsync awaits item after item, so the
+      // counters and the output keep their order; other loops keep each.
+      var forEach = holdsAwait(forBodyJS, options) ? 'await _utils.eachAsync(__l, async function (' : '_utils.each(__l, function (',
+        forEachHead = '  ' + forEach + forVal + ', ' + forKey + ') {\n',
         forBindJS = bindLoopItem(node, ctx + forVal, ctx + forKey, '    ', forVal, forKey) +
           '    ' + ctxloop + '.key = ' + forKey + ';\n';
       if (node.mapKeys || node.unpack) {
         forEachHead = '  var __seq = _utils.isArray(__l) || typeof __l === "string";\n' +
-          '  _utils.each(__l, function (__value, __key) {\n';
+          '  ' + forEach + '__value, __key) {\n';
         forBindJS = bindLoopItem(node, ctx + forVal, ctx + forKey, '    ', '__value', '__key', '__seq') +
           '    ' + ctxloop + '.key = __key;\n';
       }
@@ -309,8 +349,7 @@ exports.compile = function (template, parents, options, blockName) {
           '  }\n' +
           '  var __len = ' + forLength + ';\n';
       }
-      out += '(function () {\n' +
-        forHead +
+      out += exports.iife('', forHead +
         forEmptyCheck +
         '    var ' + ctxloopcache + ' = { ' + loopName + ': ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + ', ' + forKey + ': ' + ctx + forKey + ' };\n' +
         '    ' + ctxloop + ' = { first: false, ' + fIndex + ': 1, ' + fIndex0 + ': 0, ' + fRevindex + ': __len, ' + fRevindex0 + ': __len - 1, length: __len, last: false' + parentloopJS + ' };\n' +
@@ -324,8 +363,7 @@ exports.compile = function (template, parents, options, blockName) {
         '  ' + ctxloop + ' = ' + ctxloopcache + '.' + loopName + ';\n' +
         '  ' + ctx + forVal + ' = ' + ctxloopcache + '.' + forVal + ';\n' +
         '  ' + ctx + forKey + ' = ' + ctxloopcache + '.' + forKey + ';\n' +
-        '  ' + ctxloopcache + ' = undefined;\n' +
-        '})();\n';
+        '  ' + ctxloopcache + ' = undefined;\n', '', options) + ';\n';
       return;
     }
     if (node.type === 'Macro') {
@@ -373,7 +411,7 @@ exports.compile = function (template, parents, options, blockName) {
         macroSigJS = macroParams.join('');
         macroIndexOfJS = '"' + macroParams.join('","') + '"';
       }
-      out += '_ctx.' + node.name + ' = function (' + macroSigJS + ') {\n' +
+      var macroFnJS = 'function (' + macroSigJS + ') {\n' +
         '  var _output = "",\n' +
         '    __ctx = _utils.extend({}, _ctx);\n' +
         macroDefaultsJS +
@@ -383,7 +421,17 @@ exports.compile = function (template, parents, options, blockName) {
         macroBodyJS + '\n' +
         ' _ctx = _utils.extend(_ctx, __ctx);\n' +
         '  return _output;\n' +
-        '};\n' +
+        '}';
+      // A deferred include, import or block inside a macro would need an async
+      // macro whose every call is awaited, which the async render path does not
+      // support. There the macro is a function that throws a clear error when
+      // it is called, so a template that only defines it still renders.
+      if (holdsAwait(macroBodyJS, options)) {
+        macroFnJS = 'function () {\n' +
+          '  throw new Error("' + escapeTextValue('The macro "' + node.name + '"' + (options.filename ? ' in ' + options.filename : '') + ' holds an {% include %}, {% import %}, {% from %} or {% block %}, which the async render path does not support inside a macro.') + '");\n' +
+          '}';
+      }
+      out += '_ctx.' + node.name + ' = ' + macroFnJS + ';\n' +
         '_ctx.' + node.name + '.safe = true;\n';
       // Async-codegen mirrors the macro into _exports so
       // {% import %} / Twig's {% from %} can bind macros across templates
@@ -688,7 +736,7 @@ exports.compile = function (template, parents, options, blockName) {
       } else {
         withSelector = '_utils.extend({}, _ctx)';
       }
-      out += '(function (_ctx) {\n' + withBodyJS + '})(' + withSelector + ');\n';
+      out += exports.iife('_ctx', withBodyJS, withSelector, options) + ';\n';
       return;
     }
     if (node.type === 'Output') {
@@ -741,7 +789,7 @@ exports.compile = function (template, parents, options, blockName) {
           return;
         }
       });
-      var val = '(function () {\n  var _output = "";\n' + bodyJS + '  return _output;\n})()',
+      var val = exports.iife('', '  var _output = "";\n' + bodyJS + '  return _output;\n', '', options),
         argsJS = '';
       if (node.args && node.args.length) {
         var parts = [];

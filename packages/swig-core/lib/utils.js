@@ -153,6 +153,38 @@ exports.each = function (obj, fn) {
 };
 
 /**
+ * Iterate over an array or object like {@link each}, awaiting each call of
+ * `fn` before the next, so the items run one after another. The async render
+ * path uses it for a loop whose body awaits (an include inside a for).
+ * @param  {array|object} obj Enumerable object.
+ * @param  {Function}     fn  Callback; it may return a Promise, and a result
+ *                            of `false` stops the iteration.
+ * @return {Promise}          Resolves with the original input object.
+ */
+exports.eachAsync = async function (obj, fn) {
+  var i, l;
+
+  if (isArray(obj)) {
+    l = obj.length;
+    for (i = 0; i < l; i += 1) {
+      if ((await fn(obj[i], i, obj)) === false) {
+        break;
+      }
+    }
+  } else {
+    for (i in obj) {
+      if (obj.hasOwnProperty(i)) {
+        if ((await fn(obj[i], i, obj)) === false) {
+          break;
+        }
+      }
+    }
+  }
+
+  return obj;
+};
+
+/**
  * Test if an object is an Array.
  * @param {object} obj
  * @return {boolean}
