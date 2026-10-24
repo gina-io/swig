@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-jinja2 for loops bind their variables as Jinja2 does. One loop variable over a mapping binds each key, where it bound each value, so {% for x in d %}{{ x }}={{ d[x] }}{% endfor %} works as in Jinja2. Two loop variables over a list unpack each item, where they bound the index and the item, so {% for k, v in d|dictsort %} binds the key and the value: a pair gives its two values, a two-character string its characters, a two-key mapping its keys. An item that does not hold two values binds what it holds (a missing value renders empty, extra values are ignored), where Jinja2 raises. Two loop variables over a mapping still bind the key and the value, a swig extension (Jinja2 unpacks each key).'
-time: 2026-10-24T11:26:19Z
-custom:
-  Issue: ""

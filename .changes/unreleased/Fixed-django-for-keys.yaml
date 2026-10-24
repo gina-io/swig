@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-django for loops bind one loop variable over a dict to each key, as Django does, where it bound each value, so {% for x in d %}{{ x }}{% endfor %} renders the keys. {% for v in d.values %} still gives the values, {% for k in d.keys %} the keys and {% for k, v in d.items %} the key and the value.'
-time: 2026-10-24T11:29:22Z
-custom:
-  Issue: ""

@@ -10,8 +10,7 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 | Status | Item |
 | --- | --- |
-| Planned | swig-jinja2 parity: loop filters (`{% for x in xs if cond %}`), `not(x)` written without a space, the `none` / `True` / `False` constants, for-loops over a mapping and over a list of pairs as Jinja2 iterates them, and the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
-| Planned | swig-django: two-variable for-loops over a list of pairs unpack each pair, as Django does. |
+| Planned | swig-jinja2 parity: loop filters (`{% for x in xs if cond %}`), `not(x)` written without a space, the `none` / `True` / `False` constants, and the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
 | Planned | Unknown filter and test names rejected when a Twig, Jinja2 or Django template compiles; today the error comes only at render, or never when the branch does not run. Native swig already rejects an unknown filter. |
 | Planned | swig-django: `not` binds below the comparisons and `in`, as in Django; today `not x == y` reads as `(not x) == y`. |
 | Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
@@ -27,6 +26,11 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.9.3 (October 2026)
+
+- swig-jinja2 and swig-django for-loops bind their variables as Jinja2 and Django do: one loop variable over a mapping binds each key, where it bound each value, and two loop variables over a list unpack each item, where they bound the index and the item, so `{% for k, v in d|dictsort %}` (swig-jinja2) and `{% for k, v in pairs %}` (swig-django) bind the key and the value. Two loop variables over a mapping still bind the key and the value.
+- All five packages released in lockstep at `2.9.3`.
 
 ### v2.9.2 (October 2026)
 

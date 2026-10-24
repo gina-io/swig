@@ -1,3 +1,12 @@
+[2.9.3](https://github.com/gina-io/swig/tree/v2.9.3) / 2026-10-24
+-----------------------------------------------------------------
+
+* **Fixed** swig-jinja2 for loops bind their variables as Jinja2 does. One loop variable over a mapping binds each key, where it bound each value, so {% for x in d %}{{ x }}={{ d[x] }}{% endfor %} works as in Jinja2. Two loop variables over a list unpack each item, where they bound the index and the item, so {% for k, v in d|dictsort %} binds the key and the value: a pair gives its two values, a two-character string its characters, a two-key mapping its keys. An item that does not hold two values binds what it holds (a missing value renders empty, extra values are ignored), where Jinja2 raises. Two loop variables over a mapping still bind the key and the value, a swig extension (Jinja2 unpacks each key).
+
+* **Fixed** swig-django for loops unpack two loop variables over a list as Django does, where they bound the index and the item: a pair gives its two values, a two-character string its characters, a two-key mapping its keys, so {% for k, v in pairs %} binds the key and the value. An item that does not hold two values binds what it holds (a missing value renders empty, extra values are ignored), where Django raises. Two loop variables over a mapping still bind the key and the value, a swig extension that {% for k, v in d.items %} relies on.
+
+* **Fixed** swig-django for loops bind one loop variable over a dict to each key, as Django does, where it bound each value, so {% for x in d %}{{ x }}{% endfor %} renders the keys. {% for v in d.values %} still gives the values, {% for k in d.keys %} the keys and {% for k, v in d.items %} the key and the value.
+
 [2.9.2](https://github.com/gina-io/swig/tree/v2.9.2) / 2026-10-24
 -----------------------------------------------------------------
 
