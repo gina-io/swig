@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig, swig-twig and swig-jinja2: an {% import %} or {% from %} on the sync render path no longer discards output. The compiled tag declared its own output variable, so a template lost everything it had rendered before the tag (a doctype line at the top of a page, or, when the tag sat in a block of an extends child, the parent output before the block), a for loop holding the tag rendered nothing, and a macro body lost what it had rendered before the tag. An import at the top of a template, before any output, was not affected. Every release had it (measured on 2.9.3; the native tag carried the declaration from the original project, and the swig-twig and swig-jinja2 tags since they were written). The async render path is unchanged.'
-time: 2026-10-24T20:48:51Z
-custom:
-  Issue: ""

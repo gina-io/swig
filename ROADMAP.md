@@ -10,10 +10,13 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 | Status | Item |
 | --- | --- |
-| Planned | swig-jinja2 parity: loop filters (`{% for x in xs if cond %}`), `not(x)` written without a space, the `none` / `True` / `False` constants, and the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
+| Planned | swig-jinja2 parity: `not(x)` written without a space, the `none` / `True` / `False` constants, and the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
 | Planned | Unknown filter and test names rejected when a Twig, Jinja2 or Django template compiles; today the error comes only at render, or never when the branch does not run. Native swig already rejects an unknown filter. |
 | Planned | swig-django: `not` binds below the comparisons and `in`, as in Django; today `not x == y` reads as `(not x) == y`. |
 | Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
+| Planned | swig-django: a `{% for %}` over a mapping key named `items`, `keys` or `values`; today the pseudo-method of that name shadows the key, where Django reads the key first. |
+| Planned | Native swig on the async render path: `{% parent %}` renders the parent block's content; today it renders nothing there. |
+| Planned | swig-twig on the async render path: an imported template's own `{% import %}` and `{% from %}` stay local to it, as on the sync path; today their bindings reach the importing template. |
 
 ## Future (post-2.0)
 
@@ -22,10 +25,18 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | Planned | Async parse path for the remaining dynamic targets — runtime-resolved `{% import %}` / `{% from %}` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic `{% extends %}` shipped in 2.5.2 (native + Twig + Jinja2) and dynamic `{% include %}` paths already resolve (the include path has always been an expression). Dynamic `import` / `from` are on hold pending consumer demand. |
 | Planned | Modern browser-test harness. The legacy phantomjs runner was removed; a replacement (e.g. Playwright or JSDOM) has not yet landed. In the interim, CI builds the four browser bundles and renders a template set through each in a Node vm context, comparing the output with the Node library. (The `mocha` → `node:test` runner migration, the `expect.js` → in-repo assertion-shim swap, and the `blanket` → `node:test` built-in coverage migration have all shipped.) |
 | On demand | Ahead-of-time browser support for the Twig, Jinja2, and Django frontends, in two parts that ship together. Runtime-only bundles: the shared runtime factory already supports them, and each flavor needs its own bundle entry and build target, since filter catalogs are per-flavor. A flavor-aware compile step: `swig compile --register` compiles with the native parser only, so flavor templates are precompiled programmatically until it lands. The native `dist/swig.runtime.min.js` shipped in 2.8.0; the flavor pieces land when a consumer needs them. |
+| On demand | Macros on the async render path whose body holds an `{% include %}`, `{% import %}`, `{% from %}` or `{% block %}`. Since 2.9.4, calling such a macro there throws a clear error, and a template that only defines it renders. |
 
 ---
 
 ## Completed
+
+### v2.9.4 (October 2026)
+
+- An `{% import %}` or `{% from %}` on the sync render path no longer discards what the template rendered before it (native swig, swig-twig, swig-jinja2): a doctype line, the parent output before a block of an extends child, and the output of a for loop or a macro body that holds the tag now render.
+- On the async render path, an `{% include %}`, `{% import %}`, `{% from %}` or `{% block %}` inside a for loop, a with, a filter or apply tag, a set block or a Django spaceless block renders as on the sync path, in all four flavors; before, such a template failed to compile. A macro holding one of those tags throws a clear error when it is called there.
+- swig-jinja2 loop filters (`{% for x in xs if cond %}`) work as in Jinja2.
+- All five packages released in lockstep at `2.9.4`.
 
 ### v2.9.3 (October 2026)
 

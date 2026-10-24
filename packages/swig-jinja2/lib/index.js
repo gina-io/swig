@@ -27,7 +27,7 @@ exports.name = 'jinja2';
  *
  * @type {String}
  */
-exports.version = "2.9.3";
+exports.version = "2.9.4";
 
 /**
  * Expression-level parser — Pratt-style recursive descent that consumes

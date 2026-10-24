@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-jinja2 loop filters work as in Jinja2: {% for x in xs if x > 1 %} keeps the items the test holds for, with the loop variables bound in the test, and loop.index, loop.length, loop.last and the else branch count only the kept items. Before, the if tail was read as an inline-if on the whole iterable, evaluated once outside the loop, so a test that used the loop variable rendered nothing. As in Jinja2, loop in the test is the enclosing loop, and if( written without a space starts a filter too. An inline-if iterable without parentheses, {% for x in a if c else b %}, which Jinja2 rejects, still compiles as before.'
-time: 2026-10-24T16:46:43Z
-custom:
-  Issue: ""
