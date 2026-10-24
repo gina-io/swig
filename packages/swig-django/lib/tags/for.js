@@ -14,13 +14,13 @@
  * fields and expose the enclosing loop, so nested-loop safety and the
  * for-empty handling come for free.
  *
- * Two names over a list unpack each item into its first and second values
- * (a list's items, a string's characters, a mapping's keys), as Django does,
- * through the opt-in `unpack` flag. An item that does not hold two values
- * binds what it holds, a missing value rendering empty, where Django raises.
- * Two names over a mapping bind the key and the value, a swig extension
- * (Django iterates the keys and unpacks each one) that the `.items` rewrite
- * relies on.
+ * Binding follows Django through the opt-in `mapKeys` and `unpack` flags: one
+ * name over a dict binds each key, and two names over a list unpack each item
+ * into its first and second values (a list's items, a string's characters, a
+ * mapping's keys). An item that does not hold two values binds what it holds,
+ * a missing value rendering empty, where Django raises. Two names over a
+ * mapping bind the key and the value, a swig extension (Django iterates the
+ * keys and unpacks each one) that the `.items` rewrite relies on.
  *
  * Loop variable names must be bare identifiers — dotted paths are rejected
  * at parse time, and the CVE-2023-25345 `_dangerousProps` guard runs on
@@ -85,9 +85,8 @@ function resolveVar(path) {
  *
  *   - `.keys`   → `_utils.keys(obj)` (a plain key array; a one-name `for`
  *                 binds each key).
- *   - `.values` → the object itself; swig's one-name object iteration binds
- *                 each VALUE (`_utils.each(obj, fn(value, key))`), matching
- *                 Django.
+ *   - `.values` → `_utils.values(obj)` (a plain value array; a one-name `for`
+ *                 binds each value).
  *   - `.items`  → the object itself, walked with the two-name form, so swig
  *                 binds key + value per entry exactly as Django's two-name
  *                 `{% for k, v in d.items %}`. The one-name tuple form is
@@ -121,11 +120,14 @@ function rewriteDictIterable(it, hasTwoNames, line, filename) {
     // (emitFnCall reads a callee path directly, never through emitVarRef).
     return ir.fnCall(ir.varRef(['_utils', 'keys']), [resolveVar(objPath)]);
   }
+  if (lastSeg === 'values') {
+    return ir.fnCall(ir.varRef(['_utils', 'values']), [resolveVar(objPath)]);
+  }
   if (lastSeg === 'items' && !hasTwoNames) {
     utils.throwError('The "items" pseudo-method in a "for" tag requires two loop variables — use {% for key, value in ' + objPath.join('.') + '.items %}', line, filename);
   }
-  // `.values` (one-name → value) and `.items` (two-name → key, value) both
-  // walk the object directly through swig's object iteration.
+  // `.items` walks the object directly: two names over a mapping bind the key
+  // and the value.
   return resolveVar(objPath);
 }
 
@@ -267,9 +269,11 @@ exports.compile = function (compiler, args, content, parents, options, blockName
   node.loopFields = DJANGO_LOOP_FIELDS;
   node.loopParent = true;
   // Django binding (see the IRFor typedef): two names unpack each item of a
-  // list.
+  // list, one name binds each key of a dict.
   if (args.length === 2) {
     node.unpack = true;
+  } else {
+    node.mapKeys = true;
   }
   return node;
 };

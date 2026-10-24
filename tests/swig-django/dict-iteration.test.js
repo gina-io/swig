@@ -12,15 +12,15 @@ var django = require('@rhinostone/swig-django'),
  * loop, so the `for` tag intercepts it (packages/swig-django/lib/tags/for.js,
  * rewriteDictIterable):
  *   - .keys   → _utils.keys(obj) array         (one-name → key)
- *   - .values → the object, one-name iteration (one-name → value)
+ *   - .values → _utils.values(obj) array       (one-name → value)
  *   - .items  → the object, two-name iteration (two-name → key, value)
  * The one-name `.items` tuple form is rejected (no _utils.entries to
  * synthesize a (key, value) sequence flavor-locally).
  *
- * Documented divergences (covered below so they stay locked): single-variable
- * iteration over a bare dict yields VALUES not keys (swig object iteration),
- * and the pseudo-method interception is unconditional (an object with a literal
- * `items` / `keys` / `values` key is still treated as the pseudo-method).
+ * Single-variable iteration over a bare dict yields the keys, as Django does.
+ * Documented divergence (covered below so it stays locked): the pseudo-method
+ * interception is unconditional (an object with a literal `items` / `keys` /
+ * `values` key is still treated as the pseudo-method).
  */
 describe('@rhinostone/swig-django — dict iteration', function () {
 
@@ -106,9 +106,9 @@ describe('@rhinostone/swig-django — dict iteration', function () {
 
   /* ---- documented divergences (locked) ------------------------ */
 
-  it('single-variable iteration over a bare dict yields VALUES (swig divergence)', function () {
-    // Real Django yields keys here; swig's object iteration binds the value.
-    expect(r('{% for x in d %}[{{ x }}]{% endfor %}', { d: d })).to.equal('[1][2][3]');
+  it('single-variable iteration over a bare dict yields KEYS, as Django does', function () {
+    // Django yields the keys here, and so does swig-django.
+    expect(r('{% for x in d %}[{{ x }}]{% endfor %}', { d: d })).to.equal('[a][b][c]');
   });
 
   it('treats a literal "items" key as the pseudo-method (precedence divergence)', function () {
