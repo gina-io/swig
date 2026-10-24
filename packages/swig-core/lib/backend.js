@@ -45,6 +45,38 @@ function escapeTextValue(value) {
  * @param  {string} [blockName]    Name of the enclosing `{% block %}`, if any.
  * @return {string}                JS source body. Does not include the `new Function(...)` wrapper.
  */
+/*!
+ * Statements that bind one loop item to the loop names, shared by the For
+ * body and its loop filter's pass so that a test sees the names the body
+ * sees: the item and its index or key by default, each key of a mapping
+ * with `mapKeys`, each item's first and second values with `unpack` (see
+ * the IRFor typedef).
+ *
+ * @param  {IRFor}  node   The For node (its binding flags).
+ * @param  {string} target JS of the loop value's context slot (`_ctx.x`).
+ * @param  {string} keyTarget JS of the loop key's context slot.
+ * @param  {string} indent Leading whitespace of each statement.
+ * @param  {string} value  Name of the variable holding the item.
+ * @param  {string} key    Name of the variable holding its index or key.
+ * @param  {string} [seq]  Name of the variable that is true for a list or
+ *                         a string, read with a binding flag.
+ * @return {string}        The binding statements.
+ * @private
+ */
+function bindLoopItem(node, target, keyTarget, indent, value, key, seq) {
+  if (node.unpack) {
+    return indent + 'var __pair = ' + seq + ' ? _utils.unpack(' + value + ') : [' + key + ', ' + value + '];\n' +
+      indent + target + ' = __pair[1];\n' +
+      indent + keyTarget + ' = __pair[0];\n';
+  }
+  if (node.mapKeys) {
+    return indent + target + ' = ' + seq + ' ? ' + value + ' : ' + key + ';\n' +
+      indent + keyTarget + ' = ' + key + ';\n';
+  }
+  return indent + target + ' = ' + value + ';\n' +
+    indent + keyTarget + ' = ' + key + ';\n';
+}
+
 exports.compile = function (template, parents, options, blockName) {
   var out = '',
     tokens = utils.isArray(template) ? template : template.tokens,
@@ -245,24 +277,40 @@ exports.compile = function (template, parents, options, blockName) {
       // Absent both flags the emit is unchanged: native swig and Twig never
       // set them.
       var forEachHead = '  _utils.each(__l, function (' + forVal + ', ' + forKey + ') {\n',
-        forBindJS = '    ' + ctx + forVal + ' = ' + forVal + ';\n' +
-          '    ' + ctx + forKey + ' = ' + forKey + ';\n' +
+        forBindJS = bindLoopItem(node, ctx + forVal, ctx + forKey, '    ', forVal, forKey) +
           '    ' + ctxloop + '.key = ' + forKey + ';\n';
       if (node.mapKeys || node.unpack) {
         forEachHead = '  var __seq = _utils.isArray(__l) || typeof __l === "string";\n' +
           '  _utils.each(__l, function (__value, __key) {\n';
-        if (node.unpack) {
-          forBindJS = '    var __pair = __seq ? _utils.unpack(__value) : [__key, __value];\n' +
-            '    ' + ctx + forVal + ' = __pair[1];\n' +
-            '    ' + ctx + forKey + ' = __pair[0];\n';
-        } else {
-          forBindJS = '    ' + ctx + forVal + ' = __seq ? __value : __key;\n' +
-            '    ' + ctx + forKey + ' = __key;\n';
-        }
-        forBindJS += '    ' + ctxloop + '.key = __key;\n';
+        forBindJS = bindLoopItem(node, ctx + forVal, ctx + forKey, '    ', '__value', '__key', '__seq') +
+          '    ' + ctxloop + '.key = __key;\n';
+      }
+      // Opt-in loop filter (`test`, set by the Jinja2 frontend for
+      // `{% for x in xs if cond %}`). The test runs once per item, with the
+      // loop names bound as in the body and before this loop's context
+      // exists, so `loop` in it is the enclosing loop. The kept items
+      // replace __l (a list or a string gives a list, a mapping keeps its
+      // keys), so the counters, `last` and the empty branch count only
+      // them; the loop names are restored before the loop saves them.
+      // Absent a test the emit is unchanged.
+      var forLength = '(_utils.isArray(__l) || typeof __l === "string") ? __l.length : _utils.keys(__l).length',
+        forHead = '  var __l = ' + forIterable + ', __len = ' + forLength + ';\n';
+      if (node.test) {
+        forHead = '  var __l = ' + forIterable + ';\n' +
+          '  if (__l) {\n' +
+          '    var __fseq = _utils.isArray(__l) || typeof __l === "string", __fout = __fseq ? [] : {}, __fval = ' + ctx + forVal + ', __fkey = ' + ctx + forKey + ';\n' +
+          '    _utils.each(__l, function (__value, __key) {\n' +
+          bindLoopItem(node, ctx + forVal, ctx + forKey, '      ', '__value', '__key', '__fseq') +
+          '      if (' + exports.emitExpr(node.test) + ') { if (__fseq) { __fout.push(__value); } else { __fout[__key] = __value; } }\n' +
+          '    });\n' +
+          '    ' + ctx + forVal + ' = __fval;\n' +
+          '    ' + ctx + forKey + ' = __fkey;\n' +
+          '    __l = __fout;\n' +
+          '  }\n' +
+          '  var __len = ' + forLength + ';\n';
       }
       out += '(function () {\n' +
-        '  var __l = ' + forIterable + ', __len = (_utils.isArray(__l) || typeof __l === "string") ? __l.length : _utils.keys(__l).length;\n' +
+        forHead +
         forEmptyCheck +
         '    var ' + ctxloopcache + ' = { ' + loopName + ': ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + ', ' + forKey + ': ' + ctx + forKey + ' };\n' +
         '    ' + ctxloop + ' = { first: false, ' + fIndex + ': 1, ' + fIndex0 + ': 0, ' + fRevindex + ': __len, ' + fRevindex0 + ': __len - 1, length: __len, last: false' + parentloopJS + ' };\n' +
@@ -719,7 +767,7 @@ exports.compile = function (template, parents, options, blockName) {
  * target for the TokenParser → IRExpr migration: once
  * the frontend produces real {@link IRExpr} values, every transitional
  * `IRExpr | string` slot in the statement IR (IRFilter.args,
- * IRIfBranch.test, IRFor.iterable, IRSet.target/value, IRInclude.path/
+ * IRIfBranch.test, IRFor.iterable / test, IRSet.target/value, IRInclude.path/
  * context, IRMacro.params) is lowered to a plain string via this
  * function before the statement emitter splices it into the body.
  *

@@ -125,6 +125,13 @@
  * and the item; over a mapping they still bind the key and the value. Absent
  * both, the backend emits the same JS as before.
  *
+ * `test` is an opt-in loop filter, set by the Jinja2 frontend for
+ * `{% for x in xs if cond %}`: an {@link IRExpr} evaluated once per item,
+ * with the loop names bound as in the body and the enclosing loop's
+ * context, before the loop runs. Only the items it holds for are iterated,
+ * so the loop counters and the empty body count only them. The tag sets
+ * it on the node after {@link forStmt}, only when present.
+ *
  * @typedef {Object} IRFor
  * @property {'For'} type
  * @property {string} [key]                   Loop key var (second binding).
@@ -137,6 +144,7 @@
  * @property {boolean} [loopParent]           Opt-in: expose the enclosing loop as `<loopName>.parentloop` (Django forloop.parentloop).
  * @property {boolean} [mapKeys]              Opt-in: one name over a mapping binds each key (Jinja2, Django).
  * @property {boolean} [unpack]               Opt-in: two names over a list unpack each item into its first and second values (Jinja2, Django).
+ * @property {IRExpr} [test]                  Opt-in loop filter: only the items it holds for are iterated (Jinja2).
  * @property {IRLoc} [loc]
  */
 
