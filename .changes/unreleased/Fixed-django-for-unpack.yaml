@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-django for loops unpack two loop variables over a list as Django does, where they bound the index and the item: a pair gives its two values, a two-character string its characters, a two-key mapping its keys, so {% for k, v in pairs %} binds the key and the value. An item that does not hold two values binds what it holds (a missing value renders empty, extra values are ignored), where Django raises. Two loop variables over a mapping still bind the key and the value, a swig extension that {% for k, v in d.items %} relies on.'
+time: 2026-10-24T11:27:31Z
+custom:
+  Issue: ""

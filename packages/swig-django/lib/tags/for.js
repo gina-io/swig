@@ -14,6 +14,14 @@
  * fields and expose the enclosing loop, so nested-loop safety and the
  * for-empty handling come for free.
  *
+ * Two names over a list unpack each item into its first and second values
+ * (a list's items, a string's characters, a mapping's keys), as Django does,
+ * through the opt-in `unpack` flag. An item that does not hold two values
+ * binds what it holds, a missing value rendering empty, where Django raises.
+ * Two names over a mapping bind the key and the value, a swig extension
+ * (Django iterates the keys and unpacks each one) that the `.items` rewrite
+ * relies on.
+ *
  * Loop variable names must be bare identifiers — dotted paths are rejected
  * at parse time, and the CVE-2023-25345 `_dangerousProps` guard runs on
  * every bound name (key and val).
@@ -210,8 +218,8 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
 
 /**
  * Emit an IRFor node, splitting `content` at an `{% empty %}` marker into
- * the loop body and the empty body, and setting the Django `forloop`
- * opt-in flags. The backend's `For` branch owns the loopcache +
+ * the loop body and the empty body, and setting the Django `forloop` and
+ * binding opt-in flags. The backend's `For` branch owns the loopcache +
  * `_utils.each` scaffolding.
  *
  * @return {object} IRFor node.
@@ -258,5 +266,10 @@ exports.compile = function (compiler, args, content, parents, options, blockName
   node.loopName = 'forloop';
   node.loopFields = DJANGO_LOOP_FIELDS;
   node.loopParent = true;
+  // Django binding (see the IRFor typedef): two names unpack each item of a
+  // list.
+  if (args.length === 2) {
+    node.unpack = true;
+  }
   return node;
 };
