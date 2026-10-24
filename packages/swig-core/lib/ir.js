@@ -117,6 +117,14 @@
  * surface `forloop` with `counter` / `counter0` / `revcounter` /
  * `revcounter0` / `parentloop`.
  *
+ * `mapKeys` / `unpack` are opt-in binding flags, set by the Jinja2 and Django
+ * frontends. With `mapKeys`, one name over a mapping binds each key, where
+ * swig binds each value. With `unpack`, two names over a list or string bind
+ * each item's first and second values (a list's items, a string's characters,
+ * a mapping's keys; a missing value is undefined), where swig binds the index
+ * and the item; over a mapping they still bind the key and the value. Absent
+ * both, the backend emits the same JS as before.
+ *
  * @typedef {Object} IRFor
  * @property {'For'} type
  * @property {string} [key]                   Loop key var (second binding).
@@ -127,6 +135,8 @@
  * @property {string} [loopName]              Opt-in loop-context var name (default 'loop'; Django sets 'forloop').
  * @property {Object} [loopFields]            Opt-in counter-field rename map ({index,index0,revindex,revindex0} → emit names); absent fields keep swig names.
  * @property {boolean} [loopParent]           Opt-in: expose the enclosing loop as `<loopName>.parentloop` (Django forloop.parentloop).
+ * @property {boolean} [mapKeys]              Opt-in: one name over a mapping binds each key (Jinja2, Django).
+ * @property {boolean} [unpack]               Opt-in: two names over a list unpack each item into its first and second values (Jinja2, Django).
  * @property {IRLoc} [loc]
  */
 

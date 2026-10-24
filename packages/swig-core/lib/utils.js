@@ -260,6 +260,54 @@ exports.keys = function (obj) {
 };
 
 /**
+ * Get the values of an object's own enumerable properties, in key order.
+ * @param  {object} obj
+ * @return {array}
+ */
+exports.values = function (obj) {
+  var out = [];
+  exports.each(exports.keys(obj), function (k) {
+    out.push(obj[k]);
+  });
+  return out;
+};
+
+/**
+ * The values a two-name loop binds from one item of a list, as Python
+ * unpacks it: a list gives its own items, a string its characters (code
+ * points, a surrogate pair kept together), a mapping its keys, anything else
+ * nothing. The loop reads the first two, so a missing value is undefined and
+ * extra values are ignored.
+ * @param  {*} item
+ * @return {array}
+ */
+exports.unpack = function (item) {
+  var out, i = 0, c, d;
+  if (isArray(item)) {
+    return item;
+  }
+  out = [];
+  if (typeof item === 'string') {
+    while (i < item.length && out.length < 2) {
+      c = item.charCodeAt(i);
+      d = i + 1 < item.length ? item.charCodeAt(i + 1) : 0;
+      if (c >= 0xD800 && c <= 0xDBFF && d >= 0xDC00 && d <= 0xDFFF) {
+        out.push(item.slice(i, i + 2));
+        i += 2;
+      } else {
+        out.push(item.charAt(i));
+        i += 1;
+      }
+    }
+    return out;
+  }
+  if (item !== null && typeof item === 'object') {
+    return exports.keys(item);
+  }
+  return out;
+};
+
+/**
  * Throw an error with possible line number and source file.
  * @param  {string} message Error message
  * @param  {number} [line]  Line number in template.

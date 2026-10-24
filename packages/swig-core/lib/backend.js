@@ -236,15 +236,38 @@ exports.compile = function (template, parents, options, blockName) {
         });
         forEmptyCheck = '  if (!__l || !__len) {\n' + forEmptyJS + '  return;\n  }\n';
       }
+      // Opt-in binding rules. A frontend sets `mapKeys` (one name over a
+      // mapping binds each key, as Jinja2 and Django do) or `unpack` (two
+      // names over a list or string unpack each item into its first and
+      // second values, as Python does; over a mapping they keep the key and
+      // the value). The callback parameters are renamed so that a bound value
+      // left undefined cannot fall back to the item through the closure name.
+      // Absent both flags the emit is unchanged: native swig and Twig never
+      // set them.
+      var forEachHead = '  _utils.each(__l, function (' + forVal + ', ' + forKey + ') {\n',
+        forBindJS = '    ' + ctx + forVal + ' = ' + forVal + ';\n' +
+          '    ' + ctx + forKey + ' = ' + forKey + ';\n' +
+          '    ' + ctxloop + '.key = ' + forKey + ';\n';
+      if (node.mapKeys || node.unpack) {
+        forEachHead = '  var __seq = _utils.isArray(__l) || typeof __l === "string";\n' +
+          '  _utils.each(__l, function (__value, __key) {\n';
+        if (node.unpack) {
+          forBindJS = '    var __pair = __seq ? _utils.unpack(__value) : [__key, __value];\n' +
+            '    ' + ctx + forVal + ' = __pair[1];\n' +
+            '    ' + ctx + forKey + ' = __pair[0];\n';
+        } else {
+          forBindJS = '    ' + ctx + forVal + ' = __seq ? __value : __key;\n' +
+            '    ' + ctx + forKey + ' = __key;\n';
+        }
+        forBindJS += '    ' + ctxloop + '.key = __key;\n';
+      }
       out += '(function () {\n' +
         '  var __l = ' + forIterable + ', __len = (_utils.isArray(__l) || typeof __l === "string") ? __l.length : _utils.keys(__l).length;\n' +
         forEmptyCheck +
         '    var ' + ctxloopcache + ' = { ' + loopName + ': ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + ', ' + forKey + ': ' + ctx + forKey + ' };\n' +
         '    ' + ctxloop + ' = { first: false, ' + fIndex + ': 1, ' + fIndex0 + ': 0, ' + fRevindex + ': __len, ' + fRevindex0 + ': __len - 1, length: __len, last: false' + parentloopJS + ' };\n' +
-        '  _utils.each(__l, function (' + forVal + ', ' + forKey + ') {\n' +
-        '    ' + ctx + forVal + ' = ' + forVal + ';\n' +
-        '    ' + ctx + forKey + ' = ' + forKey + ';\n' +
-        '    ' + ctxloop + '.key = ' + forKey + ';\n' +
+        forEachHead +
+        forBindJS +
         '    ' + ctxloop + '.first = (' + ctxloop + '.' + fIndex0 + ' === 0);\n' +
         '    ' + ctxloop + '.last = (' + ctxloop + '.' + fRevindex0 + ' === 0);\n' +
         '    ' + forBodyJS +
