@@ -1208,7 +1208,7 @@ exports.slice = function (input, slices, fill) {
  * and `reverse` flips the order.
  *
  * @example
- * {% for p in {"b":2,"a":1}|dictsort %}{{ p[0] }}={{ p[1] }};{% endfor %}
+ * {% for k, v in {"b":2,"a":1}|dictsort %}{{ k }}={{ v }};{% endfor %}
  * // => a=1;b=2;
  *
  * @param  {object}  input

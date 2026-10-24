@@ -5,6 +5,14 @@
  *   {% for <key>, <val> in <iterable> %}…{% endfor %}
  *   {% for <val> in <iterable> %}…{% else %}…{% endfor %}   (empty case)
  *
+ * Binding follows Jinja2: one name over a mapping binds each key, and two
+ * names over a list unpack each item into its first and second values (a
+ * list's items, a string's characters, a mapping's keys), so
+ * `{% for k, v in d|dictsort %}` binds the key and the value. An item that
+ * does not hold two values binds what it holds, a missing value rendering
+ * empty, where Jinja2 raises. Two names over a mapping bind the key and the
+ * value, a swig extension (Jinja2 iterates the keys and unpacks each one).
+ *
  * Loop variable names must be bare identifiers — dotted paths (`foo.bar`)
  * are rejected at parse time. The CVE-2023-25345 `_dangerousProps` guard
  * runs on every bound name (key and val).
@@ -19,7 +27,8 @@
  * revindex0 / length / key), the `Math.random()`-based loopcache that keeps
  * nested loops from clobbering each other's `_ctx.loop` state, and the
  * `emptyBody` (for-else) emission. The tag ships only semantic IR —
- * (val, key, iterable, body, emptyBody).
+ * (val, key, iterable, body, emptyBody) and the `mapKeys` / `unpack`
+ * binding flags.
  *
  * A `{% else %}` inside the for body is captured as a marker token (its
  * stack check in tags/else.js allows `for`); compile splits the content at
@@ -111,8 +120,8 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
 
 /**
  * Emit an IRFor node, splitting `content` at a `{% else %}` marker into the
- * loop body and the empty body. The backend's `For` branch owns the
- * loopcache + `_utils.each` scaffolding.
+ * loop body and the empty body, and setting the Jinja2 binding flags. The
+ * backend's `For` branch owns the loopcache + `_utils.each` scaffolding.
  *
  * @return {object} IRFor node.
  */
@@ -150,5 +159,13 @@ exports.compile = function (compiler, args, content, parents, options, blockName
   if (emptyContent !== null) {
     emptyBody = [ir.legacyJS(compiler(emptyContent, parents, options, blockName))];
   }
-  return ir.forStmt(val, token.irExpr, [ir.legacyJS(bodyJS)], key, emptyBody);
+  var node = ir.forStmt(val, token.irExpr, [ir.legacyJS(bodyJS)], key, emptyBody);
+  // Jinja2 binding (see the IRFor typedef): two names unpack each item of a
+  // list, one name binds each key of a mapping.
+  if (args.length === 2) {
+    node.unpack = true;
+  } else {
+    node.mapKeys = true;
+  }
+  return node;
 };
