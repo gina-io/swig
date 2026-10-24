@@ -1094,7 +1094,8 @@ exports.unique = function (input, caseSensitive) {
  * string batches its characters and a mapping its keys; any other input
  * that is not a list gives an empty list. As in Jinja2, a size of 0 gives
  * an empty first row, and a size that no row length can equal (negative,
- * fractional or not a number) gives a single row.
+ * fractional or not a number) gives a single row. A size above swig-core's
+ * `utils.maxSize` (1,000,000) leaves the last row unpadded.
  *
  * @example
  * {% for row in [1,2,3,4,5]|batch(2) %}[{{ row|join(",") }}]{% endfor %}
@@ -1125,8 +1126,12 @@ exports.batch = function (input, size, fill) {
   }
   if (tmp.length) {
     // Pad only up to a finite numeric size, since a non-finite one would
-    // never end the loop (Jinja2 raises unless the size is an integer).
-    if (fill !== undefined && typeof size === 'number' && isFinite(size)) {
+    // never end the loop (Jinja2 raises unless the size is an integer), and
+    // only up to utils.maxSize: padding up to a large size from the data
+    // could exhaust the heap and abort the process (a size of 1e8 does under
+    // a 256 MB heap).
+    // if (fill !== undefined && typeof size === 'number' && isFinite(size)) {
+    if (fill !== undefined && typeof size === 'number' && isFinite(size) && size <= utils.maxSize) {
       while (tmp.length < size) {
         tmp.push(fill);
       }
@@ -1141,7 +1146,9 @@ exports.batch = function (input, size, fill) {
  * inverse of `batch`, and distinct from the `seq[start:stop:step]`
  * subscript). The first columns receive the extra items when the count
  * does not divide evenly; an optional `fill` pads the shorter columns. A
- * string distributes its characters and a mapping its keys.
+ * string distributes its characters and a mapping its keys. A count that
+ * is not finite, or above swig-core's `utils.maxSize` (1,000,000), gives
+ * an empty list.
  *
  * @example
  * {% for col in [1,2,3,4,5,6,7,8,9,10]|slice(3) %}[{{ col|join(",") }}]{% endfor %}
@@ -1168,6 +1175,12 @@ exports.slice = function (input, slices, fill) {
     return [];
   }
   n = Math.ceil(n);
+  // One column per count built an array until the heap ran out for a large
+  // count from the data (1e7 aborted the process under a 256 MB heap); more
+  // columns than utils.maxSize give an empty list, as an infinite count does.
+  if (n > utils.maxSize) {
+    return [];
+  }
   length = seq.length;
   perSlice = Math.floor(length / n);
   withExtra = length % n;
