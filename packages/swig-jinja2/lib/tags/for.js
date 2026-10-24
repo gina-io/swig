@@ -4,6 +4,7 @@
  *   {% for <val> in <iterable> %}…{% endfor %}
  *   {% for <key>, <val> in <iterable> %}…{% endfor %}
  *   {% for <val> in <iterable> %}…{% else %}…{% endfor %}   (empty case)
+ *   {% for <val> in <iterable> if <test> %}…{% endfor %}     (loop filter)
  *
  * Binding follows Jinja2: one name over a mapping binds each key, and two
  * names over a list unpack each item into its first and second values (a
@@ -18,9 +19,15 @@
  * runs on every bound name (key and val).
  *
  * The iterable is lowered through `parser.parseExpr`, so filter chains,
- * binary ops, function calls, and inline-ifs all route through the same
- * path as any other Jinja2 expression. The resulting IRExpr is attached
- * to `token.irExpr`.
+ * binary ops and function calls route through the same path as any other
+ * Jinja2 expression; the IRExpr goes on `token.irExpr`. A loop filter,
+ * `{% for x in xs if x > 1 %}`, starts at the first `if` at depth 0 and is
+ * lowered the same way onto `token.irTest`, which compile sets as the IRFor
+ * `test`: it runs once per item with the loop names bound, before the loop,
+ * so `loop` in it is the enclosing loop, and the counters and the else
+ * branch count only the kept items, as in Jinja2. An inline-if iterable
+ * (`{% for x in a if c else b %}`), which Jinja2 rejects without
+ * parentheses, still compiles when an `else` is left for that `if`.
  *
  * The backend's `For` branch owns the full IIFE scaffolding: `_utils.each`,
  * the `_ctx.loop.*` bookkeeping (first / last / index / index0 / revindex /
@@ -44,11 +51,57 @@ var lexer = require('../lexer');
 exports.ends = true;
 exports.block = false;
 
+/*!
+ * Index of the token that starts a loop filter in the iterable's tokens, or
+ * -1: the first `if` at depth 0, unless an `else` is left for it once each
+ * nested `if` has taken the next `else`, as parseExpr pairs them (the tail
+ * is then an inline-if iterable). `if(` and `if()` lex as FUNCTION and
+ * FUNCTIONEMPTY tokens named `if`, and `else(` likewise, so those count.
+ *
+ * @param  {Array}  tokens The tokens after `in`.
+ * @param  {object} types  Jinja2 lexer token-type enum.
+ * @return {number}        Index of the splitting token, or -1.
+ * @private
+ */
+function loopFilterIndex(tokens, types) {
+  function isWord(tok, word) {
+    return tok.match === word && (tok.type === types.VAR || tok.type === types.FUNCTION || tok.type === types.FUNCTIONEMPTY);
+  }
+  function step(tok, depth) {
+    if (tok.type === types.PARENOPEN || tok.type === types.BRACKETOPEN || tok.type === types.CURLYOPEN || tok.type === types.FUNCTION || tok.type === types.FILTER) {
+      return depth + 1;
+    }
+    if (tok.type === types.PARENCLOSE || tok.type === types.BRACKETCLOSE || tok.type === types.CURLYCLOSE) {
+      return depth - 1;
+    }
+    return depth;
+  }
+  var split = -1, depth = 0, pending = 0, i;
+  for (i = 0; i < tokens.length && split === -1; i += 1) {
+    if (depth === 0 && isWord(tokens[i], 'if')) {
+      split = i;
+    }
+    depth = step(tokens[i], depth);
+  }
+  for (; split !== -1 && i < tokens.length; i += 1) {
+    if (depth === 0 && isWord(tokens[i], 'if')) {
+      pending += 1;
+    } else if (depth === 0 && isWord(tokens[i], 'else')) {
+      if (pending === 0) {
+        return -1;
+      }
+      pending -= 1;
+    }
+    depth = step(tokens[i], depth);
+  }
+  return split;
+}
+
 /**
  * Parse the `{% for %}` tag body. Extracts the binding names (val or
- * key+val), validates them, then lowers the iterable expression. Names go
- * on `token.args` (`[val]` or `[key, val]`); the iterable IR on
- * `token.irExpr`.
+ * key+val), validates them, then lowers the iterable expression and a loop
+ * filter's test. Names go on `token.args` (`[val]` or `[key, val]`); the
+ * iterable IR on `token.irExpr`, the test IR on `token.irTest`.
  *
  * @param  {string} str    Tag body.
  * @param  {number} line   Source line of the opening `{%`.
@@ -114,14 +167,40 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   }
 
   token.args = key !== undefined ? [key, val] : [val];
-  token.irExpr = parser.parseExpr(iterableTokens);
+  var split = loopFilterIndex(iterableTokens, types);
+  if (split === -1) {
+    token.irExpr = parser.parseExpr(iterableTokens);
+    return true;
+  }
+  // The test gets back the parentheses that `if(` or `if()` lexed into.
+  var splitTok = iterableTokens[split],
+    iterTokens = iterableTokens.slice(0, split),
+    testTokens = iterableTokens.slice(split + 1);
+  if (splitTok.type === types.FUNCTIONEMPTY) {
+    testTokens.unshift({ type: types.PARENCLOSE, match: ')', length: 1 });
+  }
+  if (splitTok.type !== types.VAR) {
+    testTokens.unshift({ type: types.PARENOPEN, match: '(', length: 1 });
+  }
+  function hasToken(list) {
+    return list.some(function (t) { return t.type !== types.WHITESPACE; });
+  }
+  if (!hasToken(iterTokens)) {
+    utils.throwError('Expected iterable after "in" in "for" tag', line, opts.filename);
+  }
+  if (!hasToken(testTokens)) {
+    utils.throwError('Expected a condition after "if" in "for" tag', line, opts.filename);
+  }
+  token.irExpr = parser.parseExpr(iterTokens);
+  token.irTest = parser.parseExpr(testTokens);
   return true;
 };
 
 /**
  * Emit an IRFor node, splitting `content` at a `{% else %}` marker into the
- * loop body and the empty body, and setting the Jinja2 binding flags. The
- * backend's `For` branch owns the loopcache + `_utils.each` scaffolding.
+ * loop body and the empty body, and setting the Jinja2 binding flags and a
+ * loop filter's `test`. The backend's `For` branch owns the loopcache +
+ * `_utils.each` scaffolding.
  *
  * @return {object} IRFor node.
  */
@@ -166,6 +245,9 @@ exports.compile = function (compiler, args, content, parents, options, blockName
     node.unpack = true;
   } else {
     node.mapKeys = true;
+  }
+  if (token.irTest) {
+    node.test = token.irTest;
   }
   return node;
 };
