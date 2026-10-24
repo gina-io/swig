@@ -83,12 +83,11 @@ describe('jinja2 async render path — statement bodies', function () {
   });
 
   it('runs a from in a for loop on each item', function (done) {
-    // The sync path discards the loop's output here: its from emit declares a
-    // local _output (tracked separately).
     render('{% for x in xs %}{% from "m.html" import hi %}{{ hi() }}{% endfor %}', function (sync, err, out) {
       if (err) {
         return done(err);
       }
+      expect(sync).to.equal('HH');
       expect(out).to.equal('HH');
       done();
     });

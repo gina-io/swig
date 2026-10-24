@@ -208,7 +208,10 @@ exports.compile = function (compiler, args, content, parents, options) {
     (a.isImport ? nested : macros).push(a);
   });
   var allMacros = utils.map(macros, function (arg) { return arg.name; }).join('|');
-  var out = '_ctx.' + ctx + ' = {};\n  var _output = "";\n';
+  // No _output declaration in this emit: it runs in the caller's body (the
+  // template, a block, a loop or a macro), where one reset or shadowed what
+  // was rendered before the tag.
+  var out = '_ctx.' + ctx + ' = {};\n';
   var replacements = utils.map(macros, function (arg) {
     return {
       ex: new RegExp('_ctx\\.' + arg.name + '(\\W)(?!' + allMacros + ')', 'g'),

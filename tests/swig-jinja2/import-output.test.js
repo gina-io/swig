@@ -1,0 +1,65 @@
+var jinja2 = require('@rhinostone/swig-jinja2'),
+  expect = require('../lib/expect.js');
+
+
+/*!
+ * Output around an {% import %} or a {% from %} on the sync render path: the
+ * template keeps what it renders before the tag, at the top level, in a block
+ * of an extends child, in a for loop and in a macro body. Jinja2 3.1.6
+ * renders the same output for each of these templates.
+ */
+
+var templates = {
+  '/m.html': '{% macro hi() %}H{% endmacro %}',
+  '/base.html': '<head>{% block b %}{% endblock %}</tail>'
+};
+
+function render(src) {
+  var files = {}, k;
+  for (k in templates) {
+    if (templates.hasOwnProperty(k)) {
+      files[k] = templates[k];
+    }
+  }
+  files['/t.html'] = src;
+  return new jinja2.Jinja2({ loader: jinja2.loaders.memory(files, '/'), cache: false })
+    .renderFile('/t.html', { xs: [1, 2] });
+}
+
+describe('@rhinostone/swig-jinja2 — output around {% import %} and {% from %}', function () {
+  it('keeps the text rendered before an import', function () {
+    expect(render('A{% import "m.html" as mm %}B{{ mm.hi() }}C')).to.equal('ABHC');
+  });
+
+  it('keeps the text rendered before a from', function () {
+    expect(render('A{% from "m.html" import hi %}B{{ hi() }}C')).to.equal('ABHC');
+  });
+
+  it('keeps a doctype line rendered before an import', function () {
+    expect(render('<!DOCTYPE html>\n{% import "m.html" as mm %}<p>{{ mm.hi() }}</p>'))
+      .to.equal('<!DOCTYPE html>\n<p>H</p>');
+  });
+
+  it('keeps the parent\'s output when an import sits in a block of an extends child', function () {
+    expect(render('{% extends "base.html" %}{% block b %}<h1>T</h1>{% import "m.html" as mm %}{{ mm.hi() }}{% endblock %}'))
+      .to.equal('<head><h1>T</h1>H</tail>');
+  });
+
+  it('keeps the output of a for loop that holds an import', function () {
+    expect(render('{% for x in xs %}{% import "m.html" as mm %}{{ mm.hi() }}{% endfor %}')).to.equal('HH');
+  });
+
+  it('keeps the output of a for loop that holds a from', function () {
+    expect(render('{% for x in xs %}{% from "m.html" import hi %}{{ hi() }}{% endfor %}')).to.equal('HH');
+  });
+
+  it('keeps the output of a macro body that holds an import', function () {
+    expect(render('{% macro w() %}({% import "m.html" as mm %}{{ mm.hi() }}){% endmacro %}[{{ w() }}]'))
+      .to.equal('[(H)]');
+  });
+
+  it('keeps the output of a macro body that holds a from', function () {
+    expect(render('{% macro w() %}({% from "m.html" import hi %}{{ hi() }}){% endmacro %}[{{ w() }}]'))
+      .to.equal('[(H)]');
+  });
+});

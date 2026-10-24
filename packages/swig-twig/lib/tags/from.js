@@ -282,7 +282,10 @@ exports.compile = function (compiler, args, content, parents, options) {
     });
   });
 
-  var out = '  var _output = "";\n';
+  // No _output declaration in this emit: it runs in the caller's body (the
+  // template, a block, a loop or a macro), where one reset or shadowed what
+  // was rendered before the tag.
+  var out = '';
   // Nested imports first (under the private slot), so the imported macros
   // below resolve them at call time.
   utils.each(nested, function (a) {

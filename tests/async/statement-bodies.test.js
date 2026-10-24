@@ -89,12 +89,11 @@ describe('async render path — statement bodies (native)', function () {
   });
 
   it('runs an import in a for loop on each item', function (done) {
-    // The sync path discards the loop's output here: its import emit declares
-    // a local _output (tracked separately).
     render('{% for x in xs %}{% import "m.html" as mm %}{{ mm.hi() }}{% endfor %}', locals, function (sync, err, out) {
       if (err) {
         return done(err);
       }
+      expect(sync).to.equal('HH');
       expect(out).to.equal('HH');
       done();
     });
