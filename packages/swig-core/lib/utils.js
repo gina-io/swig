@@ -277,12 +277,27 @@ exports.throwError = function (message, line, file) {
 };
 
 /**
+ * The largest number of elements a builder creates from a number in the
+ * data: the values of a numeric range (swig-twig's `a..b`), the columns of
+ * swig-jinja2's `slice` filter and the padding of the `batch` filters. A
+ * larger size gives an empty range or slice, as an infinite one does, and
+ * leaves a batch unpadded, since building it could exhaust the heap and
+ * abort the process.
+ *
+ * @type {number}
+ */
+exports.maxSize = 1000000;
+
+/**
  * Inclusive range generator. Mirrors Twig's `..` operator semantics and
  * PHP's range(): numeric bounds produce [from, from±1, ..., to]; single-
  * character string bounds produce a char array across the charCode span.
  * Descending when `from > to`. Mismatched or unsupported argument shapes,
- * and a numeric bound that is not finite, return an empty array so
- * compiled templates degrade silently rather than throwing at render time.
+ * a numeric bound that is not finite, and a numeric range of more than
+ * `maxSize` elements return an empty array so compiled templates degrade
+ * silently rather than throwing at render time. From 2^53 on, adding 1 no
+ * longer changes a number, so a range whose values reach 2^53 counts as
+ * longer than `maxSize`.
  *
  * @param  {number|string} from
  * @param  {number|string} to
@@ -298,10 +313,24 @@ exports.range = function (from, to) {
     if (!isFinite(from) || !isFinite(to)) {
       return out;
     }
+    // A range of more than maxSize elements could build an array until the
+    // heap ran out (under a 256 MB heap a bound of 1e8 from the data aborted
+    // the process), and from 2^53 on i += 1 no longer changes i, so such a
+    // loop never ended. The loop now stops before element maxSize + 1 and the
+    // range is empty, as for an infinite bound; a range of up to maxSize
+    // elements is unchanged.
     if (from <= to) {
-      for (i = from; i <= to; i += 1) { out.push(i); }
+      // for (i = from; i <= to; i += 1) { out.push(i); }
+      for (i = from; i <= to; i += 1) {
+        if (out.length >= exports.maxSize) { return []; }
+        out.push(i);
+      }
     } else {
-      for (i = from; i >= to; i -= 1) { out.push(i); }
+      // for (i = from; i >= to; i -= 1) { out.push(i); }
+      for (i = from; i >= to; i -= 1) {
+        if (out.length >= exports.maxSize) { return []; }
+        out.push(i);
+      }
     }
     return out;
   }

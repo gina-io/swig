@@ -461,7 +461,8 @@ exports.split = function (input, delimiter, limit) {
 /**
  * Group an array (or object values) into chunks of `size` items. When
  * a `fill` value is provided, the last chunk is padded to `size` with
- * it; otherwise the tail runs shorter.
+ * it; otherwise the tail runs shorter. A size above swig-core's
+ * `utils.maxSize` (1,000,000) leaves the last chunk unpadded.
  *
  * @example
  * {{ ['a','b','c','d','e']|batch(2) }}
@@ -497,7 +498,11 @@ exports.batch = function (input, size, fill) {
     out.push(items.slice(i, i + n));
     i += n;
   }
-  if (fill !== undefined && out.length > 0) {
+  // Padding up to a large size from the data could exhaust the heap and
+  // abort the process (a size of 1e8 does under a 256 MB heap); a size above
+  // utils.maxSize now leaves the last chunk unpadded.
+  // if (fill !== undefined && out.length > 0) {
+  if (fill !== undefined && out.length > 0 && n <= utils.maxSize) {
     var last = out[out.length - 1];
     while (last.length < n) {
       last.push(fill);
