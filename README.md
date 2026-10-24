@@ -43,17 +43,13 @@ Features
 * Robust without the bloat — a single runtime dependency ([`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core)).
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
-What's new in v2.9.1
+What's new in v2.9.2
 --------------------
 
-> **Security release: upgrade all five packages to 2.9.1.** `striptags` in every flavor, `trim` in swig-twig and swig-jinja2, swig-jinja2 `format`, and swig-django `truncatewords`, `pluralize`, `slugify` and `floatformat` took time quadratic in the length of their input on some inputs, several seconds for 100 000 characters. A template that applied one of them to request data could be made to block the event loop. They now run in linear time with the same output.
+> **Security release: upgrade swig-twig and swig-jinja2 to 2.9.2.** swig-twig ranges and `batch`, and swig-jinja2 `slice` and `batch`, built an array from a number in the template data, so a large number could exhaust the heap and abort the process, and a swig-twig range whose values reach 2^53 never ended. They now stop at 1,000,000 elements; smaller results are unchanged. `@rhinostone/swig` and `@rhinostone/swig-django` are not affected, but the frontends require the same `@rhinostone/swig-core` version, so upgrade the packages together.
 
-* **Security — swig `striptags` runs in linear time.** On text with many `<` and no `>` after them it ran for about five seconds per 100 000 characters. The regex dates from the original project, so every earlier release has it.
-* **Security — swig-twig `striptags` and `trim` run in linear time.** `striptags` was slow on text with many `<` and no `>` after them, and `trim` on a long run of the trimmed characters inside the text. Every swig-twig release since 2.0.0-alpha.3 has them.
-* **Security — swig-jinja2 `striptags`, `trim` and `format` run in linear time.** `striptags` was slow on text with many `<` or `<!--` and nothing closing them, `trim` on a long run of the trimmed characters inside the text, and `format` slower still on a `%` followed by a long run of zeros. Every swig-jinja2 release since 2.5.0 has them.
-* **Security — swig-django `striptags`, `truncatewords`, `pluralize`, `slugify` and `floatformat` run in linear time.** `striptags` was slow on text with many `<` and no `>` after them, `truncatewords` and `pluralize` on a long run of whitespace inside the value, `slugify` on a long run of underscores, and `floatformat` on an argument with a long run of `g` or `u` not at its end. Every swig-django release since 2.7.0 has them, except `pluralize`, which has had it since 2.8.2.
-* **Fixed — the Express example no longer has its catch-all route.** The route rendered any `.html` file a URL named as a template, including files outside the views folder. The example is not part of any package; an application built from it should remove or confine that route.
-* **Changed — property-based tests.** The test suite checks properties on many generated inputs, with the new fast-check dev dependency under a fixed seed. Development and CI only; the only runtime dependency remains `@rhinostone/swig-core`.
+* **Security — swig-twig ranges and `batch` stop at 1,000,000 elements.** `a..b` built one element per value up to its bound and `batch` padded its last chunk up to its size, so a large bound or size from the data exhausted the heap and aborted the process; a range whose values reach 2^53 (9007199254740992), where adding 1 no longer changes a number, never ended. A longer range is now empty, as for an infinite bound, and a larger batch size leaves the last chunk unpadded. Every release since 2.0.0-alpha.3 has the batch padding and every release since 2.0.0-alpha.5 the ranges.
+* **Security — swig-jinja2 `slice` and `batch` stop at 1,000,000.** `slice` built one column per count and `batch` padded its last row up to its size, so a large count or size from the data exhausted the heap and aborted the process. More columns now give an empty list, as for an infinite count, and a larger batch size leaves the last row unpadded. Every swig-jinja2 release since 2.5.0 has them.
 
 See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 

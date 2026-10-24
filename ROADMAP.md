@@ -28,6 +28,11 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Completed
 
+### v2.9.2 (October 2026)
+
+- Security: swig-twig ranges (`a..b`) and `batch`, and swig-jinja2 `slice` and `batch`, stop at 1,000,000 elements. They built an array from a number in the template data, so a large number could exhaust the heap and abort the process, and a swig-twig range whose values reach 2^53 never ended. A longer range or slice is now empty, and a larger batch size leaves the last chunk unpadded.
+- All five packages released in lockstep at `2.9.2`.
+
 ### v2.9.1 (October 2026)
 
 - Security: `striptags` in every flavor, `trim` in swig-twig and swig-jinja2, swig-jinja2 `format`, and swig-django `truncatewords`, `pluralize`, `slugify` and `floatformat` run in linear time with the same output. Their regexes took time quadratic in the input length on some inputs, so a template that applied one of them to request data could be made to block the event loop.

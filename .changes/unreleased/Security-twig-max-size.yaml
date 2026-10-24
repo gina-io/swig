@@ -1,5 +1,0 @@
-kind: security
-body: 'swig-twig ranges and batch no longer build an array from a huge number in the data. a..b built one element per value up to its bound, and batch padded the last chunk up to its size, so a large bound or size from the data exhausted the heap and aborted the process; under a 256 MB heap 1e8 did so within a second. A range whose values reach 2^53 (9007199254740992), where adding 1 no longer changes a number, never ended, so it aborted the process whatever the heap. A range of more than 1,000,000 elements is now empty, as for an infinite bound, and a batch size above 1,000,000 leaves the last chunk unpadded; smaller ranges and batches are unchanged. The limit is maxSize in the swig-core utils, whose range helper backs a..b. Every release since 2.0.0-alpha.3 has the batch padding and every release since 2.0.0-alpha.5 the ranges; reaching either takes an application that passes a number from the request into a range bound or a batch size.'
-time: 2026-10-24T09:52:04Z
-custom:
-  Issue: ""
