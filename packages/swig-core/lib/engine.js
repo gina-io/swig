@@ -173,6 +173,37 @@ function buildExtendsDeferred(tokens, options) {
   );
 }
 
+/*!
+ * Copy a parse tree held in the compile cache: the entry's own properties, its
+ * token list and its blocks map, with every token object copied once, so a
+ * token that the list and the blocks map share stays shared in the copy.
+ * @private
+ */
+function copyParseTree(entry) {
+  var copies = new Map(),
+    out = utils.extend({}, entry);
+  function copyToken(token) {
+    if (!token || typeof token !== 'object' || utils.isArray(token)) {
+      return token;
+    }
+    if (copies.has(token)) {
+      return copies.get(token);
+    }
+    var copy = utils.extend({}, token);
+    copies.set(token, copy);
+    if (utils.isArray(token.content)) {
+      copy.content = utils.map(token.content, copyToken);
+    }
+    return copy;
+  }
+  out.tokens = utils.map(entry.tokens, copyToken);
+  out.blocks = {};
+  utils.each(entry.blocks || {}, function (block, name) {
+    out.blocks[name] = copyToken(block);
+  });
+  return out;
+}
+
 /**
  * Walk a template's `extends` chain and build the parent token tree.
  * Detects circular inheritance.
@@ -214,6 +245,12 @@ exports.getParents = function (tokens, options, deps) {
     parent = deps.cacheGet(parentFile, options);
     if (!parent || !parent.tokens) {
       parent = deps.parseFile(parentFile, utils.extend({}, options, { filename: parentFile }));
+    } else {
+      // A compile-cache entry: the remap below rewrites the parse tree it
+      // walks, so it gets a copy; remapping the cached tree itself carried one
+      // child's block overrides into every child compiled after it.
+      parent = copyParseTree(parent);
+      parent.name = parentFile;
     }
     parentName = parent.parent;
 
