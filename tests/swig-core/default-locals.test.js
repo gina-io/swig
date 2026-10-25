@@ -43,6 +43,7 @@ flavors.forEach(function (flavor) {
     files = {
       '/w.html': writers[name],
       '/r.html': '<{{ site }}:{{ name }}>',
+      '/p.html': '[{{ leak }}|{{ site }}]',
       '/c.html': '{% for x in items %}{% cycle "a" "b" "c" %}{% endfor %}'
     };
 
@@ -142,6 +143,31 @@ flavors.forEach(function (flavor) {
       expect(Object.keys(s.options.locals)).to.eql(['site']);
     });
 
+    it('keeps an own "__proto__" key of JSON default locals a plain key in a render without locals', function () {
+      // JSON.parse makes "__proto__" an own key; a copy that assigned it made
+      // its value the copy's prototype, so the names inside it read as locals.
+      var s = instance({ locals: JSON.parse('{"__proto__": {"leak": "Y"}, "site": "S"}') });
+      expect(s.render('[{{ leak }}|{{ site }}]')).to.equal('[|S]');
+      expect(s.run(s.precompile('[{{ leak }}|{{ site }}]').tpl)).to.equal('[|S]');
+    });
+
+    it('keeps an own "__proto__" key of JSON default locals a plain key in an async render without locals', function (done) {
+      var s = instance({ loader: asyncLoader(), locals: JSON.parse('{"__proto__": {"leak": "Y"}, "site": "S"}') });
+      s.renderFile('/p.html', undefined, function (err, out) {
+        if (err) {
+          done(err);
+          return;
+        }
+        try {
+          expect(out).to.equal('[|S]');
+        } catch (e) {
+          done(e);
+          return;
+        }
+        done();
+      });
+    });
+
     it('leaves the default locals unchanged after an async render without locals', function (done) {
       var s = instance({ loader: asyncLoader(), locals: { site: 'S', items: [1, 2] } });
       s.renderFile('/w.html', undefined, function (err) {
@@ -178,6 +204,13 @@ describe('runtime — default locals and renders without locals', function () {
     rt.register('/reg.html', swigModule.precompile('<{{ site }}>').tpl);
     expect(rt.renderFile('/reg.html')).to.equal('<S>');
     expect(rt.run(swigModule.precompile('<{{ site }}>').tpl)).to.equal('<S>');
+  });
+
+  it('keeps an own "__proto__" key of JSON default locals a plain key in run and a registered template without locals', function () {
+    var rt = new runtimeModule.Swig({ locals: JSON.parse('{"__proto__": {"leak": "Y"}, "site": "S"}') });
+    rt.register('/reg.html', swigModule.precompile('[{{ leak }}|{{ site }}]').tpl);
+    expect(rt.renderFile('/reg.html')).to.equal('[|S]');
+    expect(rt.run(swigModule.precompile('[{{ leak }}|{{ site }}]').tpl)).to.equal('[|S]');
   });
 
   it('leaves the default locals unchanged after run without locals', function () {

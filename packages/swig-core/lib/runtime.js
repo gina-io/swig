@@ -47,6 +47,13 @@ function noCompiler(what) {
 function copyLocals(obj) {
   var out = {};
   utils.each(utils.keys(obj), function (key) {
+    if (key === '__proto__') {
+      // JSON.parse makes "__proto__" an own key: an assignment would make its
+      // value the copy's prototype, where the defaults object used directly
+      // kept it a plain key the template cannot read.
+      Object.defineProperty(out, key, { value: obj[key], writable: true, enumerable: true, configurable: true });
+      return;
+    }
     out[key] = obj[key];
   });
   return out;
