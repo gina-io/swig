@@ -41,22 +41,26 @@ function noCompiler(what) {
 
 /*!
  * A copy of an instance's default locals for one render, as engine.js makes:
- * the render's writes stay out of the object every render shares, and the keys
- * come from utils.keys so a null-prototype defaults object still renders.
+ * the render's writes stay out of the object every render shares, and the copy
+ * keeps the prototype, so a null-prototype defaults object and one with
+ * prototype members still render.
  */
 function copyLocals(obj) {
-  var out = {};
-  utils.each(utils.keys(obj), function (key) {
-    if (key === '__proto__') {
-      // JSON.parse makes "__proto__" an own key: an assignment would make its
-      // value the copy's prototype, where the defaults object used directly
-      // kept it a plain key the template cannot read.
-      Object.defineProperty(out, key, { value: obj[key], writable: true, enumerable: true, configurable: true });
-      return;
-    }
-    out[key] = obj[key];
-  });
-  return out;
+  // The copy keeps the defaults object's prototype, as the copy of call locals
+  // does (utils.copyContext): a plain {} dropped the prototype, so default
+  // locals that are a class instance lost their methods and getters in a
+  // render without call locals, where the object used directly had them.
+  // copyContext also handles a null prototype and an own "__proto__" key.
+  // var out = {};
+  // utils.each(utils.keys(obj), function (key) {
+  //   if (key === '__proto__') {
+  //     Object.defineProperty(out, key, { value: obj[key], writable: true, enumerable: true, configurable: true });
+  //     return;
+  //   }
+  //   out[key] = obj[key];
+  // });
+  // return out;
+  return utils.copyContext(obj);
 }
 
 /**

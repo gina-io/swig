@@ -59,24 +59,28 @@ function bindOptionLocals(fn, options) {
 /*!
  * A copy of an instance's default locals for one render, so what the render
  * writes ({% set %}, macros, loop names, cycle state) stays out of the object
- * every render of the instance shares. Copies the own enumerable keys, as
- * utils.extend does, but lists them with utils.keys so a null-prototype
- * defaults object still renders, as it did when it was used directly.
+ * every render of the instance shares. Copies the own enumerable keys and
+ * keeps the prototype, as the copy of call locals does, so a null-prototype
+ * defaults object and one with prototype members render as they did when
+ * the object was used directly.
  * @private
  */
 function copyLocals(obj) {
-  var out = {};
-  utils.each(utils.keys(obj), function (key) {
-    if (key === '__proto__') {
-      // JSON.parse makes "__proto__" an own key: an assignment would make its
-      // value the copy's prototype, where the defaults object used directly
-      // kept it a plain key the template cannot read.
-      Object.defineProperty(out, key, { value: obj[key], writable: true, enumerable: true, configurable: true });
-      return;
-    }
-    out[key] = obj[key];
-  });
-  return out;
+  // The copy keeps the defaults object's prototype, as the copy of call locals
+  // does (utils.copyContext): a plain {} dropped the prototype, so default
+  // locals that are a class instance lost their methods and getters in a
+  // render without call locals, where the object used directly had them.
+  // copyContext also handles a null prototype and an own "__proto__" key.
+  // var out = {};
+  // utils.each(utils.keys(obj), function (key) {
+  //   if (key === '__proto__') {
+  //     Object.defineProperty(out, key, { value: obj[key], writable: true, enumerable: true, configurable: true });
+  //     return;
+  //   }
+  //   out[key] = obj[key];
+  // });
+  // return out;
+  return utils.copyContext(obj);
 }
 
 /**
