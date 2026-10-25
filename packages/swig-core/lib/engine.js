@@ -36,6 +36,26 @@ function compileCacheKey(filename, options) {
   return (options && options.codegenMode === 'async') ? filename + '#async' : filename;
 }
 
+/*!
+ * Bind the locals given in the options of a compile or compileFile call to a
+ * compiled template, leaving the function the cache holds untouched: the cache
+ * keeps one function per file for every caller, so one call's locals must not
+ * reach another. Each call of the returned function starts from a fresh object
+ * that holds those locals under the call's own.
+ * @private
+ */
+function bindOptionLocals(fn, options) {
+  var optionLocals;
+  if (!options || !options.locals) {
+    return fn;
+  }
+  optionLocals = utils.extend({}, options.locals);
+  function bound(locals, blocks, view) {
+    return fn(utils.extend({}, optionLocals, locals), blocks, view);
+  }
+  return utils.extend(bound, fn);
+}
+
 /**
  * Runtime engine plumbing shared across @rhinostone/swig-family frontends.
  *
@@ -649,10 +669,15 @@ exports.install = function (self, frontend) {
       pre;
 
     if (cached) {
-      return cached;
+      return bindOptionLocals(cached, options);
     }
 
-    context = getLocals(options);
+    // The function this call caches serves every later call with the same
+    // filename, so it takes only the instance's default locals; with the
+    // locals of this call's options it rendered them for every later caller
+    // (bindOptionLocals binds them to this call's function instead).
+    // context = getLocals(options);
+    context = self.options.locals;
     contextLength = utils.keys(context).length;
     pre = self.precompile(source, options);
     asyncTpl = !!(options && options.codegenMode === 'async');
@@ -683,7 +708,7 @@ exports.install = function (self, frontend) {
       cacheSet(key, options, compiled);
     }
 
-    return compiled;
+    return bindOptionLocals(compiled, options);
   };
 
   self.compileFile = function (pathname, options, cb) {
@@ -700,6 +725,7 @@ exports.install = function (self, frontend) {
     cached = cacheGet(compileCacheKey(pathname, options), options);
 
     if (cached) {
+      cached = bindOptionLocals(cached, options);
       if (cb) {
         cb(null, cached);
         return;
