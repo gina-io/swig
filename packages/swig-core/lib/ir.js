@@ -246,9 +246,10 @@
  * IRParent optionally carries a `body` slot so
  * the native frontend's parent tag can resolve the parent-chain lookup
  * at compile time (emitting the matched block's body) without the
- * backend having to re-walk the parents array. Target shape is a bare
- * marker — the backend resolves parent() by itself — reached once the
- * IR owns the extends/blocks graph directly.
+ * backend having to re-walk the parents array. A bare marker (no body)
+ * leaves the lookup to the backend: on the async render path, where the
+ * parent template loads at render time, the parent tag emits one and the
+ * backend renders the parent block that the enclosing block receives.
  *
  * @typedef {Object} IRParent
  * @property {'Parent'} type

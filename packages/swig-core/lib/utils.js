@@ -273,6 +273,61 @@ exports.extend = function () {
 };
 
 /**
+ * Render a block on the async render path. When `blocks`, the overrides an
+ * extending template passed down, holds a function of that name, that
+ * function renders the block with `own`, this template's version, as its
+ * parent block (the one {% parent %} renders); otherwise `own` renders it.
+ * @param  {object}   blocks Overrides by block name, or undefined.
+ * @param  {string}   name   Block name.
+ * @param  {object}   ctx    Render context.
+ * @param  {Function} own    async function (ctx, parentBlock) rendering this template's version.
+ * @return {Promise<string>} The rendered block.
+ */
+exports.callBlock = function (blocks, name, ctx, own) {
+  if (blocks && Object.prototype.hasOwnProperty.call(blocks, name) && typeof blocks[name] === 'function') {
+    return blocks[name](ctx, own);
+  }
+  return own(ctx);
+};
+
+/*!
+ * The override `fn` with `mine` as its parent block; `mine` keeps the parent
+ * block that the template above passes.
+ * @private
+ */
+function chainBlock(fn, mine) {
+  return function (ctx, parentBlock) {
+    return fn(ctx, function (c) {
+      return mine(c, parentBlock);
+    });
+  };
+}
+
+/**
+ * Merge a template's own block functions with the overrides of the template
+ * that extends it, on the async render path. An override wins, and its
+ * parent block is this template's version, whose own parent block is the one
+ * the template above passes when it renders the block.
+ * @param  {object} local     This template's block functions by name.
+ * @param  {object} inherited Overrides from the extending template, or undefined.
+ * @return {object}           The merged block functions by name.
+ */
+exports.chainBlocks = function (local, inherited) {
+  var has = Object.prototype.hasOwnProperty, merged = {}, name;
+  for (name in local) {
+    if (has.call(local, name)) {
+      merged[name] = local[name];
+    }
+  }
+  for (name in inherited) {
+    if (has.call(inherited, name)) {
+      merged[name] = has.call(local, name) ? chainBlock(inherited[name], local[name]) : inherited[name];
+    }
+  }
+  return merged;
+};
+
+/**
  * Get all of the keys on an object.
  * @param  {object} obj
  * @return {array}

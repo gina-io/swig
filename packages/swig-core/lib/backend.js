@@ -35,10 +35,10 @@ function escapeTextValue(value) {
 
 /*!
  * True when JS emitted for a body in async codegen mode holds an `await` (a
- * deferred include, import or from, or a block), so the function that wraps
- * that body must be async and its call awaited. The word `await` in template
- * text or in a name also matches, which only makes that wrapper async for
- * nothing. @private
+ * deferred include, import or from, a block, or a {% parent %}), so the
+ * function that wraps that body must be async and its call awaited. The word
+ * `await` in template text or in a name also matches, which only makes that
+ * wrapper async for nothing. @private
  */
 function holdsAwait(js, options) {
   return !!(options && options.codegenMode === 'async' && /\bawait\b/.test(js));
@@ -422,13 +422,14 @@ exports.compile = function (template, parents, options, blockName) {
         ' _ctx = _utils.extend(_ctx, __ctx);\n' +
         '  return _output;\n' +
         '}';
-      // A deferred include, import or block inside a macro would need an async
-      // macro whose every call is awaited, which the async render path does not
-      // support. There the macro is a function that throws a clear error when
-      // it is called, so a template that only defines it still renders.
+      // A deferred include, import or block, or a {% parent %}, inside a macro
+      // would need an async macro whose every call is awaited, which the async
+      // render path does not support. There the macro is a function that throws
+      // a clear error when it is called, so a template that only defines it
+      // still renders; the message names {% parent %} when the macro holds one.
       if (holdsAwait(macroBodyJS, options)) {
         macroFnJS = 'function () {\n' +
-          '  throw new Error("' + escapeTextValue('The macro "' + node.name + '"' + (options.filename ? ' in ' + options.filename : '') + ' holds an {% include %}, {% import %}, {% from %} or {% block %}, which the async render path does not support inside a macro.') + '");\n' +
+          '  throw new Error("' + escapeTextValue('The macro "' + node.name + '"' + (options.filename ? ' in ' + options.filename : '') + ' holds an {% include %}, {% import %}, {% from %}' + (/\b_parentBlock\b/.test(macroBodyJS) ? ', {% block %} or {% parent %}' : ' or {% block %}') + ', which the async render path does not support inside a macro.') + '");\n' +
           '}';
       }
       out += '_ctx.' + node.name + ' = ' + macroFnJS + ';\n' +
@@ -449,6 +450,14 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Parent') {
+      // A bare Parent comes from {% parent %} on the async render path, where
+      // the parent template loads at render time: render the parent block that
+      // the enclosing block function receives as _parentBlock (outside a block,
+      // or with no parent block above, it renders nothing).
+      if (!node.body && options && options.codegenMode === 'async') {
+        out += 'if (typeof _parentBlock === "function") { _output += await _parentBlock(_ctx); }\n';
+        return;
+      }
       // The parent tag walks the parents chain at compile time
       // and splices the matched block's pre-resolved body into this node.
       // Emit the body verbatim; no wrapper, no `super()`-style runtime
@@ -469,22 +478,20 @@ exports.compile = function (template, parents, options, blockName) {
       // Emit the body verbatim; the block name is carried as metadata for
       // downstream tooling (parent-chain walks happen in the parent tag).
       //
-      // Async mode: block remapping happens at runtime
-      // instead of parse time. When _blocks is supplied (by an extending
-      // child via IRExtendsDeferred-emitted `_parent(_ctx, _mergedBlocks)`)
-      // and contains an override for this block name, call the override
-      // async fn and append its return string. Otherwise emit the parent's
-      // own body inline as the default (matches sync behavior). The
-      // override fn closes over the calling template's own _swig / _filters
-      // / _utils / _ext, since it was constructed inside that template's
-      // body wrapper — it does NOT see this template's local _output, which
-      // is correct (the override returns its own string and the outer
-      // _output += await ... appends it here).
+      // Async mode: block remapping happens at runtime instead of parse
+      // time. The block's body becomes an async function (_ctx, _parentBlock)
+      // that returns its own output, and _utils.callBlock renders the block:
+      // through the override an extending child passed in _blocks (its
+      // IRExtendsDeferred emit calls `_parentTpl(_ctx, _mergedBlocks)`), with
+      // this function as the override's parent block, or through this
+      // function when there is none (matches sync behavior). A {% parent %}
+      // in the body renders _parentBlock. The override closes over its own
+      // template's _swig / _filters / _utils / _ext, returns its own string,
+      // and the `_output += await ...` here appends it.
       if (options && options.codegenMode === 'async') {
         var blockNameJS = JSON.stringify(node.name);
-        out += 'if (_blocks && _blocks[' + blockNameJS + ']) {\n';
-        out += '  _output += await _blocks[' + blockNameJS + '](_ctx);\n';
-        out += '} else {\n';
+        out += '_output += await _utils.callBlock(_blocks, ' + blockNameJS + ', _ctx, async function (_ctx, _parentBlock) {\n';
+        out += '  var _output = "";\n';
         utils.each(node.body, function (b) {
           if (b.type === 'LegacyJS') { out += b.js; return; }
           if (b.type === 'Text' || b.type === 'Raw') {
@@ -492,7 +499,8 @@ exports.compile = function (template, parents, options, blockName) {
             return;
           }
         });
-        out += '}\n';
+        out += '  return _output;\n';
+        out += '});\n';
         return;
       }
       utils.each(node.body, function (b) {
@@ -642,21 +650,23 @@ exports.compile = function (template, parents, options, blockName) {
       //      backend.compile so they populate _ctx and _exports with the
       //      child's own bindings before the parent runs.
       //   2. Build _localChildBlocks — each block in node.childBlocks
-      //      becomes an `async function (_ctx) -> Promise<string>` that
-      //      shadows _output to a local accumulator and returns it. The
+      //      becomes an `async function (_ctx, _parentBlock) ->
+      //      Promise<string>` that shadows _output to a local accumulator
+      //      and returns it; a {% parent %} in it renders _parentBlock. The
       //      block body uses the same shallow Text/Raw/LegacyJS walker as
       //      the IRBlock branch above.
-      //   3. Merge: _mergedBlocks = _utils.extend({}, _localChildBlocks,
-      //      _blocks || {}). Inherited overrides from a deeper child win
-      //      per "child blocks override parent's wholesale per name"
-      //      (matches sync's remapBlocks). Multi-level chain (child →
+      //   3. Merge: _mergedBlocks = _utils.chainBlocks(_localChildBlocks,
+      //      _blocks). An inherited override from a deeper child wins per
+      //      name (matches sync's remapBlocks) and gets this template's
+      //      version as its parent block. Multi-level chain (child →
       //      middle → grandparent) propagates correctly: middle merges
       //      its own block bodies with the inherited child overrides,
       //      and grandparent sees the merged map.
       //   4. Resolve parent via _swig.getTemplate (Promise<TemplateFn>),
       //      then await _parent(_ctx, _mergedBlocks). Parent's body's
-      //      IRBlock branch consults _mergedBlocks and uses overrides
-      //      where present, defaults otherwise.
+      //      IRBlock branch renders each block through _utils.callBlock:
+      //      the override where present, with the parent's own version as
+      //      its parent block, and the parent's own version otherwise.
       //   5. _output = _parentResult.output. Parent's _exports is
       //      DISCARDED — _exports stays as the child's own preludes-
       //      populated map. Matches sync where {% import "child" %}
@@ -676,14 +686,14 @@ exports.compile = function (template, parents, options, blockName) {
               return;
             }
           });
-          out += '_localChildBlocks[' + JSON.stringify(name) + '] = async function (_ctx) {\n' +
+          out += '_localChildBlocks[' + JSON.stringify(name) + '] = async function (_ctx, _parentBlock) {\n' +
             '  var _output = "";\n' +
             blockBodyJS +
             '  return _output;\n' +
             '};\n';
         });
       }
-      out += 'var _mergedBlocks = _utils.extend({}, _localChildBlocks, _blocks || {});\n';
+      out += 'var _mergedBlocks = _utils.chainBlocks(_localChildBlocks, _blocks);\n';
       var extPathJS;
       if (node.path && typeof node.path === 'object' && typeof node.path.type === 'string') {
         extPathJS = exports.emitExpr(node.path);
