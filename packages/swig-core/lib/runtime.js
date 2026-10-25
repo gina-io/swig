@@ -181,6 +181,12 @@ exports.create = function (frontend) {
    * cached entries have, mirroring the engine.
    * @private
    */
+  // Sync renders of this instance in progress, as in the engine: a template
+  // rendered while one runs (an include) works on the context it is given; a
+  // render started when none is in progress works on a copy of the caller's
+  // locals.
+  var syncDepth = 0;
+
   function buildRegistered(fn) {
     var context = getLocals(),
       contextLength = utils.keys(context).length;
@@ -190,7 +196,14 @@ exports.create = function (frontend) {
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
       } else if (locals && !contextLength) {
-        lcls = locals;
+        // A copy at the top of a render: the names the render sets ({% set %},
+        // macros, loop names) must not land in the caller's object, where a
+        // later render given the same object would read them and two async
+        // renders given one object would read each other's.
+        // An include, rendered while its includer's render runs, shares its
+        // includer's context.
+        // lcls = locals;
+        lcls = syncDepth ? locals : utils.copyContext(locals);
       } else if (!locals && contextLength) {
         // A copy: the default locals object is shared by every render of this
         // instance, so a render's own writes ({% set %}, macros, loop names)
@@ -200,7 +213,12 @@ exports.create = function (frontend) {
       } else {
         lcls = {};
       }
-      return fn(self, lcls, filters, utils, efn, blocks);
+      syncDepth += 1;
+      try {
+        return fn(self, lcls, filters, utils, efn, blocks);
+      } finally {
+        syncDepth -= 1;
+      }
     };
   }
 
@@ -283,7 +301,12 @@ exports.create = function (frontend) {
     if (filepath) {
       cacheSet(self.options.loader.resolve(filepath), {}, buildRegistered(tpl));
     }
-    return tpl(self, context, filters, utils, efn);
+    syncDepth += 1;
+    try {
+      return tpl(self, context, filters, utils, efn);
+    } finally {
+      syncDepth -= 1;
+    }
   };
 
   self.compileFile = function (pathname, options, cb) {

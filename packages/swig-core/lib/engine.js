@@ -405,6 +405,12 @@ exports.install = function (self, frontend) {
     validateOptions = frontend.validateOptions,
     onCompileError = frontend.onCompileError;
 
+  // Sync renders of this instance in progress. A template rendered while one
+  // runs (an include, or a render a helper starts from inside a template)
+  // works on the context it is given; a render started when none is in
+  // progress works on a copy of the caller's locals.
+  var syncDepth = 0;
+
   function getLocals(options) {
     if (!options || !options.locals) {
       return self.options.locals;
@@ -485,14 +491,22 @@ exports.install = function (self, frontend) {
    */
   function buildRegistered(fn) {
     var context = getLocals(),
-      contextLength = utils.keys(context).length;
+      contextLength = utils.keys(context).length,
+      asyncFn = fn instanceof AsyncFunction;
 
     return function registered(locals, blocks) {
       var lcls;
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
       } else if (locals && !contextLength) {
-        lcls = locals;
+        // A copy at the top of a render: the names the render sets ({% set %},
+        // macros, loop names) must not land in the caller's object, where a
+        // later render given the same object would read them and two async
+        // renders given one object would read each other's.
+        // An include, rendered while its includer's sync render runs, shares
+        // its includer's context.
+        // lcls = locals;
+        lcls = (!asyncFn && syncDepth) ? locals : utils.copyContext(locals);
       } else if (!locals && contextLength) {
         // A copy: the default locals object is shared by every render of this
         // instance, so a render's own writes ({% set %}, macros, loop names)
@@ -502,7 +516,17 @@ exports.install = function (self, frontend) {
       } else {
         lcls = {};
       }
-      return fn(self, lcls, filters, utils, efn, blocks);
+      if (asyncFn) {
+        // A per-render view, as compiled() gives an async template, so the
+        // templates it includes or imports belong to the same render.
+        return fn(renderView({ nesting: 0 }, []), lcls, filters, utils, efn, blocks);
+      }
+      syncDepth += 1;
+      try {
+        return fn(self, lcls, filters, utils, efn, blocks);
+      } finally {
+        syncDepth -= 1;
+      }
     };
   }
 
@@ -714,7 +738,15 @@ exports.install = function (self, frontend) {
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
       } else if (locals && !contextLength) {
-        lcls = locals;
+        // A copy at the top of a render: the names the render sets ({% set %},
+        // macros, loop names) must not land in the caller's object, where a
+        // later render given the same object would read them and two async
+        // renders given one object would read each other's.
+        // A template of the same render (a sync include rendered while its
+        // includer runs, or an async one given the render's view) shares the
+        // context it is given.
+        // lcls = locals;
+        lcls = (asyncTpl ? view : syncDepth) ? locals : utils.copyContext(locals);
       } else if (!locals && contextLength) {
         // A copy: the default locals object is shared by every render of this
         // instance, so a render's own writes ({% set %}, macros, loop names)
@@ -730,7 +762,15 @@ exports.install = function (self, frontend) {
       // extra positional arg (regular Function discards unread args);
       // async wrapper picks it up as `_blocks` and consults it from
       // IRBlock emits.
-      return pre.tpl(asyncTpl ? (view || renderView({ nesting: 0 }, [])) : self, lcls, filters, utils, efn, blocks);
+      if (asyncTpl) {
+        return pre.tpl(view || renderView({ nesting: 0 }, []), lcls, filters, utils, efn, blocks);
+      }
+      syncDepth += 1;
+      try {
+        return pre.tpl(self, lcls, filters, utils, efn, blocks);
+      } finally {
+        syncDepth -= 1;
+      }
     }
 
     utils.extend(compiled, pre.tokens);
@@ -916,6 +956,16 @@ exports.install = function (self, frontend) {
       // include instead of crashing on the raw function's argument shape.
       cacheSet(self.options.loader.resolve(filepath), {}, buildRegistered(tpl));
     }
-    return tpl(self, context, filters, utils, efn);
+    if (tpl instanceof AsyncFunction) {
+      // A per-render view, as compiled() gives an async template, so the
+      // templates it includes or imports belong to the same render.
+      return tpl(renderView({ nesting: 0 }, []), context, filters, utils, efn);
+    }
+    syncDepth += 1;
+    try {
+      return tpl(self, context, filters, utils, efn);
+    } finally {
+      syncDepth -= 1;
+    }
   };
 };

@@ -9,11 +9,11 @@
  * per-occurrence counter stored on `_ctx` under a unique key (the same
  * `Math.random()` scheme the for-loop uses for its loopcache), so it
  * persists across loop iterations within a render. A render's `_ctx` is a
- * fresh object (a copy of the default locals when the call passes none), so
- * the cycle starts again on the next render, except when an instance without
- * default locals gets one locals object for several renders: that object is
- * the context, and the state stays in it. Two distinct `{% cycle %}` tags
- * never share state.
+ * fresh object (a copy of the locals the call passes, or of the default
+ * locals when it passes none), so the cycle starts again on the next render;
+ * only a template rendered from inside another render of the same instance
+ * works on the context it is given. Two distinct `{% cycle %}` tags never
+ * share state.
  *
  * Values are evaluated fresh on each invocation (Django re-evaluates), and
  * the emitted value is autoescaped per the enclosing region (`token.escape`).

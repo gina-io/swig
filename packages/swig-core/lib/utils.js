@@ -328,6 +328,34 @@ exports.chainBlocks = function (local, inherited) {
 };
 
 /**
+ * Copy a render's context object: the same prototype and the same own
+ * enumerable properties, each read once. A plain or null-prototype object is
+ * copied by assignment, except an own "__proto__" key (JSON.parse makes one),
+ * which an assignment would turn into the copy's prototype; an object with
+ * another prototype may inherit setters or read-only properties, so its keys
+ * are defined on the copy instead.
+ * @param  {object} src Context object to copy.
+ * @return {object}     The copy.
+ */
+exports.copyContext = function (src) {
+  var proto = Object.getPrototypeOf(src),
+    plain = proto === Object.prototype || proto === null,
+    out = (proto === Object.prototype) ? {} : Object.create(proto),
+    keys = Object.keys(src),
+    i,
+    k;
+  for (i = 0; i < keys.length; i += 1) {
+    k = keys[i];
+    if (plain && k !== '__proto__') {
+      out[k] = src[k];
+    } else {
+      Object.defineProperty(out, k, { value: src[k], writable: true, enumerable: true, configurable: true });
+    }
+  }
+  return out;
+};
+
+/**
  * Get all of the keys on an object.
  * @param  {object} obj
  * @return {array}
