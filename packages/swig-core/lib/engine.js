@@ -56,6 +56,22 @@ function bindOptionLocals(fn, options) {
   return utils.extend(bound, fn);
 }
 
+/*!
+ * A copy of an instance's default locals for one render, so what the render
+ * writes ({% set %}, macros, loop names, cycle state) stays out of the object
+ * every render of the instance shares. Copies the own enumerable keys, as
+ * utils.extend does, but lists them with utils.keys so a null-prototype
+ * defaults object still renders, as it did when it was used directly.
+ * @private
+ */
+function copyLocals(obj) {
+  var out = {};
+  utils.each(utils.keys(obj), function (key) {
+    out[key] = obj[key];
+  });
+  return out;
+}
+
 /**
  * Runtime engine plumbing shared across @rhinostone/swig-family frontends.
  *
@@ -471,7 +487,11 @@ exports.install = function (self, frontend) {
       } else if (locals && !contextLength) {
         lcls = locals;
       } else if (!locals && contextLength) {
-        lcls = context;
+        // A copy: the default locals object is shared by every render of this
+        // instance, so a render's own writes ({% set %}, macros, loop names)
+        // must not land in it.
+        // lcls = context;
+        lcls = copyLocals(context);
       } else {
         lcls = {};
       }
@@ -689,7 +709,11 @@ exports.install = function (self, frontend) {
       } else if (locals && !contextLength) {
         lcls = locals;
       } else if (!locals && contextLength) {
-        lcls = context;
+        // A copy: the default locals object is shared by every render of this
+        // instance, so a render's own writes ({% set %}, macros, loop names)
+        // must not land in it.
+        // lcls = context;
+        lcls = copyLocals(context);
       } else {
         lcls = {};
       }
@@ -875,7 +899,10 @@ exports.install = function (self, frontend) {
   };
 
   self.run = function (tpl, locals, filepath) {
-    var context = getLocals({ locals: locals });
+    // A copy when no locals are given: getLocals returns the shared default
+    // locals object itself, and the template's writes must not land in it.
+    // var context = getLocals({ locals: locals });
+    var context = locals ? getLocals({ locals: locals }) : copyLocals(getLocals());
     if (filepath) {
       // Cache the same wrapper `register` stores, under the same resolved
       // key, so a template primed this way is actually usable by a later

@@ -1,0 +1,5 @@
+kind: security
+body: 'A render without call-time locals on an instance with default locals, and run without locals, now work on a copy of the default locals. They used the defaults object itself as the template''s context, so what the template wrote ({% set %}, macros, imports, loop variables, Django {% cycle %} state) stayed in the defaults and reached every later render of every template on that instance, and instances built without their own locals share one defaults object, so run on one instance reached the others. With a request-scoped helper in the default locals, such as one that reads the current user from AsyncLocalStorage, one of two concurrent renders on the async render path showed the other''s data, and Django''s {% cycle %} continued from one render to the next instead of starting again. A null-prototype defaults object still renders. Every release has it, native back to the original swig 1.4.2 and each flavor since its first release.'
+time: 2026-10-25T11:04:13Z
+custom:
+  Issue: ""

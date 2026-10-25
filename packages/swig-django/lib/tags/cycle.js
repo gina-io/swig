@@ -8,8 +8,12 @@
  * inside a `{% for %}` loop it alternates per iteration. State is a
  * per-occurrence counter stored on `_ctx` under a unique key (the same
  * `Math.random()` scheme the for-loop uses for its loopcache), so it
- * persists across loop iterations within a render and resets on the next
- * render (fresh `_ctx`). Two distinct `{% cycle %}` tags never share state.
+ * persists across loop iterations within a render. A render's `_ctx` is a
+ * fresh object (a copy of the default locals when the call passes none), so
+ * the cycle starts again on the next render, except when an instance without
+ * default locals gets one locals object for several renders: that object is
+ * the context, and the state stays in it. Two distinct `{% cycle %}` tags
+ * never share state.
  *
  * Values are evaluated fresh on each invocation (Django re-evaluates), and
  * the emitted value is autoescaped per the enclosing region (`token.escape`).

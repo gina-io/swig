@@ -39,6 +39,19 @@ function noCompiler(what) {
   return new Error(what + ' — the runtime-only build has no compiler. Precompile with the swig CLI (swig compile --recursive --register) and register the output, or load the full swig bundle instead.');
 }
 
+/*!
+ * A copy of an instance's default locals for one render, as engine.js makes:
+ * the render's writes stay out of the object every render shares, and the keys
+ * come from utils.keys so a null-prototype defaults object still renders.
+ */
+function copyLocals(obj) {
+  var out = {};
+  utils.each(utils.keys(obj), function (key) {
+    out[key] = obj[key];
+  });
+  return out;
+}
+
 /**
  * Create a runtime-only instance.
  *
@@ -172,7 +185,11 @@ exports.create = function (frontend) {
       } else if (locals && !contextLength) {
         lcls = locals;
       } else if (!locals && contextLength) {
-        lcls = context;
+        // A copy: the default locals object is shared by every render of this
+        // instance, so a render's own writes ({% set %}, macros, loop names)
+        // must not land in it.
+        // lcls = context;
+        lcls = copyLocals(context);
       } else {
         lcls = {};
       }
@@ -252,7 +269,10 @@ exports.create = function (frontend) {
    * @return {string}              Rendered output.
    */
   self.run = function (tpl, locals, filepath) {
-    var context = getLocals({ locals: locals });
+    // A copy when no locals are given: getLocals returns the shared default
+    // locals object itself, and the template's writes must not land in it.
+    // var context = getLocals({ locals: locals });
+    var context = locals ? getLocals({ locals: locals }) : copyLocals(getLocals());
     if (filepath) {
       cacheSet(self.options.loader.resolve(filepath), {}, buildRegistered(tpl));
     }
