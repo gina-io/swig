@@ -1,5 +1,0 @@
-kind: fixed
-body: 'On the async render path (renderFile with a loader whose async flag is set, or compileFile with codegenMode ''async''), {% parent %} in a block of a template that extends another rendered nothing, in every release since 2.2.0. It now renders the version of the block in the template above, as the sync path does: through each level of an extends chain, when a level in between does not have the block, inside a for loop, an if, a filter or spaceless tag, and under a dynamic {% extends %}. An override of a block that sits inside another block of the template above renders that version through {% parent %} as Jinja2''s super() does, where the sync path drops it. A macro that calls {% parent %} throws a clear error naming it when it is called on the async path, as a macro holding an include already does; a template that only defines it renders.'
-time: 2026-10-25T09:24:13Z
-custom:
-  Issue: ""

@@ -15,9 +15,7 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | Planned | swig-django: `not` binds below the comparisons and `in`, as in Django; today `not x == y` reads as `(not x) == y`. |
 | Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
 | Planned | swig-django: a `{% for %}` over a mapping key named `items`, `keys` or `values`; today the pseudo-method of that name shadows the key, where Django reads the key first. |
-| Planned | Native swig on the async render path: `{% parent %}` renders the parent block's content; today it renders nothing there. |
-| Planned | swig-twig on the async render path: an imported template's own `{% import %}` and `{% from %}` stay local to it, as on the sync path; today their bindings reach the importing template. |
-| Planned | Native swig on the sync render path: `{% parent %}` in nested blocks renders as Jinja2's `super()` does; today an override of a nested block that calls `{% parent %}` drops the parent's part, and an outer block rendered through `{% parent %}` ignores the child's override of the inner block. |
+| Planned | Native swig: `{% parent %}` in nested blocks renders as Jinja2's `super()` does; today, on the sync render path, an override of a nested block that calls `{% parent %}` drops the parent's part and an outer block rendered through `{% parent %}` ignores the child's override of the inner block, and on both paths a block that calls `{% parent %}` inside an overriding block renders without the parent's content. |
 | Planned | Native swig, swig-twig and swig-jinja2 on the sync render path: a template imported under an alias that its own `{% import %}` also uses; today a call to its macro renders nothing. |
 
 ## Future (post-2.0)
@@ -32,6 +30,15 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.9.6 (October 2026)
+
+- Security: with the default memory cache, the locals given in the options of `render`, `compile` or `compileFile` no longer reach later calls for the same file.
+- Security: a render without call-time locals, and `run` without locals, work on a copy of the instance's default locals instead of writing into them.
+- Security: a render works on a copy of the locals object the caller passes, so a later or concurrent render given the same object no longer sees the names it set; an include still shares its includer's context.
+- Native swig on the async render path: `{% parent %}` renders the parent block's content.
+- Native swig, swig-twig and swig-jinja2 on the async render path: an imported template's own macros, sets and imports stay local to it, as on the sync path.
+- All five packages released in lockstep at `2.9.6`.
 
 ### v2.9.5 (October 2026)
 

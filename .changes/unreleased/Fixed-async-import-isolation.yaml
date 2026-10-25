@@ -1,5 +1,0 @@
-kind: fixed
-body: 'On the async render path (renderFile with a loader whose async flag is set, or compileFile with codegenMode ''async''), an imported template''s own bindings no longer land in the template that imports it: its macros, its top-level sets, the aliases of its own imports and the names set by a template it includes stayed in the importer''s context, where the sync path keeps them out, and an importer''s own variable named like one of its macros was replaced by that macro. The import now takes them back out when it returns, and the imported macros still see them while they run. The same holds for {% from %} in Twig and Jinja2. Native and Twig had it since 2.2.0, Jinja2 since its first release, 2.5.0.'
-time: 2026-10-25T12:56:24Z
-custom:
-  Issue: ""
