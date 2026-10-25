@@ -17,6 +17,8 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | Planned | swig-django: a `{% for %}` over a mapping key named `items`, `keys` or `values`; today the pseudo-method of that name shadows the key, where Django reads the key first. |
 | Planned | Native swig on the async render path: `{% parent %}` renders the parent block's content; today it renders nothing there. |
 | Planned | swig-twig on the async render path: an imported template's own `{% import %}` and `{% from %}` stay local to it, as on the sync path; today their bindings reach the importing template. |
+| Planned | Native swig on the sync render path: `{% parent %}` in nested blocks renders as Jinja2's `super()` does; today an override of a nested block that calls `{% parent %}` drops the parent's part, and an outer block rendered through `{% parent %}` ignores the child's override of the inner block. |
+| Planned | Native swig, swig-twig and swig-jinja2 on the sync render path: a template imported under an alias that its own `{% import %}` also uses; today a call to its macro renders nothing. |
 
 ## Future (post-2.0)
 
@@ -30,6 +32,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.9.5 (October 2026)
+
+- Security: on the async render path, a template that includes, imports or extends itself, directly or through other templates, no longer loads templates until the process runs out of memory. An extends cycle fails with the sync path's error, and a render fails when it would load a template while 1000 are in progress.
+- Security: with the default memory cache, a page's override of a block nested inside another block, an `if` or a `for` loop no longer shows on other pages that extend the same layout, and native `{% parent %}` in a middle template that was in the compile cache no longer renders its block twice.
+- All five packages released in lockstep at `2.9.5`.
 
 ### v2.9.4 (October 2026)
 

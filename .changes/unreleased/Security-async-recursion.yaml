@@ -1,5 +1,0 @@
-kind: security
-body: 'On the async render path (renderFile with a loader whose async flag is set, or compileFile with codegenMode ''async''), a template that includes, imports or extends itself, directly or through other templates, no longer loads templates until the process runs out of memory. An extends cycle now fails at once with the sync path''s "Illegal circular extends" error, and each top-level render counts the templates it has in progress: loading a template while 1000 are in progress fails with an error naming it, so a recursive include renders 1000 levels deep and fails at 1001, which rendered before. An include marked ignore missing swallows that error, as it swallows any error of the template it includes, so a self-include marked ignore missing now ends after 1000 levels. The sync render path already ended these renders and is unchanged. Every release since 2.2.0 has it (swig-jinja2 since 2.5.0, swig-django since 2.7.0); a template mistake reached it, and so did an include or extends path taken from the request.'
-time: 2026-10-25T08:03:16Z
-custom:
-  Issue: ""
