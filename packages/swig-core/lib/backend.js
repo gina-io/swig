@@ -594,7 +594,10 @@ exports.compile = function (template, parents, options, blockName) {
       // and called with the parent's _ctx so its body's compiled JS
       // closes over outer-ctx vars (sync-semantics-preserving). Only
       // the resolved value's `.exports` is bound; the imported body's
-      // `.output` is discarded — import doesn't render.
+      // `.output` is discarded — import doesn't render. The call runs
+      // through _utils.importIsolated, so what the imported template binds
+      // in that context (its macros, its sets, its own imports) is taken
+      // back out, as the sync path keeps it out of the importer.
       if (_security.dangerousProps.indexOf(node.alias) !== -1) {
         throw new Error('Import alias "' + node.alias + '" is reserved.');
       }
@@ -605,14 +608,15 @@ exports.compile = function (template, parents, options, blockName) {
         impdPathJS = node.path;
       }
       var impdOpts = '{resolveFrom: "' + escapeTextValue(String(node.resolveFrom || '')) + '"}';
-      out += '_ctx.' + node.alias + ' = (await (await _swig.getTemplate(' + impdPathJS + ', ' + impdOpts + '))(_ctx)).exports;\n';
+      out += '_ctx.' + node.alias + ' = await _utils.importIsolated(_ctx, async function () { return (await (await _swig.getTemplate(' + impdPathJS + ', ' + impdOpts + '))(_ctx)).exports; });\n';
       return;
     }
     if (node.type === 'FromImportDeferred') {
       // Async-codegen counterpart to Twig's `{% from
       // "file" import a, b as c %}`. Single getTemplate call, then
       // per-entry bind onto _ctx. Async IIFE keeps `_imp` local so
-      // multiple from-imports in the same template don't collide.
+      // multiple from-imports in the same template don't collide; the
+      // call runs through _utils.importIsolated, as the import emit does.
       var fromdImports = node.imports || [];
       utils.each(fromdImports, function (entry) {
         if (_security.dangerousProps.indexOf(entry.name) !== -1) {
@@ -636,7 +640,7 @@ exports.compile = function (template, parents, options, blockName) {
         fromdBindings += '  _ctx.' + bindName + ' = _imp["' + entry.name + '"];\n';
       });
       out += 'await (async function () {\n' +
-        '  var _imp = (await (await _swig.getTemplate(' + fromdPathJS + ', ' + fromdOpts + '))(_ctx)).exports;\n' +
+        '  var _imp = await _utils.importIsolated(_ctx, async function () { return (await (await _swig.getTemplate(' + fromdPathJS + ', ' + fromdOpts + '))(_ctx)).exports; });\n' +
         fromdBindings +
         '})();\n';
       return;

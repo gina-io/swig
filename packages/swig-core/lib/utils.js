@@ -355,6 +355,101 @@ exports.copyContext = function (src) {
   return out;
 };
 
+/*!
+ * Wrap a macro an imported template exports so the names its template bound
+ * (`scope`) are in `ctx` while it runs, and the values they hid are back
+ * afterwards. Own-property checks go through Object.prototype.hasOwnProperty
+ * and the maps have no prototype, so a null-prototype context, or an own
+ * "__proto__" key, works.
+ * @private
+ */
+function withScope(fn, ctx, scope) {
+  var has = Object.prototype.hasOwnProperty, names = Object.keys(scope);
+  var wrapped = function () {
+    var had = Object.create(null), saved = Object.create(null), i, k;
+    for (i = 0; i < names.length; i += 1) {
+      k = names[i];
+      had[k] = has.call(ctx, k);
+      saved[k] = ctx[k];
+      ctx[k] = scope[k];
+    }
+    try {
+      return fn.apply(this, arguments);
+    } finally {
+      for (i = 0; i < names.length; i += 1) {
+        k = names[i];
+        if (had[k]) {
+          ctx[k] = saved[k];
+        } else {
+          delete ctx[k];
+        }
+      }
+    }
+  };
+  wrapped.safe = fn.safe;
+  return wrapped;
+}
+
+/**
+ * Run an import on the async render path without leaving the imported
+ * template's own bindings in the importer's context. The imported template
+ * runs with the importer's context, so its macros read the importer's
+ * variables; what it binds there (its macros, its sets, its own imports) is
+ * taken back out when it returns, as the sync path keeps them out of the
+ * importer, and its exported macros see those names only while they run.
+ * @param  {object}   ctx The importer's context.
+ * @param  {Function} run async function () returning the imported template's exports.
+ * @return {Promise<object>} The exports, their macros wrapped when the import bound names.
+ */
+exports.importIsolated = async function (ctx, run) {
+  var has = Object.prototype.hasOwnProperty, before = Object.create(null), scope = Object.create(null), exp, out = {};
+  Object.keys(ctx).forEach(function (k) {
+    before[k] = ctx[k];
+  });
+  function restore() {
+    var putBack = [];
+    Object.keys(ctx).forEach(function (k) {
+      var v = ctx[k], had = has.call(before, k);
+      // A name the import left as the importer had it (a loop's names put
+      // back, as undefined when the importer had none) is not part of its
+      // scope: it must not hide the caller's value while a macro runs.
+      if (!had && v === undefined) {
+        putBack.push(k);
+      } else if (!had || before[k] !== v) {
+        scope[k] = v;
+      }
+    });
+    putBack.forEach(function (k) {
+      delete ctx[k];
+    });
+    Object.keys(scope).forEach(function (k) {
+      if (has.call(before, k)) {
+        ctx[k] = before[k];
+      } else {
+        delete ctx[k];
+      }
+    });
+    Object.keys(before).forEach(function (k) {
+      if (!has.call(ctx, k)) {
+        ctx[k] = before[k];
+      }
+    });
+  }
+  try {
+    exp = await run();
+  } finally {
+    restore();
+  }
+  if (!Object.keys(scope).length) {
+    return exp;
+  }
+  Object.keys(exp || {}).forEach(function (k) {
+    var v = exp[k];
+    out[k] = (typeof v === 'function') ? withScope(v, ctx, scope) : v;
+  });
+  return out;
+};
+
 /**
  * Get all of the keys on an object.
  * @param  {object} obj
