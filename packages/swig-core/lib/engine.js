@@ -55,6 +55,15 @@ function compileCacheKey(filename, options) {
  * that attaches a filename to compile errors) stays in the frontend.
  */
 
+/*!
+ * Deepest nesting one async render may reach: each include, import, from-import
+ * and extends parent counts one level. Without a bound, a template that
+ * includes or imports itself, or an extends cycle, loads templates until the
+ * process runs out of memory.
+ * @private
+ */
+var MAX_ASYNC_NESTING = 1000;
+
 /**
  * Re-map block tags inside a parent token list to the child template's
  * overriding block tags.
@@ -368,6 +377,49 @@ exports.install = function (self, frontend) {
     cache.cacheSet(key, options, val, self.options.cache, self.cache);
   }
 
+  /*!
+   * A per-render view of the instance, which async template functions receive
+   * as `_swig`. Its getTemplate counts the nesting and keeps the extends chain,
+   * so a render that would never end (an extends cycle, a template that
+   * includes or imports itself) fails with an error instead.
+   * @private
+   */
+  function renderView(state, chain) {
+    var view = Object.create(self);
+    view.getTemplate = function (pathname, options) {
+      var resolved;
+      try {
+        resolved = self.options.loader.resolve(pathname, (options || {}).resolveFrom);
+      } catch (e) {
+        return Promise.reject(e);
+      }
+      if (state.nesting >= MAX_ASYNC_NESTING) {
+        return Promise.reject(new Error('Template "' + resolved + '" is nested more than ' + MAX_ASYNC_NESTING + ' levels deep: a template probably includes, imports or extends itself.'));
+      }
+      return self.getTemplate(pathname, options).then(function (fn) {
+        return function (locals, blocks) {
+          // An extending template passes its blocks; an include or an import does not.
+          var extending = arguments.length > 1;
+          if (extending && chain.indexOf(resolved) !== -1) {
+            throw new Error('Illegal circular extends of "' + resolved + '".');
+          }
+          state.nesting += 1;
+          // The count goes back down whether the template renders or fails.
+          return Promise.resolve().then(function () {
+            return fn(locals, blocks, renderView(state, extending ? chain.concat([resolved]) : []));
+          }).then(function (result) {
+            state.nesting -= 1;
+            return result;
+          }, function (err) {
+            state.nesting -= 1;
+            throw err;
+          });
+        };
+      });
+    };
+    return view;
+  }
+
   function getParentsInternal(tokens, options) {
     return exports.getParents(tokens, options, {
       resolve: function (to, from) { return self.options.loader.resolve(to, from); },
@@ -593,6 +645,7 @@ exports.install = function (self, frontend) {
       cached = key ? cacheGet(key, options) : null,
       context,
       contextLength,
+      asyncTpl,
       pre;
 
     if (cached) {
@@ -602,8 +655,9 @@ exports.install = function (self, frontend) {
     context = getLocals(options);
     contextLength = utils.keys(context).length;
     pre = self.precompile(source, options);
+    asyncTpl = !!(options && options.codegenMode === 'async');
 
-    function compiled(locals, blocks) {
+    function compiled(locals, blocks, view) {
       var lcls;
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
@@ -620,7 +674,7 @@ exports.install = function (self, frontend) {
       // extra positional arg (regular Function discards unread args);
       // async wrapper picks it up as `_blocks` and consults it from
       // IRBlock emits.
-      return pre.tpl(self, lcls, filters, utils, efn, blocks);
+      return pre.tpl(asyncTpl ? (view || renderView({ nesting: 0 }, [])) : self, lcls, filters, utils, efn, blocks);
     }
 
     utils.extend(compiled, pre.tokens);
