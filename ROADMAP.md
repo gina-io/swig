@@ -16,7 +16,6 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
 | Planned | swig-django: a `{% for %}` over a mapping key named `items`, `keys` or `values`; today the pseudo-method of that name shadows the key, where Django reads the key first. |
 | Planned | Native swig: `{% parent %}` in nested blocks renders as Jinja2's `super()` does; today, on the sync render path, an override of a nested block that calls `{% parent %}` drops the parent's part and an outer block rendered through `{% parent %}` ignores the child's override of the inner block, and on both paths a block that calls `{% parent %}` inside an overriding block renders without the parent's content. |
-| Planned | Native swig, swig-twig and swig-jinja2 on the sync render path: a template imported under an alias that its own `{% import %}` also uses; today a call to its macro renders nothing. |
 
 ## Future (post-2.0)
 
@@ -30,6 +29,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.9.7 (October 2026)
+
+- Native swig, swig-twig and swig-jinja2 on the sync render path: `{% import %}` and `{% from %}` run the imported file's own imports and macros in a scope of the import instead of rewriting their code by name, so the templates that rewrite broke render as on the async render path: macros named `k` or `sa` or with a `$` in the name, parameters, set targets and aliases named like a macro of the same file, an import under the importer's own alias, and, in swig-twig and swig-jinja2, `{% from %}` macros that call a macro of their file the `from` does not name.
+- On the sync render path an imported file's own imports are no longer reachable through the importer's alias, as on the async render path.
+- All five packages released in lockstep at `2.9.7`.
 
 ### v2.9.6 (October 2026)
 
