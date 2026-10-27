@@ -245,14 +245,45 @@ function emitMacroFn(node, options) {
  * // => ['b'] (the parameter shadowing reads names as _ctx[k], not as _ctx.<name>)
  */
 exports.macroRefs = function (node, options) {
-  var js = emitMacroFn(node, options || {}), re = /_ctx\.([A-Za-z_$][\w$]*)/g, m, out = [];
+  return refsInJS(emitMacroFn(node, options || {}));
+};
+
+/*!
+ * Each `_ctx.<name>` in a macro function's JS, each name once (see macroRefs).
+ * @private
+ */
+function refsInJS(js) {
+  var re = /_ctx\.([A-Za-z_$][\w$]*)/g, m, out = [];
   while ((m = re.exec(js)) !== null) {
     if (out.indexOf(m[1]) === -1) {
       out.push(m[1]);
     }
   }
   return out;
-};
+}
+
+/*!
+ * The uses of the context itself that emitMacroFn writes around a macro's
+ * body: its copy of the context (`__ctx`), the parameter shadowing and the
+ * copy put back. A macro defined in a macro carries its own.
+ * @private
+ */
+var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);/g;
+
+/*!
+ * True when a macro function's JS uses the context object itself (`_ctx`,
+ * or the macro's copy `__ctx`), not one of its names, outside the forms
+ * emitMacroFn writes (MACRO_CTX_USES). Such JS can hand the context, or a
+ * copy of it, to other code (a custom tag passing it to an extension,
+ * `{{ fn(_ctx) }}`), which can read names the JS does not show, so refsInJS
+ * cannot list them. A {% with %} in the macro counts too (its function takes
+ * a copy of the context), and so does template text holding "_ctx"; such a
+ * macro only keeps the cost of having every name in place.
+ * @private
+ */
+function passesCtx(js) {
+  return /(^|[^\w$.])__?ctx(?![\w$]|\.[A-Za-z_$])/.test(js.replace(MACRO_CTX_USES, ''));
+}
 
 /**
  * Walk a parsed token tree and emit the JS source body for the compiled
@@ -555,11 +586,12 @@ exports.compile = function (template, parents, options, blockName) {
       // The function's JS comes from emitMacroFn. A macro of a file a sync
       // import carries (`options.macroScope`) binds on that import's scope
       // object and its closure variable (see syncImport), not in the context.
+      var macroJS = emitMacroFn(node, options);
       if (options && options.macroScope) {
-        out += exports.scopeBinding(node.name) + emitMacroFn(node, options) + ';\n' +
+        out += exports.scopeBinding(node.name) + macroJS + ';\n' +
           '_scope.' + node.name + '.safe = true;\n';
       } else {
-        out += '_ctx.' + node.name + ' = ' + emitMacroFn(node, options) + ';\n' +
+        out += '_ctx.' + node.name + ' = ' + macroJS + ';\n' +
           '_ctx.' + node.name + '.safe = true;\n';
       }
       // Async-codegen mirrors the macro into _exports so
@@ -574,6 +606,14 @@ exports.compile = function (template, parents, options, blockName) {
           throw new Error('Macro name "' + node.name + '" is reserved.');
         }
         out += '_exports.' + node.name + ' = _ctx.' + node.name + ';\n';
+        // The names the macro reads or writes in the context, so that an
+        // async import puts in place, while its macros run, only those of
+        // the names the imported template bound (see utils.importIsolated).
+        // A macro that hands the context itself to other code records none,
+        // so its import puts all those names in place (see passesCtx).
+        if (!passesCtx(macroJS)) {
+          out += '_utils.exportRefs(_exports.' + node.name + ', ' + JSON.stringify(refsInJS(macroJS)) + ');\n';
+        }
       }
       return;
     }

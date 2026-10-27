@@ -397,12 +397,22 @@ function withScope(fn, ctx, scope) {
  * variables; what it binds there (its macros, its sets, its own imports) is
  * taken back out when it returns, as the sync path keeps them out of the
  * importer, and its exported macros see those names only while they run.
+ * While one runs, the names in place are those the import's macros can reach
+ * (see reachOf): the names any of them reads or writes, and, through the
+ * macros, imports and from-imports the import bound, those of the code they
+ * lead to, recursively. Code that comes in from the importing side (a
+ * function passed as an argument, a macro of an importing template called
+ * back by name) sees the names in that reach, and its own template's names
+ * for the others. When the reach is unknown (a name leads to a function from
+ * the locals, an object, an array, or a macro that hands the context to
+ * other code), every name the import bound is in place.
  * @param  {object}   ctx The importer's context.
  * @param  {Function} run async function () returning the imported template's exports.
- * @return {Promise<object>} The exports, their macros wrapped when the import bound names.
+ * @return {Promise<object>} The exports, their macros wrapped when a call needs names the import bound; they carry their reach for an outer import (see registerReach).
  */
 exports.importIsolated = async function (ctx, run) {
-  var has = Object.prototype.hasOwnProperty, before = Object.create(null), scope = Object.create(null), exp, out = {};
+  var has = Object.prototype.hasOwnProperty, before = Object.create(null), scope = Object.create(null), exp, out = {},
+    reach, need, n = 0;
   Object.keys(ctx).forEach(function (k) {
     before[k] = ctx[k];
   });
@@ -440,15 +450,118 @@ exports.importIsolated = async function (ctx, run) {
   } finally {
     restore();
   }
-  if (!Object.keys(scope).length) {
-    return exp;
+  // While an exported macro runs, only the names of the scope that a call can
+  // reach are put in place (see reachOf); when the reach is unknown, all of
+  // them. What the import returns carries its reach (see registerReach).
+  reach = reachOf(exp, scope);
+  need = reach ? Object.create(null) : scope;
+  if (reach) {
+    reach.forEach(function (r) {
+      if (has.call(scope, r)) {
+        need[r] = scope[r];
+        n += 1;
+      }
+    });
+  } else {
+    n = Object.keys(scope).length;
+  }
+  if (!n) {
+    return reach ? registerReach(exp, reach) : exp;
   }
   Object.keys(exp || {}).forEach(function (k) {
     var v = exp[k];
-    out[k] = (typeof v === 'function') ? withScope(v, ctx, scope) : v;
+    out[k] = (typeof v === 'function') ? withScope(v, ctx, need) : v;
   });
-  return out;
+  return reach ? registerReach(out, reach) : out;
 };
+
+/*!
+ * The names each macro an async template exports reads or writes in the
+ * context, as backend.macroRefs lists them at compile time; kept beside the
+ * function, not on it, so a template cannot reach them.
+ * @private
+ */
+var exportedRefs = new WeakMap();
+
+/**
+ * Record the names a macro an async template exports reads or writes in the
+ * context. The async-codegen Macro emit calls it; importIsolated reads it.
+ * A macro with no names recorded (a macro that hands the context to other
+ * code, or one compiled by a release that did not emit this call) counts as
+ * unknown: while a macro of its import runs, every name the import bound is
+ * in place.
+ * @param  {Function} fn   The exported macro.
+ * @param  {string[]} refs Its names (backend.macroRefs).
+ * @return {Function}      fn.
+ */
+exports.exportRefs = function (fn, refs) {
+  if (typeof fn === 'function') {
+    exportedRefs.set(fn, refs);
+  }
+  return fn;
+};
+
+/*!
+ * The names a call of an import's exported macros can reach: the names each
+ * reads or writes in the context, and, for each of them the import's scope
+ * binds to a function or an object, the names recorded for that value: a
+ * macro's own (exportRefs), or those an import returned it with
+ * (registerReach), and so on. Null when one of those values has none
+ * recorded (a function from the locals, a macro that hands the context to
+ * other code, an object or array, which is not walked): the caller then puts
+ * the whole scope in place. Names the scope does not bind are listed but not
+ * followed.
+ * @private
+ */
+function reachOf(exp, scope) {
+  var has = Object.prototype.hasOwnProperty, names = Object.create(null), list = [], work = [],
+    keys = Object.keys(exp || {}), i, v;
+  function push(x) {
+    var r = exportedRefs.get(x), j;
+    if (!r) {
+      return false;
+    }
+    for (j = 0; j < r.length; j += 1) {
+      work.push(r[j]);
+    }
+    return true;
+  }
+  for (i = 0; i < keys.length; i += 1) {
+    if (typeof exp[keys[i]] === 'function' && !push(exp[keys[i]])) {
+      return null;
+    }
+  }
+  while (work.length) {
+    i = work.pop();
+    if (!has.call(names, i)) {
+      names[i] = true;
+      list.push(i);
+      v = has.call(scope, i) ? scope[i] : undefined;
+      if (v && (typeof v === 'object' || typeof v === 'function') && !push(v)) {
+        return null;
+      }
+    }
+  }
+  return list;
+}
+
+/*!
+ * Record, for what an import returns (its exports object and each function
+ * in it, wrapped or not), the names a call can reach, so that an import of
+ * the importing file can follow them (see reachOf).
+ * @private
+ */
+function registerReach(obj, reach) {
+  if (obj && typeof obj === 'object') {
+    exportedRefs.set(obj, reach);
+    Object.keys(obj).forEach(function (k) {
+      if (typeof obj[k] === 'function') {
+        exportedRefs.set(obj[k], reach);
+      }
+    });
+  }
+  return obj;
+}
 
 /**
  * Run an import on the sync render path. `run` binds the imported file's own
