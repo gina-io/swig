@@ -451,6 +451,80 @@ exports.importIsolated = async function (ctx, run) {
 };
 
 /**
+ * Run an import on the sync render path. `run` binds the imported file's own
+ * imports and macros on `scope`, an object of the import, and on closure
+ * variables of the function it is (see backend.syncImport), so the import
+ * writes nothing in the importer's context; the exports are the named macros.
+ * A macro reaches a name of the scope through its closure variable while the
+ * importer's context lacks that name; when the context holds it, or the name
+ * has no closure variable, each export is wrapped so the scope's value is in
+ * the context while it runs (see whenHidden).
+ * @param  {object}   ctx   The importer's context.
+ * @param  {Function} run   function (scope) binding the imports and macros on scope.
+ * @param  {string[]} names Names of the macros to export.
+ * @param  {string[]} refs  Names of the scope the macros read or write in the context.
+ * @param  {string[]} vars  Names of the scope that are closure variables of `run`.
+ * @return {object}         The exports.
+ */
+exports.importScope = function (ctx, run, names, refs, vars) {
+  var has = Object.prototype.hasOwnProperty, scope = Object.create(null), need = [], closure = [], exp = {};
+  run(scope);
+  (refs || []).forEach(function (k) {
+    if (has.call(scope, k) && need.indexOf(k) === -1) {
+      need.push(k);
+      closure.push((vars || []).indexOf(k) !== -1);
+    }
+  });
+  names.forEach(function (k) {
+    var v = scope[k];
+    exp[k] = (need.length && typeof v === 'function') ? whenHidden(v, ctx, scope, need, closure) : v;
+  });
+  return exp;
+};
+
+/*!
+ * Wrap a macro a sync import exports. A name of the import's scope that the
+ * macros read resolves through its closure variable unless the importer's
+ * context holds that name, which a lookup reads first: such a name, and one
+ * that has no closure variable (`closure[i]` false), is put in the context
+ * while the macro runs, and the context's own value, or its absence, is back
+ * afterwards. A call that needs none of them runs the macro directly.
+ * @private
+ */
+function whenHidden(fn, ctx, scope, need, closure) {
+  var has = Object.prototype.hasOwnProperty;
+  var wrapped = function () {
+    var put = null, i, k;
+    for (i = 0; i < need.length; i += 1) {
+      k = need[i];
+      if (ctx[k] !== scope[k] && (ctx[k] !== undefined || !closure[i])) {
+        if (!put) {
+          put = [];
+        }
+        put.push(k, has.call(ctx, k), ctx[k]);
+        ctx[k] = scope[k];
+      }
+    }
+    if (!put) {
+      return fn.apply(this, arguments);
+    }
+    try {
+      return fn.apply(this, arguments);
+    } finally {
+      for (i = put.length - 3; i >= 0; i -= 3) {
+        if (put[i + 1]) {
+          ctx[put[i]] = put[i + 2];
+        } else {
+          delete ctx[put[i]];
+        }
+      }
+    }
+  };
+  wrapped.safe = fn.safe;
+  return wrapped;
+}
+
+/**
  * Get all of the keys on an object.
  * @param  {object} obj
  * @return {array}

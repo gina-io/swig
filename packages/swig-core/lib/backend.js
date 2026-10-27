@@ -69,6 +69,191 @@ exports.iife = function (params, body, args, options) {
   return '(function (' + params + ') {\n' + body + '})(' + args + ')';
 };
 
+/*!
+ * Names that cannot be a closure variable of a sync import's scope function:
+ * JS reserved words, the standard globals emitted code may use, and the
+ * internal names emitted code declares or reads around template code (add
+ * any new one here). A name starting with `__` is never one either: emitted
+ * functions declare such locals (`__l`, `__len`, `__k`, `__ctx` …) around
+ * template code, where they would hide the closure variable.
+ * @private
+ */
+var NOT_CLOSURE = ('break case catch class const continue debugger default delete do else enum export extends ' +
+  'false finally for function if import in instanceof new null return super switch this throw true try typeof ' +
+  'var void while with yield let static implements interface package private protected public await arguments ' +
+  'eval undefined NaN Infinity globalThis Object Function Array String Number Boolean Symbol BigInt Math JSON ' +
+  'Date RegExp Error EvalError RangeError ReferenceError SyntaxError TypeError URIError Promise Proxy Reflect ' +
+  'Map Set WeakMap WeakSet ArrayBuffer DataView parseInt parseFloat isNaN isFinite encodeURI encodeURIComponent ' +
+  'decodeURI decodeURIComponent escape unescape console require module exports process Buffer window self ' +
+  'document _swig _ctx _filters _utils _fn _ext _output _exports _blocks _parentBlock _scope _imp').split(' ');
+
+/*!
+ * Whether a name a sync import binds can be a closure variable of its scope
+ * function (see NOT_CLOSURE).
+ * @private
+ */
+function closureSafe(name) {
+  return /^[A-Za-z_$][\w$]*$/.test(name) && name.slice(0, 2) !== '__' && NOT_CLOSURE.indexOf(name) === -1;
+}
+
+/**
+ * Emit the setup of a sync `{% import %}` or `{% from %}`. The imported
+ * file's own imports and its macros run, unrewritten, in a function that
+ * _utils.importScope calls with a scope object of the import: they bind there
+ * and on closure variables of that function (see scopeBinding), so they write
+ * nothing in the importer's context, and a macro reaches a sibling, or one of
+ * the file's own imports, through the closure fallback of its lookup
+ * (`_ctx.<name>`, then `<name>`). A name that cannot be a closure variable,
+ * or that the importer's context also holds, is put in the context while an
+ * exported macro runs (see _utils.importScope).
+ *
+ * @param  {string}   body  JS binding the imported file's imports and macros on `_scope`.
+ * @param  {string[]} names Names of the macros to export.
+ * @param  {string[]} refs  Names the macros read or write in the context (see macroRefs).
+ * @param  {string[]} bound Names `body` binds on `_scope`.
+ * @return {string}         A JS expression whose value is the exports object.
+ *
+ * @example
+ * backend.syncImport('_scope.a = a = function () {…};\n', ['a'], ['a'], ['a']);
+ * // => '_utils.importScope(_ctx, function (_scope) {\nvar a;\n_scope.a = a = function () {…};\n}, ["a"], ["a"], ["a"])'
+ */
+exports.syncImport = function (body, names, refs, bound) {
+  var list = [], used = [], vars = [];
+  bound = bound || [];
+  utils.each(names, function (n) {
+    if (list.indexOf(n) === -1) {
+      list.push(n);
+    }
+  });
+  utils.each(bound, function (n) {
+    if (closureSafe(n) && vars.indexOf(n) === -1) {
+      vars.push(n);
+    }
+  });
+  utils.each(refs || [], function (n) {
+    if (bound.indexOf(n) !== -1 && used.indexOf(n) === -1) {
+      used.push(n);
+    }
+  });
+  return '_utils.importScope(_ctx, function (_scope) {\n' +
+    (vars.length ? 'var ' + vars.join(', ') + ';\n' : '') +
+    body + '}, ' + JSON.stringify(list) + ', ' + JSON.stringify(used) + ', ' + JSON.stringify(vars) + ')';
+};
+
+/**
+ * JS that binds a name of a sync import's scope: `_scope.<name> = ` and,
+ * when the name can be a closure variable of the scope function, `<name> = `
+ * too.
+ *
+ * @param  {string} name The bound name.
+ * @return {string}      The start of an assignment statement.
+ *
+ * @example
+ * backend.scopeBinding('field');
+ * // => '_scope.field = field = '
+ * backend.scopeBinding('class');
+ * // => '_scope.class = '
+ */
+exports.scopeBinding = function (name) {
+  return '_scope.' + name + ' = ' + (closureSafe(name) ? name + ' = ' : '');
+};
+
+/*!
+ * JS of the function a Macro node compiles to: its parameters, the defaults,
+ * the context shadowing of the parameter names, and the body.
+ *
+ * `params` is IRMacroParam[], structured `{name, default?}` entries: the JS
+ * parameter list is `names.join(', ')` and the _utils.each shadow-delete
+ * indexOf list is `names.map(JSON.stringify).join(',')`. A string[] fallback
+ * is preserved for userland setTag tags that may still hand in the legacy
+ * raw-token slice (including the `, ` separator quirk). The frontend's macro
+ * parse handler has already applied the CVE-2023-25345 guard on the macro
+ * name (FUNCTION/FUNCTIONEMPTY) and every param name (VAR).
+ * @private
+ */
+function emitMacroFn(node, options) {
+  var macroBodyJS = '';
+  utils.each(node.body, function (b) {
+    if (b.type === 'LegacyJS') { macroBodyJS += b.js; return; }
+    if (b.type === 'Text' || b.type === 'Raw') {
+      macroBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+      return;
+    }
+  });
+  var macroParams = node.params || [],
+    macroSigJS,
+    macroIndexOfJS,
+    macroDefaultsJS = '';
+  if (macroParams.length && typeof macroParams[0] === 'object' && macroParams[0] !== null && typeof macroParams[0].name === 'string') {
+    var macroNames = [];
+    utils.each(macroParams, function (p) {
+      macroNames.push(p.name);
+      // Parameter defaults — `{% macro foo(a, b='x') %}` carries an
+      // IRExpr on `p.default`. Emit `if (b === undefined) { b = <expr>; }`
+      // at the top of the macro body, before the _ctx shadow-delete, so a
+      // default expression reads the incoming context (and earlier
+      // parameters) consistently with the macro model. Missing args
+      // arrive as `undefined`, so the guard applies the default while
+      // leaving an explicit falsy value (`0`, `false`, `''`) alone.
+      if (p['default']) {
+        macroDefaultsJS += '  if (' + p.name + ' === undefined) { ' + p.name + ' = ' + exports.emitExpr(p['default']) + '; }\n';
+      }
+    });
+    macroSigJS = macroNames.join(', ');
+    var macroJsonNames = [];
+    utils.each(macroNames, function (n) { macroJsonNames.push(JSON.stringify(n)); });
+    macroIndexOfJS = macroJsonNames.join(',');
+  } else {
+    macroSigJS = macroParams.join('');
+    macroIndexOfJS = '"' + macroParams.join('","') + '"';
+  }
+  var macroFnJS = 'function (' + macroSigJS + ') {\n' +
+    '  var _output = "",\n' +
+    '    __ctx = _utils.extend({}, _ctx);\n' +
+    macroDefaultsJS +
+    '  _utils.each(_ctx, function (v, k) {\n' +
+    '    if ([' + macroIndexOfJS + '].indexOf(k) !== -1) { delete _ctx[k]; }\n' +
+    '  });\n' +
+    macroBodyJS + '\n' +
+    ' _ctx = _utils.extend(_ctx, __ctx);\n' +
+    '  return _output;\n' +
+    '}';
+  // A deferred include, import or block, or a {% parent %}, inside a macro
+  // would need an async macro whose every call is awaited, which the async
+  // render path does not support. There the macro is a function that throws
+  // a clear error when it is called, so a template that only defines it
+  // still renders; the message names {% parent %} when the macro holds one.
+  if (holdsAwait(macroBodyJS, options)) {
+    macroFnJS = 'function () {\n' +
+      '  throw new Error("' + escapeTextValue('The macro "' + node.name + '"' + (options.filename ? ' in ' + options.filename : '') + ' holds an {% include %}, {% import %}, {% from %}' + (/\b_parentBlock\b/.test(macroBodyJS) ? ', {% block %} or {% parent %}' : ' or {% block %}') + ', which the async render path does not support inside a macro.') + '");\n' +
+      '}';
+  }
+  return macroFnJS;
+}
+
+/**
+ * Names a compiled macro reads or writes in the context: each `_ctx.<name>`
+ * in the JS of its function. A sync import puts in place, while one of its
+ * macros runs, only those of the names it binds (see syncImport).
+ *
+ * @param  {IRMacro} node      The Macro node.
+ * @param  {object}  [options] Compile options.
+ * @return {string[]}          The names, each once.
+ *
+ * @example
+ * backend.macroRefs(ir.macro('a', [ir.macroParam('x')], [ir.legacyJS('_output += _ctx.b();\n')]), {});
+ * // => ['b'] (the parameter shadowing reads names as _ctx[k], not as _ctx.<name>)
+ */
+exports.macroRefs = function (node, options) {
+  var js = emitMacroFn(node, options || {}), re = /_ctx\.([A-Za-z_$][\w$]*)/g, m, out = [];
+  while ((m = re.exec(js)) !== null) {
+    if (out.indexOf(m[1]) === -1) {
+      out.push(m[1]);
+    }
+  }
+  return out;
+};
+
 /**
  * Walk a parsed token tree and emit the JS source body for the compiled
  * template function. Each token is lifted into an IR node (`IRText` for
@@ -367,80 +552,23 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Macro') {
-      // `params` is IRMacroParam[] —
-      // structured `{name, default?}` entries. Backend builds the JS
-      // function param list via `names.join(', ')` and the _utils.each
-      // shadow-delete indexOf list via `names.map(JSON.stringify).join(',')`.
-      // A string[] fallback is preserved for userland setTag tags that
-      // may still hand in the legacy raw-token slice (including
-      // the `, ` separator quirk). The frontend's macro parse handler
-      // has already applied the CVE-2023-25345 guard on the macro name
-      // (FUNCTION/FUNCTIONEMPTY) and every param name (VAR).
-      var macroBodyJS = '';
-      utils.each(node.body, function (b) {
-        if (b.type === 'LegacyJS') { macroBodyJS += b.js; return; }
-        if (b.type === 'Text' || b.type === 'Raw') {
-          macroBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
-          return;
-        }
-      });
-      var macroParams = node.params || [],
-        macroSigJS,
-        macroIndexOfJS,
-        macroDefaultsJS = '';
-      if (macroParams.length && typeof macroParams[0] === 'object' && macroParams[0] !== null && typeof macroParams[0].name === 'string') {
-        var macroNames = [];
-        utils.each(macroParams, function (p) {
-          macroNames.push(p.name);
-          // Parameter defaults — `{% macro foo(a, b='x') %}` carries an
-          // IRExpr on `p.default`. Emit `if (b === undefined) { b = <expr>; }`
-          // at the top of the macro body, before the _ctx shadow-delete, so a
-          // default expression reads the incoming context (and earlier
-          // parameters) consistently with the macro model. Missing args
-          // arrive as `undefined`, so the guard applies the default while
-          // leaving an explicit falsy value (`0`, `false`, `''`) alone.
-          if (p['default']) {
-            macroDefaultsJS += '  if (' + p.name + ' === undefined) { ' + p.name + ' = ' + exports.emitExpr(p['default']) + '; }\n';
-          }
-        });
-        macroSigJS = macroNames.join(', ');
-        var macroJsonNames = [];
-        utils.each(macroNames, function (n) { macroJsonNames.push(JSON.stringify(n)); });
-        macroIndexOfJS = macroJsonNames.join(',');
+      // The function's JS comes from emitMacroFn. A macro of a file a sync
+      // import carries (`options.macroScope`) binds on that import's scope
+      // object and its closure variable (see syncImport), not in the context.
+      if (options && options.macroScope) {
+        out += exports.scopeBinding(node.name) + emitMacroFn(node, options) + ';\n' +
+          '_scope.' + node.name + '.safe = true;\n';
       } else {
-        macroSigJS = macroParams.join('');
-        macroIndexOfJS = '"' + macroParams.join('","') + '"';
+        out += '_ctx.' + node.name + ' = ' + emitMacroFn(node, options) + ';\n' +
+          '_ctx.' + node.name + '.safe = true;\n';
       }
-      var macroFnJS = 'function (' + macroSigJS + ') {\n' +
-        '  var _output = "",\n' +
-        '    __ctx = _utils.extend({}, _ctx);\n' +
-        macroDefaultsJS +
-        '  _utils.each(_ctx, function (v, k) {\n' +
-        '    if ([' + macroIndexOfJS + '].indexOf(k) !== -1) { delete _ctx[k]; }\n' +
-        '  });\n' +
-        macroBodyJS + '\n' +
-        ' _ctx = _utils.extend(_ctx, __ctx);\n' +
-        '  return _output;\n' +
-        '}';
-      // A deferred include, import or block, or a {% parent %}, inside a macro
-      // would need an async macro whose every call is awaited, which the async
-      // render path does not support. There the macro is a function that throws
-      // a clear error when it is called, so a template that only defines it
-      // still renders; the message names {% parent %} when the macro holds one.
-      if (holdsAwait(macroBodyJS, options)) {
-        macroFnJS = 'function () {\n' +
-          '  throw new Error("' + escapeTextValue('The macro "' + node.name + '"' + (options.filename ? ' in ' + options.filename : '') + ' holds an {% include %}, {% import %}, {% from %}' + (/\b_parentBlock\b/.test(macroBodyJS) ? ', {% block %} or {% parent %}' : ' or {% block %}') + ', which the async render path does not support inside a macro.') + '");\n' +
-          '}';
-      }
-      out += '_ctx.' + node.name + ' = ' + macroFnJS + ';\n' +
-        '_ctx.' + node.name + '.safe = true;\n';
       // Async-codegen mirrors the macro into _exports so
       // {% import %} / Twig's {% from %} can bind macros across templates
       // at runtime. The macro's closure still references _ctx (not
       // _exports) for outer-ctx lookups — sync-semantics-preserving.
-      // Top-level filter is implicit: the existing macro body walker
-      // (above) only handles Text/Raw/LegacyJS children, so nested
-      // IRMacro never reaches this branch.
+      // Top-level filter is implicit: the macro body walker (emitMacroFn)
+      // only handles Text/Raw/LegacyJS children, so nested IRMacro never
+      // reaches this branch.
       if (options && options.codegenMode === 'async') {
         if (_security.dangerousProps.indexOf(node.name) !== -1) {
           throw new Error('Macro name "' + node.name + '" is reserved.');
