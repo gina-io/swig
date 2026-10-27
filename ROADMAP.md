@@ -30,6 +30,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Completed
 
+### v2.9.8 (October 2026)
+
+- On the async render path a call of an imported macro puts in place only the names of the imported template that its macros can reach, instead of every name the template bound, so a page making many calls into an import renders faster (about five times for 2000 calls into a 20-macro import, against 2.9.7).
+- On the async render path, code that comes into an imported macro from the importing side no longer sees the imported template's names that the imported macros cannot reach, as on the sync render path.
+- All five packages released in lockstep at `2.9.8`.
+
 ### v2.9.7 (October 2026)
 
 - Native swig, swig-twig and swig-jinja2 on the sync render path: `{% import %}` and `{% from %}` run the imported file's own imports and macros in a scope of the import instead of rewriting their code by name, so the templates that rewrite broke render as on the async render path: macros named `k` or `sa` or with a `$` in the name, parameters, set targets and aliases named like a macro of the same file, an import under the importer's own alias, and, in swig-twig and swig-jinja2, `{% from %}` macros that call a macro of their file the `from` does not name.
