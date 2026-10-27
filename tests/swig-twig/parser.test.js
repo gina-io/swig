@@ -1843,10 +1843,9 @@ describe('@rhinostone/swig-twig — parser.parse — {% macro %} tag', function 
 /* ================================================================ *
  * Phase 3 Session 10 — Twig `{% import %}` tag.
  *
- * Loads a template, walks its `{% macro %}` tokens, and namespaces
- * each into `_ctx.<alias>` via regex-surgery over the compiled JS.
- * Stays on IRLegacyJS per the flavor-invariant test (swig-specific
- * coupling on compiled macro source shape).
+ * Loads a template, walks its `{% macro %}` tokens, and binds them in a
+ * namespace at `_ctx.<alias>`. The tag's compile returns a JS string,
+ * which the backend lifts into IRLegacyJS.
  * ================================================================ */
 describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
   var tags = require('@rhinostone/swig-twig/lib/tags');
@@ -1868,10 +1867,18 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
     return instance;
   }
 
+  // Render through a Twig instance whose memory loader holds the same
+  // templates, so the import resolves from /tpl.twig.
+  function render(templates, src) {
+    var twig = require('@rhinostone/swig-twig');
+    return new twig.Twig({ loader: twig.loaders.memory(templates, '/'), cache: false }).render(src, { filename: '/tpl.twig' });
+  }
+
   it('stashes macro list + alias on token.args', function () {
-    var swig = mockSwig({
+    var templates = {
       'forms.twig': '{% macro foo(a) %}hi {{ a }}{% endmacro %}{% macro bar() %}bye{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% import "forms.twig" as form %}', { filename: 'tpl.twig' }, tags, {});
     expect(tree.tokens).to.have.length(1);
     var tok = tree.tokens[0];
@@ -1879,35 +1886,30 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
     expect(tok.args).to.have.length(3);
     expect(tok.args[0].name).to.equal('foo');
     expect(typeof tok.args[0].compiled).to.equal('string');
-    expect(tok.args[0].compiled).to.match(/_ctx\.foo = function/);
     expect(tok.args[1].name).to.equal('bar');
-    expect(tok.args[1].compiled).to.match(/_ctx\.bar = function/);
     expect(tok.args[2]).to.equal('form');
+    expect(render(templates, '{% import "forms.twig" as form %}[{{ form.foo("x") }}|{{ form.bar() }}]')).to.equal('[hi x|bye]');
   });
 
   it('namespaces compiled macros under the alias', function () {
-    var swig = mockSwig({
+    var templates = {
       'forms.twig': '{% macro foo() %}hi{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% import "forms.twig" as form %}', { filename: 'tpl.twig' }, tags, {});
     var tok = tree.tokens[0];
     var out = tok.compile(null, tok.args.slice(0));
-    expect(out).to.match(/^_ctx\.form = \{\};/);
-    expect(out).to.match(/_ctx\.form\.foo = function/);
     expect(out).to.not.match(/_ctx\.foo = function/);
+    expect(render(templates, '{% import "forms.twig" as form %}[{{ form.foo() }}][{{ foo }}]')).to.equal('[hi][]');
   });
 
-  it('rewrites sibling-macro references within compiled bodies', function () {
-    // bar calls foo — the sibling reference in bar's body must also
-    // rewrite to _ctx.form.foo.
-    var swig = mockSwig({
+  it('resolves sibling-macro references within compiled bodies', function () {
+    // bar calls foo — the sibling reference in bar's body must resolve
+    // when bar is called through the alias.
+    var templates = {
       'forms.twig': '{% macro foo() %}hi{% endmacro %}{% macro bar() %}{{ foo() }}{% endmacro %}'
-    });
-    var tree = parser.parse(swig, '{% import "forms.twig" as form %}', { filename: 'tpl.twig' }, tags, {});
-    var tok = tree.tokens[0];
-    var out = tok.compile(null, tok.args.slice(0));
-    expect(out).to.match(/_ctx\.form\.foo = function/);
-    expect(out).to.match(/_ctx\.form\.bar = function/);
+    };
+    expect(render(templates, '{% import "forms.twig" as form %}[{{ form.bar() }}][{{ foo }}]')).to.equal('[hi][]');
   });
 
   it('supports single-quoted path', function () {
@@ -2011,55 +2013,53 @@ describe('@rhinostone/swig-twig — parser.parse (import tag)', function () {
     });
   });
 
-  it('carries a nested import and re-homes it under the alias (no bare leak)', function () {
+  it('carries a nested import for the imported macros (no bare leak)', function () {
     // sub imports base and defines a macro that calls base.hi(). The nested
-    // import must be carried through and re-homed under `sub` so the macro
-    // resolves it at call time, WITHOUT the inner alias `base` leaking bare
-    // into the caller scope — Twig keeps imports local to their template.
-    var swig = mockSwig({
+    // import must be carried through so the macro resolves it at call time,
+    // WITHOUT the inner alias `base` leaking bare into the caller scope —
+    // Twig keeps imports local to their template.
+    var templates = {
       'base.twig': '{% macro hi() %}HELLO{% endmacro %}',
       'sub.twig': '{% import "base.twig" as base %}{% macro greet() %}[{{ base.hi() }}]{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% import "sub.twig" as sub %}', { filename: 'tpl.twig' }, tags, {});
     var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
-    expect(out).to.match(/_ctx\.sub\.greet = function/);
-    expect(out).to.match(/_ctx\.sub\.base = \{\}/);
-    expect(out).to.match(/_ctx\.sub\.base\.hi = function/);
     // no bare leak of the inner alias into the caller scope
     expect(out).to.not.match(/_ctx\.base = \{\}/);
     expect(out).to.not.match(/_ctx\.base\.hi = function/);
+    expect(render(templates, '{% import "sub.twig" as sub %}{{ sub.greet() }}|[{{ base }}]')).to.equal('[HELLO]|[]');
   });
 
-  it('re-homes nested imports across depth without leaking any inner alias', function () {
+  it('carries nested imports across depth without leaking any inner alias', function () {
     // gb <- b (as gb) <- s (as base) <- main (as sub). Every transitively
-    // imported alias must stay namespaced under `sub`; none may leak bare.
-    var swig = mockSwig({
+    // imported alias must resolve for the macros; none may leak bare.
+    var templates = {
       'gb.twig': '{% macro g() %}GRAND{% endmacro %}',
       'b.twig': '{% import "gb.twig" as gb %}{% macro hi() %}{{ gb.g() }}{% endmacro %}',
       's.twig': '{% import "b.twig" as base %}{% macro greet() %}[{{ base.hi() }}]{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% import "s.twig" as sub %}', { filename: 'tpl.twig' }, tags, {});
     var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
-    expect(out).to.match(/_ctx\.sub\.greet = function/);
-    expect(out).to.match(/_ctx\.sub\.base\.hi = function/);
-    expect(out).to.match(/_ctx\.sub\.base\.gb\.g = function/);
     // no bare leak of any transitively-imported inner alias
     expect(out).to.not.match(/_ctx\.base = \{\}/);
     expect(out).to.not.match(/_ctx\.gb = \{\}/);
+    expect(render(templates, '{% import "s.twig" as sub %}{{ sub.greet() }}|[{{ base }}][{{ gb }}]')).to.equal('[GRAND]|[][]');
   });
 
-  it('carries a nested {% from %} inside an imported file, under the alias', function () {
+  it('carries a nested {% from %} inside an imported file (no bare leak)', function () {
     // sub uses {% from "base" import hi %}; main does {% import "sub" as sub %}.
-    // The nested from binding re-homes under the import alias, never bare.
-    var swig = mockSwig({
+    // The nested from binding resolves for sub's macros, never bare.
+    var templates = {
       'base.twig': '{% macro hi() %}HELLO{% endmacro %}',
       'sub.twig': '{% from "base.twig" import hi %}{% macro greet() %}[{{ hi() }}]{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% import "sub.twig" as sub %}', { filename: 'tpl.twig' }, tags, {});
     var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
-    expect(out).to.match(/_ctx\.sub\.greet = function/);
-    expect(out).to.match(/_ctx\.sub\.hi = function/);
     expect(out).to.not.match(/_ctx\.hi = function/);
+    expect(render(templates, '{% import "sub.twig" as sub %}{{ sub.greet() }}|[{{ hi }}]')).to.equal('[HELLO]|[]');
   });
 });
 
@@ -2294,8 +2294,8 @@ describe('@rhinostone/swig-twig — parser.parse — {% apply %} tag', function 
  * Phase 3 Session 11 — `{% from "file" import a, b as c %}` tag.
  *
  * Selective macro import. Each entry binds at top-level `_ctx.<alias>`
- * (or `_ctx.<origName>` when no alias). Stays on IRLegacyJS per the
- * flavor-invariant test (compiled-macro-body regex surgery).
+ * (or `_ctx.<origName>` when no alias). The tag's compile returns a JS
+ * string, which the backend lifts into IRLegacyJS.
  * ================================================================ */
 describe('@rhinostone/swig-twig — parser.parse — {% from import %} tag', function () {
   var tags = require('@rhinostone/swig-twig/lib/tags');
@@ -2314,134 +2314,114 @@ describe('@rhinostone/swig-twig — parser.parse — {% from import %} tag', fun
     return instance;
   }
 
+  // Render through a Twig instance whose memory loader holds the same
+  // templates, so the from-import resolves from /tpl.twig.
+  function render(templates, src) {
+    var twig = require('@rhinostone/swig-twig');
+    return new twig.Twig({ loader: twig.loaders.memory(templates, '/'), cache: false }).render(src, { filename: '/tpl.twig' });
+  }
+
   it('imports a single macro by name (no alias)', function () {
-    var swig = mockSwig({
+    var templates = {
       'forms.twig': '{% macro foo() %}hi{% endmacro %}{% macro bar() %}bye{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% from "forms.twig" import foo %}', { filename: 'tpl.twig' }, tags, {});
     expect(tree.tokens).to.have.length(1);
     var tok = tree.tokens[0];
     expect(tok.name).to.equal('from');
     expect(tok.args).to.have.length(1);
-    expect(tok.args[0].origName).to.equal('foo');
-    expect(tok.args[0].aliasName).to.equal('foo');
-    expect(tok.args[0].compiled).to.match(/_ctx\.foo = function/);
+    expect(render(templates, '{% from "forms.twig" import foo %}[{{ foo() }}][{{ bar }}]')).to.equal('[hi][]');
   });
 
   it('imports multiple macros without aliases', function () {
-    var swig = mockSwig({
+    var templates = {
       'forms.twig': '{% macro foo() %}hi{% endmacro %}{% macro bar() %}bye{% endmacro %}'
-    });
-    var tree = parser.parse(swig, '{% from "forms.twig" import foo, bar %}', { filename: 'tpl.twig' }, tags, {});
-    var tok = tree.tokens[0];
-    expect(tok.args).to.have.length(2);
-    expect(tok.args[0].origName).to.equal('foo');
-    expect(tok.args[0].aliasName).to.equal('foo');
-    expect(tok.args[1].origName).to.equal('bar');
-    expect(tok.args[1].aliasName).to.equal('bar');
+    };
+    expect(render(templates, '{% from "forms.twig" import foo, bar %}[{{ foo() }}|{{ bar() }}]')).to.equal('[hi|bye]');
   });
 
   it('imports a single macro with alias', function () {
-    var swig = mockSwig({
+    var templates = {
       'forms.twig': '{% macro input() %}hi{% endmacro %}'
-    });
-    var tree = parser.parse(swig, '{% from "forms.twig" import input as field %}', { filename: 'tpl.twig' }, tags, {});
-    var tok = tree.tokens[0];
-    expect(tok.args).to.have.length(1);
-    expect(tok.args[0].origName).to.equal('input');
-    expect(tok.args[0].aliasName).to.equal('field');
+    };
+    expect(render(templates, '{% from "forms.twig" import input as field %}[{{ field() }}][{{ input }}]')).to.equal('[hi][]');
   });
 
   it('imports multiple macros with mixed aliases', function () {
-    var swig = mockSwig({
+    var templates = {
       'forms.twig': '{% macro foo() %}hi{% endmacro %}{% macro bar() %}bye{% endmacro %}{% macro baz() %}hey{% endmacro %}'
-    });
-    var tree = parser.parse(swig, '{% from "forms.twig" import foo as f, bar, baz as b %}', { filename: 'tpl.twig' }, tags, {});
-    var tok = tree.tokens[0];
-    expect(tok.args).to.have.length(3);
-    expect(tok.args[0]).to.eql({
-      origName: 'foo',
-      aliasName: 'f',
-      compiled: tok.args[0].compiled
-    });
-    expect(tok.args[1].origName).to.equal('bar');
-    expect(tok.args[1].aliasName).to.equal('bar');
-    expect(tok.args[2].origName).to.equal('baz');
-    expect(tok.args[2].aliasName).to.equal('b');
+    };
+    expect(render(templates, '{% from "forms.twig" import foo as f, bar, baz as b %}[{{ f() }}|{{ bar() }}|{{ b() }}][{{ foo }}{{ baz }}]')).to.equal('[hi|bye|hey][]');
   });
 
   it('compile binds each imported macro at top-level _ctx.<aliasName>', function () {
-    var swig = mockSwig({
+    var templates = {
       'forms.twig': '{% macro input() %}hi{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% from "forms.twig" import input as field %}', { filename: 'tpl.twig' }, tags, {});
     var tok = tree.tokens[0];
     var out = tok.compile(null, tok.args.slice(0));
-    expect(out).to.match(/_ctx\.field = function/);
     expect(out).to.not.match(/_ctx\.input = function/);
+    expect(render(templates, '{% from "forms.twig" import input as field %}[{{ field() }}][{{ input }}]')).to.equal('[hi][]');
   });
 
-  it('compile rewrites sibling-macro references when both are imported', function () {
-    // bar's body calls foo(); importing both with aliases should rewrite
-    // the sibling ref in bar's body to the aliased name.
-    var swig = mockSwig({
+  it('compile resolves sibling-macro references when both are imported', function () {
+    // bar's body calls foo(); importing both with aliases must still let
+    // bar reach foo while it runs.
+    var templates = {
       'forms.twig': '{% macro foo() %}hi{% endmacro %}{% macro bar() %}{{ foo() }}{% endmacro %}'
-    });
-    var tree = parser.parse(swig, '{% from "forms.twig" import foo as f, bar as b %}', { filename: 'tpl.twig' }, tags, {});
-    var tok = tree.tokens[0];
-    var out = tok.compile(null, tok.args.slice(0));
-    expect(out).to.match(/_ctx\.f = function/);
-    expect(out).to.match(/_ctx\.b = function/);
-    expect(out).to.not.match(/_ctx\.foo/);
+    };
+    expect(render(templates, '{% from "forms.twig" import foo as f, bar as b %}[{{ f() }}|{{ b() }}][{{ foo }}{{ bar }}]')).to.equal('[hi|hi][]');
   });
 
   it('compile does not bind unimported macros', function () {
-    // Only foo is imported; bar in the source template must not appear.
-    var swig = mockSwig({
+    // Only foo is imported; bar must not be bound in the caller's context.
+    var templates = {
       'forms.twig': '{% macro foo() %}hi{% endmacro %}{% macro bar() %}bye{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% from "forms.twig" import foo %}', { filename: 'tpl.twig' }, tags, {});
     var tok = tree.tokens[0];
     var out = tok.compile(null, tok.args.slice(0));
-    expect(out).to.match(/_ctx\.foo = function/);
     expect(out).to.not.match(/_ctx\.bar = function/);
+    expect(render(templates, '{% from "forms.twig" import foo %}[{{ foo() }}][{{ bar }}]')).to.equal('[hi][]');
   });
 
-  it('carries a nested {% import %} under a private slot (no bare leak)', function () {
+  it('carries a nested {% import %} (no bare leak)', function () {
     // sub uses {% import "base" as base %}; main pulls greet via {% from %}.
-    // greet binds bare (correct for from); base re-homes under a private
-    // slot so it never leaks bare into the parent.
-    var swig = mockSwig({
+    // greet binds bare (correct for from); base resolves for greet and
+    // never leaks bare into the parent.
+    var templates = {
       'base.twig': '{% macro hi() %}HELLO{% endmacro %}',
       'sub.twig': '{% import "base.twig" as base %}{% macro greet() %}[{{ base.hi() }}]{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% from "sub.twig" import greet %}', { filename: 'tpl.twig' }, tags, {});
     var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
-    expect(out).to.match(/_ctx\.greet = function/);
-    expect(out).to.match(/_ctx\.__nsfrom_[A-Za-z0-9_]+\.base = \{\}/);
     expect(out).to.not.match(/_ctx\.base = \{\}/);
+    expect(render(templates, '{% from "sub.twig" import greet %}{{ greet() }}|[{{ base }}]')).to.equal('[HELLO]|[]');
   });
 
-  it('carries a nested {% from %} under a private slot (no bare leak)', function () {
+  it('carries a nested {% from %} (no bare leak)', function () {
     // sub uses {% from "base" import hi %}; main pulls greet via {% from %}.
-    var swig = mockSwig({
+    var templates = {
       'base.twig': '{% macro hi() %}HELLO{% endmacro %}',
       'sub.twig': '{% from "base.twig" import hi %}{% macro greet() %}[{{ hi() }}]{% endmacro %}'
-    });
+    };
+    var swig = mockSwig(templates);
     var tree = parser.parse(swig, '{% from "sub.twig" import greet %}', { filename: 'tpl.twig' }, tags, {});
     var out = tree.tokens[0].compile(null, tree.tokens[0].args.slice(0));
-    expect(out).to.match(/_ctx\.greet = function/);
-    expect(out).to.match(/_ctx\.__nsfrom_[A-Za-z0-9_]+\.hi = function/);
     expect(out).to.not.match(/_ctx\.hi = function/);
+    expect(render(templates, '{% from "sub.twig" import greet %}{{ greet() }}|[{{ hi }}]')).to.equal('[HELLO]|[]');
   });
 
   it('supports single-quoted path', function () {
-    var swig = mockSwig({
+    var templates = {
       'forms.twig': '{% macro foo() %}hi{% endmacro %}'
-    });
-    var tree = parser.parse(swig, "{% from 'forms.twig' import foo %}", { filename: 'tpl.twig' }, tags, {});
-    var tok = tree.tokens[0];
-    expect(tok.args[0].origName).to.equal('foo');
+    };
+    expect(render(templates, "{% from 'forms.twig' import foo %}[{{ foo() }}]")).to.equal('[hi]');
   });
 
   it('throws on missing path', function () {

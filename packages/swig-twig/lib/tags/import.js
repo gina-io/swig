@@ -6,23 +6,19 @@
  *   {% import "partial.twig" as form %}
  *
  * Loads a template and imports every `{% macro %}` it defines into a
- * namespace bound to `_ctx.<alias>`. Each imported macro is rendered
- * to JS via `backend.compile`; the compile step performs regex surgery
- * on that rendered JS to rewrite `_ctx.<macroName>` →
- * `_ctx.<alias>.<macroName>`, including sibling-macro references
- * (the `(?!<allMacros>)` negative lookahead lifted from the native
- * `lib/tags/import.js`).
+ * namespace bound to `_ctx.<alias>`. On the sync render path each imported
+ * macro is rendered to JS via `backend.compile`, bound on the import's
+ * scope object and on a closure variable of its scope function instead of
+ * in the caller's context; `_utils.importScope` runs that function and
+ * returns the namespace (see `backend.syncImport`), so a macro reaches its
+ * siblings and the file's own imports with no rewrite of its JS. The async
+ * render path loads the template at run time (IRImportDeferred).
  *
- * The regex surgery is swig-specific coupling on the exact JS source
- * shape a Macro IR emits — it fails the flavor-invariant test and
- * stays on `IRLegacyJS`. The tag returns a JS source string from
- * `compile`; the backend lifts it into `IRLegacyJS` at emit time. When
- * the macro-name → namespace rewrite moves into the emitter itself, the
- * tag collapses to a dedicated `IRImport` node.
+ * The tag returns a JS source string from `compile`; the backend lifts it
+ * into `IRLegacyJS` at emit time.
  *
- * Dynamic paths (`{% import dyn as ns %}`) and the plural
- * `{% from "file" import a, b %}` shorthand are deferred to a later
- * Twig-specific session.
+ * The `{% from "file" import a, b %}` form is the sibling `from` tag.
+ * Dynamic paths (`{% import dyn as ns %}`) are deferred.
  *
  * The alias is a bare identifier — dotted paths are rejected at parse
  * time, and CVE-2023-25345 prototype-chain names are rejected before
@@ -49,14 +45,15 @@ exports.block = true;
  *
  * Walks the imported template's token list (via `swig.parseFile`). For
  * each `{% macro %}` token, invokes its `compile` to get the IRMacro node
- * and renders it to JS through `backend.compile`. For each nested
- * `{% import %}` / `{% from %}` token (the imported file's own imports),
- * carries its compiled setup through flagged `isImport` (with `boundNames`)
- * so macros defined here can reference it at call time. The resulting
- * entries + the alias string are stashed on `token.args` —
- * `exports.compile` pops the alias off the tail, re-homes any nested
- * imports under it, and performs the namespace-prefix rewrite on each
- * macro's compiled JS.
+ * and renders it to JS through `backend.compile`, bound on the import's
+ * scope (`macroScope`), with the names it reads (`backend.macroRefs`). For
+ * each nested `{% import %}` / `{% from %}` token (the imported file's own
+ * imports), carries its compiled setup through flagged `isImport`, compiled
+ * to bind on this import's scope (`importTarget`), with the names it binds
+ * (`bound`), so macros defined here can reference it at call time. The
+ * resulting entries + the alias string are stashed on `token.args` —
+ * `exports.compile` pops the alias off the tail and emits the import
+ * through `backend.syncImport`.
  *
  * @param  {string} str    Tag body.
  * @param  {number} line   Source line of the opening `{%`.
@@ -68,7 +65,7 @@ exports.block = true;
  *                         `resolveFrom` + filename-aware throws.
  * @param  {object} swig   Swig instance. Must expose `parseFile`.
  * @param  {object} token  In-progress TagToken. `token.args` gets the
- *                         `[{compiled, name}, ..., alias]` list.
+ *                         `[{compiled, name, refs}, ..., alias]` list.
  * @return {boolean}       Always `true` on success. Throws otherwise.
  */
 exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
@@ -129,6 +126,10 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
 
   var parseOpts = { resolveFrom: opts.filename };
   var compileOpts = utils.extend({}, opts, parseOpts);
+  // The imported file's macros bind on the import's scope object, and its
+  // own imports bind there too (see compile()).
+  var macroOpts = utils.extend({}, compileOpts, { macroScope: true });
+  var nestedOpts = utils.extend({}, compileOpts, { importTarget: '_scope' });
   var parsed = swig.parseFile(path, parseOpts);
   var macros = [];
 
@@ -140,36 +141,30 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     // or `{% from "x" import a, b %}`. Carry those nested imports through so
     // a macro defined here that references a name they bind resolves at call
     // time — without them the call compiles against a namespace/binding that
-    // was never set up, and silently renders empty.
-    //
-    // Unlike native `lib/tags/import.js` (which emits the nested bindings
-    // straight into the caller's `_ctx` and thereby leaks them into the
-    // parent scope), swig-twig keeps imports local to their template per
-    // Twig's scoping rule: compile() re-homes every bound name under THIS
-    // import's alias (`_ctx.<alias>.<boundName>`), so none is visible bare
-    // in the parent. `tk.args` is already parsed; slice() avoids the pop()
-    // in compile() mutating the cached token.
+    // was never set up, and silently renders empty. They bind on this
+    // import's scope object (nestedOpts), so none is visible bare in the
+    // parent. `tk.args` is already parsed; slice() avoids the pop() in
+    // compile() mutating the cached token.
     if (tk.name === 'import' || tk.name === 'from') {
-      // Names the nested import binds into _ctx: `{% import %}` binds one
-      // namespace alias (the tail of args); `{% from %}` binds one per
-      // requested entry (its alias name).
-      var boundNames = (tk.name === 'import')
-        ? [tk.args[tk.args.length - 1]]
-        : utils.map(tk.args, function (a) { return a.aliasName; });
       macros.push({
-        compiled: tk.compile(null, tk.args.slice(), tk.content, [], compileOpts) + '\n',
+        compiled: tk.compile(null, tk.args.slice(), tk.content, [], nestedOpts) + '\n',
         isImport: true,
-        boundNames: boundNames
+        // Names the nested import binds: `{% import %}` one namespace alias
+        // (the tail of args); `{% from %}` one per requested entry.
+        bound: (tk.name === 'import') ? [tk.args[tk.args.length - 1]] : utils.map(tk.args[0].entries, function (e) { return e.aliasName; })
       });
       return;
     }
     if (tk.name !== 'macro') {
       return;
     }
+    // The body compiles with compileOpts, so a macro defined inside it binds
+    // in the context as anywhere else; the macro itself binds on the
+    // import's scope (macroOpts).
     var macroName = tk.args[0];
     var macroIR = tk.compile(backend.compile, tk.args, tk.content, [], compileOpts);
-    var compiled = backend.compile([macroIR], [], compileOpts) + '\n';
-    macros.push({ compiled: compiled, name: macroName });
+    var compiled = backend.compile([macroIR], [], macroOpts) + '\n';
+    macros.push({ compiled: compiled, name: macroName, refs: backend.macroRefs(macroIR, macroOpts) });
   });
 
   token.args = macros.concat([aliasTok.match]);
@@ -177,21 +172,16 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
 };
 
 /**
- * Emit the namespace-prefix rewrite. Pops the alias off the tail of
- * `args` and splits the rest into macros and nested imports (flagged
- * `isImport` by parse()). Builds a `_ctx.<name>(\\W)(?!<allMacros>)`
- * regex for each imported macro and rewrites every occurrence in each
- * macro's compiled JS to `_ctx.<alias>.<name>`. Nested imports are
- * emitted first, re-homed under the alias (`_ctx.<boundName>` ->
- * `_ctx.<alias>.<boundName>`) so a file's own imports stay local and
- * never leak bare into the parent scope; the same re-homing is applied
- * to macro bodies that reference any bound name. Concatenates after the
- * `_ctx.<alias> = {};` namespace-init line and returns a JS source string
+ * Emit the import. Pops the alias off the tail of `args`; the rest, the
+ * imported file's macros and its own imports (flagged `isImport` by
+ * parse()), run in file order in the scope function `backend.syncImport`
+ * builds, and the namespace `_utils.importScope` returns is bound to
+ * `_ctx.<alias>`, or to the enclosing import's scope when this import sits
+ * in an imported file (`options.importTarget`). Returns a JS source string
  * (the backend lifts it into `IRLegacyJS`).
  *
- * @return {string} JS source that initialises `_ctx.<alias>`, re-homes
- *                  any nested imports under it, and assigns every
- *                  imported macro into it.
+ * @return {string} JS source that binds the namespace of the imported
+ *                  macros under the alias.
  */
 exports.compile = function (compiler, args, content, parents, options) {
   // Async-codegen branch. Parse stashed `[path, alias]`
@@ -204,53 +194,24 @@ exports.compile = function (compiler, args, content, parents, options) {
       options.filename || ''
     );
   }
-  var ctx = args.pop();
-  var macros = [];
-  var nested = [];
-  utils.each(args, function (a) {
-    (a.isImport ? nested : macros).push(a);
-  });
-  var allMacros = utils.map(macros, function (arg) { return arg.name; }).join('|');
   // No _output declaration in this emit: it runs in the caller's body (the
   // template, a block, a loop or a macro), where one reset or shadowed what
   // was rendered before the tag.
-  var out = '_ctx.' + ctx + ' = {};\n';
-  var replacements = utils.map(macros, function (arg) {
-    return {
-      ex: new RegExp('_ctx\\.' + arg.name + '(\\W)(?!' + allMacros + ')', 'g'),
-      re: '_ctx.' + ctx + '.' + arg.name + '$1'
-    };
+  var ctx = args.pop();
+  var body = '';
+  var names = [];
+  var refs = [];
+  var bound = [];
+  utils.each(args, function (a) {
+    body += a.compiled;
+    if (a.isImport) {
+      bound = bound.concat(a.bound || []);
+    } else {
+      names.push(a.name);
+      bound.push(a.name);
+      refs = refs.concat(a.refs || []);
+    }
   });
-  // Re-home every name a nested import binds under THIS alias so it stays
-  // local to the imported file (Twig scoping) and never leaks bare into the
-  // parent: `_ctx.<boundName>` -> `_ctx.<alias>.<boundName>`, applied to both
-  // the nested setup JS and every macro body below that references it.
-  // Compounds across import depth (a 3-level chain re-homes at each layer
-  // with no special-casing).
-  var innerReplacements = [];
-  utils.each(nested, function (a) {
-    utils.each(a.boundNames, function (nm) {
-      innerReplacements.push({
-        ex: new RegExp('_ctx\\.' + nm + '(\\W)', 'g'),
-        re: '_ctx.' + ctx + '.' + nm + '$1'
-      });
-    });
-  });
-
-  // Nested imports first, re-homed under the alias, so the macros defined
-  // below resolve them at call time.
-  utils.each(nested, function (a) {
-    var c = a.compiled;
-    utils.each(innerReplacements, function (re) { c = c.replace(re.ex, re.re); });
-    out += c;
-  });
-
-  utils.each(macros, function (arg) {
-    var c = arg.compiled;
-    utils.each(replacements, function (re) { c = c.replace(re.ex, re.re); });
-    utils.each(innerReplacements, function (re) { c = c.replace(re.ex, re.re); });
-    out += c;
-  });
-
-  return out;
+  return ((options && options.importTarget === '_scope') ? backend.scopeBinding(ctx) : '_ctx.' + ctx + ' = ') +
+    backend.syncImport(body, names, refs, bound) + ';\n';
 };
