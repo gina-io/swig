@@ -19,6 +19,10 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   if (!top || (top.name !== 'if' && top.name !== 'for')) {
     utils.throwError('"else" is only valid inside an "if" or "for" tag', line, opts.filename);
   }
+  // Jinja2 rejects anything after else (`{% else if b %}` is not elif).
+  if (utils.strip(str || '')) {
+    utils.throwError('"else" does not accept arguments (found "' + utils.strip(str) + '")', line, opts.filename);
+  }
   return true;
 };
 

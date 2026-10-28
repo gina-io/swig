@@ -20,6 +20,9 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   if (!top || top.name !== 'for') {
     utils.throwError('"empty" is only valid inside a "for" tag', line, opts.filename);
   }
+  if (utils.strip(str || '')) {
+    utils.throwError('"empty" does not accept arguments (found "' + utils.strip(str) + '")', line, opts.filename);
+  }
   return true;
 };
 
