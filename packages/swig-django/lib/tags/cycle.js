@@ -96,7 +96,10 @@ exports.compile = function (compiler, args, content, parents, options, blockName
 
   var key = ('__cycle' + Math.random()).replace(/\./g, '');
   var value = '__cv[_ctx.' + key + ' % __cv.length]';
-  var emit = token.escape ? '_filters["e"](' + value + ')' : '_utils.coerceOutput(' + value + ')';
+  // A string escape strategy (the `autoescape: 'js'` option) goes to the
+  // `e` filter as its argument, as firstof and `{{ }}` pass it.
+  var strategy = (typeof token.escape === 'string') ? ', ' + backend.emitExpr(ir.literal('string', token.escape)) : '';
+  var emit = token.escape ? '_filters["e"](' + value + strategy + ')' : '_utils.coerceOutput(' + value + ')';
 
   return ir.legacyJS(
     '(function () {\n' +
