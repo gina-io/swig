@@ -28,19 +28,19 @@ Outputs are verified identical between engines before timing. Divergence prints 
 Sample results
 --------------
 
-Node v25.3.0 on Apple Silicon, autoescape ON (production-typical), median of 5 runs (2026-10-20, `@rhinostone/swig@2.8.2`):
+Node v25.3.0 on Apple Silicon, autoescape ON (production-typical), median of 5 runs (2026-10-28, `@rhinostone/swig@2.9.10`):
 
 | Workload | swig | nunjucks | Ratio |
 | --- | --- | --- | --- |
-| simple var output | 4.8M ops/s | 3.7M ops/s | swig 1.31× |
-| filter chain | 8.0M ops/s | 3.4M ops/s | swig 2.38× |
-| for loop (5 items) | 2.1M ops/s | 0.4M ops/s | swig 5.33× |
-| if/else branch | 7.8M ops/s | 4.5M ops/s | swig 1.76× |
-| nested for+if+filter | 1.5M ops/s | 0.3M ops/s | swig 5.86× |
+| simple var output | 4.0M ops/s | 3.7M ops/s | swig 1.07× |
+| filter chain | 6.7M ops/s | 3.9M ops/s | swig 1.74× |
+| for loop (5 items) | 2.3M ops/s | 0.6M ops/s | swig 3.89× |
+| if/else branch | 9.8M ops/s | 7.1M ops/s | swig 1.37× |
+| nested for+if+filter | 2.0M ops/s | 0.4M ops/s | swig 4.98× |
 
 Each row shows the run whose ratio is the median of the five; run-to-run spread is real (see Caveats), so treat the ratios as directional, not exact.
 
-With `AUTOESCAPE=off` the gap widens substantially (swig 12-20× faster) — the autoescape filter applies to every variable output and is the dominant cost in the autoescape-on case. Most production deployments run with autoescape on, so the autoescape-on table is the realistic comparison.
+With `AUTOESCAPE=off` the gap widens substantially (swig 2.9-15× faster, median of 5 runs, 2026-10-28) — the autoescape filter applies to every variable output and is the dominant cost in the autoescape-on case. Most production deployments run with autoescape on, so the autoescape-on table is the realistic comparison.
 
 Caveats
 -------
@@ -48,5 +48,6 @@ Caveats
 - Numbers are environment-specific (CPU, Node version, system load). Re-run on your own hardware before quoting.
 - Templates are small (5-item arrays). Larger fixtures may shift ratios — particularly for the iteration-heavy shapes where the per-iteration cost dominates.
 - Historical runs predating `@rhinostone/swig@2.2.0` showed nunjucks ahead on simple var output; the escape filter was rewritten in 2.2.0 (entity-preserving two-pass form) and swig has led on all five workloads since.
+- Since `2.9.6`, a render works on a copy of the locals object it is given, so that data passed to one render cannot reach another (a security fix). On these small templates that copy adds 11–46% to a render (2.9.6 against 2.9.5, measured in one process), which is why the ratios above are lower than in releases before 2.9.6.
 - Compile-time performance is not measured. The benchmark assumes the compile-once / render-many production pattern; if your workload hot-compiles new templates per request, run a separate compile-time bench.
 - This benchmark covers sync render only. Async paths (`renderFile` with an async loader in `@rhinostone/swig`, the `nunjucks` callback API) are not measured here.

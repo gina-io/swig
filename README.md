@@ -43,27 +43,12 @@ Features
 * Robust without the bloat — a single runtime dependency ([`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core)).
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
-What's new in v2.9.9
---------------------
+What's new in v2.9.10
+---------------------
 
-> **Five behaviour changes.** A template that relied on one of these renders or compiles differently on 2.9.9:
->
-> * swig-django: `default_if_none` now gives `""` for a variable that fails to resolve, as in Django, so `{{ missing|default_if_none:"d" }}` renders `""` where 2.9.8 rendered the default (`default` covers a missing variable).
-> * swig-jinja2 `{% else %}`, and swig-django `{% else %}` and `{% empty %}`, fail to compile when given arguments, naming the tag, the line and the file, as in Jinja2 and Django. 2.9.8 ignored the arguments, so `{% if a %}A{% else if b %}B{% endif %}` rendered `B` with `a` and `b` both false.
-> * swig-jinja2 refuses to bind `true`, `false` or `none`, each also capitalised (in `set`, `for`, a macro name or parameter, `with`, an import alias, a `from` name or alias): such a template fails to compile with `Cannot assign to the constant "<name>" in "<tag>" tag`, as in Jinja2.
-> * swig-jinja2: a None that a filter returns reaches the next filter as null, so `{{ x|default(none)|upper }}` renders `[object Object]` where 2.9.8 rendered `""` (Jinja2 renders `NONE`), as a None value from the locals already did in 2.9.8.
-> * Native swig: a function passed in the locals and named `not`, `and` or `or` can no longer be called by that name, and a `{% macro %}` head that is not a name fails to compile with `Expected a macro name on line N.`, including a macro named `not`, `and` or `or`, which 2.9.8 accepted.
+> **One behaviour change.** In swig and swig-twig, an output that comes out `undefined` or `null` now renders an empty string, as it already did in swig-jinja2. This includes a function result: `{{ fn() }}`, with `fn` returning nothing, renders `""` where 2.9.9 printed `undefined` (`null` for a null result).
 
-* **Fixed — swig-django variables that fail to resolve.** A missing name, key or index, or a None value that a later segment of its path reads, reaches its filters as `""`, as in Django, which gives it `string_if_invalid` before any filter runs, in `{{ }}` outputs and in the values of `with`, `cycle` and `include-with`. In 2.9.8 `{{ missing|upper }}` and `{{ missing|lower }}` threw, `title` and `capfirst` rendered `Undefined`, and `slugify`, `striptags`, `cut`, `urlencode` and others rendered `undefined`. `if`, `for` and `firstof` are unchanged (Django reads a failed lookup there as None), and so is a None value.
-* **Fixed — swig-jinja2 `true`, `false` and `none`.** Each also capitalised, they read as Jinja2's constants: `x == none` and `x is sameas none` read like `x is none`, `x != none` like `x is not none`, the tests `true` and `false` are added, and `batch` and `slice` no longer pad with none. In 2.9.8 they were variable names, which render `""`: `{% if True %}` took the else branch, `x == none` was true for `x = 0` and for `x = ""`, and `x is true` failed to compile. `none` still renders `""` wherever a variable holding None does.
-* **Fixed — swig-django `.items`, `.keys` and `.values` in for loops.** A mapping's own key of that name is read first, as Django does, and otherwise the dict method applies as before. In 2.9.8 `{% for item in page.data.items %}` over `{ items: [1, 2] }` failed to compile, and `.values` and `.keys` over a mapping with such a key walked the whole mapping. One loop variable over `.items` now binds each key and value as a pair, so `{% for pair in d.items %}{{ pair.0 }}={{ pair.1 }}{% endfor %}` works as in Django, where it failed to compile.
-* **Fixed — swig-django `.items`, `.keys` and `.values` of a value that is not a mapping.** Over a list, a string, a number or a boolean such a loop runs no item, as in Django. In 2.9.8 a two-name `.items` loop over a list of pairs unpacked each pair and `.keys` over a list gave its indices.
-* **Fixed — `and`, `or`, `not`, `in` and `not in` before `(`.** In all four flavors they read as operators when `(` follows them with no space, as they already did before a space: `{% if not(x) %}`, `a and(b)`, `a or(b)`, `1 in(l)` and `1 not in(l)` mean what their spaced forms mean. In 2.9.8 `not(x)` called a function named `not`, which is false for every x, native swig read `a and(b)` and `a or(b)` as `a` with no error, and swig-twig, swig-jinja2 and swig-django failed to compile `and(`, `or(`, `in(` and `not in(`. Names that only start with a keyword (`index`, `order`, `notify`) and object keys named like one are unchanged.
-* **Fixed — swig-django `not`, `in` and the comparisons in `if`.** They bind at the levels Django uses: `not` takes a comparison, `in`, `not in` or `is` into its operand, and `in` and `not in` bind more loosely than the comparisons. In 2.9.8 `{% if not x == y %}` with `x` 1 and `y` 2 was false (Django: true), and `{% if a == b in c %}` read `a == (b in c)`.
-* **Fixed — swig-jinja2 `{% else %}` and swig-django `{% else %}` / `{% empty %}` with arguments.** They reject arguments when the template compiles, as Jinja2 and Django do; 2.9.8 ignored them (`else if` is not `elif`).
-* **Fixed — engine helpers shadowed by the template context.** In swig-twig, swig-jinja2 and swig-django a key named `_ext`, `_utils` or `Math`, from the locals or set by the template, no longer replaces the helpers that tests, ranges, slices, `**` and `//` call. In 2.9.8 swig-jinja2 `{% if x is string %}` was false with the locals `{ _ext: { _test_string: 0 } }`, and slices, ranges, `**` and `//` rendered nothing, or failed, with a matching key. In swig-jinja2 an unknown test is now false whatever the locals hold.
-* **Fixed — swig-django `{% cycle %}` with a string autoescape strategy.** It escapes its value with the strategy, as `{{ }}` and `{% firstof %}` do; under the `autoescape: "js"` option 2.9.8 escaped a cycle value for HTML.
-* **Fixed — the swig-django README.** It no longer says that `{{ block.super }}` fails with a clear parse-time error (it renders an empty string, with no error), or that one-variable `{% for x in dict.items %}` is deferred.
+* **Fixed — subscripts and members of a missing value.** In swig, swig-twig and swig-jinja2, `{{ arr[0].x }}`, `{{ obj["k"].x }}` and `{{ arr[0][1] }}` over an empty list or object render an empty string, where 2.9.9 failed with `Cannot read properties of undefined`. In swig and swig-twig, `{{ arr[0] }}` and `{{ obj["k"] }}` render an empty string, as a missing variable does, where 2.9.9 printed `undefined` (`null` for a null item). A missing subscript that enters a filter or an arithmetic, `~` or unary operand reads as an empty string too: `arr[0]|upper` failed, `arr[0] ~ "x"` gave `undefinedx` and `arr[0] * 2` gave `NaN` (now `0`). A call on a subscript keeps its receiver and gives an empty string when there is nothing to call. In native swig, a tag argument that applies a filter, such as `{% set y = arr[0]|upper %}`, still fails on a missing subscript.
 
 See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 
@@ -76,7 +61,7 @@ Benchmarks
 cd benchmarks && npm install && node render.js
 ```
 
-In production-typical settings (autoescape on), `@rhinostone/swig` leads Nunjucks on all five workload shapes — from ~1.3× on simple variable output to 5.3–5.9× on iteration-heavy templates (median of 5 runs, 2026-10). See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
+In production-typical settings (autoescape on), `@rhinostone/swig` leads Nunjucks on all five workload shapes — narrowly on simple variable output (1.07×), and by 3.9–5.0× on iteration-heavy templates (median of 5 runs, 2026-10-28, `2.9.10`). See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
 
 Need Help? Have Questions? Comments?
 ------------------------------------

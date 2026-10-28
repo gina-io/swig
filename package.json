@@ -1,6 +1,6 @@
 {
   "name": "@rhinostone/swig",
-  "version": "2.9.9",
+  "version": "2.9.10",
   "description": "A simple, powerful, and extendable templating engine for node.js and browsers, similar to Django, Jinja2, and Twig.",
   "keywords": [
     "template",
@@ -21,7 +21,7 @@
     "Rhinostone <contact@gina.io>"
   ],
   "dependencies": {
-    "@rhinostone/swig-core": "2.9.9"
+    "@rhinostone/swig-core": "2.9.10"
   },
   "devDependencies": {
     "esbuild": "^0.28.0",
