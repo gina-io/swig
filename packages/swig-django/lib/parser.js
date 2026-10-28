@@ -63,6 +63,30 @@ function mkVar(path) {
 }
 
 /**
+ * Apply Django's string_if_invalid ("") to the variable an expression starts
+ * with: the input of its filter chain, or the expression itself. Django
+ * resolves that variable first and gives a failed lookup the value "" before
+ * any filter runs, in `{{ }}` outputs and in the values of `with`, `cycle`
+ * and include-with; `if`, `for` and `firstof` read a failed lookup as None
+ * and do not call this. Sets the VarRef's opt-in `missingAsEmpty` flag (the
+ * backend then passes "" as `_utils.resolve`'s third argument); any other
+ * start (a literal, a subscript) is left as it is.
+ *
+ * @param  {object} expr  IRExpr tree from parseExpr.
+ * @return {object}       The same tree.
+ */
+exports.missingAsEmpty = function (expr) {
+  var head = expr;
+  while (head && head.type === 'FilterCall') {
+    head = head.input;
+  }
+  if (head && head.type === 'VarRef') {
+    head.missingAsEmpty = true;
+  }
+  return expr;
+};
+
+/**
  * Django expression parser — Pratt-style recursive descent.
  *
  * Consumes a flat LexerToken[] (produced by swig-django's lexer) and
@@ -603,7 +627,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
         }
       }
     });
-    var expr = exports.parseExpr(lexed, filters);
+    var expr = exports.missingAsEmpty(exports.parseExpr(lexed, filters));
     var tail;
     var esc = escapeStack[escapeStack.length - 1];
     if (esc && !sawSafe) {

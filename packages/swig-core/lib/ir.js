@@ -426,9 +426,16 @@
  * Dot-path variable reference: `user.profile.name` → `{ path: ['user', 'profile', 'name'] }`.
  * Every path segment MUST pass the dangerousProps guard at backend emit time.
  *
+ * `resolve` and `missingAsEmpty` are opt-in flags set by the Django frontend.
+ * With `resolve`, the backend emits `_utils.resolve(_ctx, path)` (Django
+ * lookup rules) instead of a static dot-path; with `missingAsEmpty` as well,
+ * a failed lookup gives "" (Django's string_if_invalid).
+ *
  * @typedef {Object} IRVarRef
  * @property {'VarRef'} type
  * @property {string[]} path
+ * @property {boolean} [resolve]               Opt-in Django-style runtime resolution (`_utils.resolve`).
+ * @property {boolean} [missingAsEmpty]        Opt-in, with `resolve`: a failed lookup gives "" (Django).
  * @property {IRLoc} [loc]
  */
 

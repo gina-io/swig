@@ -112,7 +112,7 @@ function parsePairs(clause, parser, types, line, opts) {
     pos = j + 1;
     skipWS();
     var posOut = {};
-    var valExpr = parser.parseExpr(clause.slice(pos), {}, posOut);
+    var valExpr = parser.missingAsEmpty(parser.parseExpr(clause.slice(pos), {}, posOut));
     pos += posOut.pos;
     props.push(ir.objectProperty(ir.literal('string', nameTok.match), valExpr));
   }

@@ -1111,9 +1111,11 @@ function emitVarRef(node, d) {
   // leaves, via _utils.resolve. A frontend sets node.resolve; absent it,
   // emit the unchanged static dot-path so the other flavors stay
   // byte-identical. The parse-time _dangerousProps guard above still runs
-  // either way; _utils.resolve adds a matching runtime guard.
+  // either way; _utils.resolve adds a matching runtime guard. The opt-in
+  // node.missingAsEmpty makes a failed lookup give "" (Django's
+  // string_if_invalid) through resolve's third argument.
   if (node.resolve) {
-    return '_utils.resolve(_ctx, ' + JSON.stringify(node.path) + ')';
+    return '_utils.resolve(_ctx, ' + JSON.stringify(node.path) + (node.missingAsEmpty ? ', ""' : '') + ')';
   }
   return checkMatchExpr(node.path);
 }

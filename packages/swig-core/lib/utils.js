@@ -994,17 +994,29 @@ function resolveSeg(obj, seg) {
  * returned so downstream filters such as `default_if_none` see a real null;
  * coercion to "" is deferred to the output drain (via `coerceOutput`).
  *
- * @param  {*}        obj   The root context (usually `_ctx`).
- * @param  {string[]} path  Path segments.
- * @return {*}              The resolved value, or null / undefined when a
- *                          segment is missing.
+ * With a third argument, a failed lookup returns that value instead: a
+ * missing segment, or a null value that a later segment would read (Django
+ * fails that lookup too). A null leaf stays null. The Django frontend passes
+ * "" (Django's string_if_invalid) for the variable an output, `with`,
+ * `cycle` or include-with value starts with, so its filters see "" as in
+ * Django; `if`, `for` and `firstof` read a failed lookup as None in Django
+ * and pass no third argument.
+ *
+ * @param  {*}        obj       The root context (usually `_ctx`).
+ * @param  {string[]} path      Path segments.
+ * @param  {*}        [missing] The value of a failed lookup.
+ * @return {*}                  The resolved value, or null / undefined when a
+ *                              segment is missing (`missing` when given).
  */
-exports.resolve = function (obj, path) {
+exports.resolve = function (obj, path, missing) {
   var cur = obj,
     i;
   for (i = 0; i < path.length; i += 1) {
     cur = resolveSeg(cur, path[i]);
     if (cur === null || cur === undefined) {
+      if (missing !== undefined && (cur === undefined || i < path.length - 1)) {
+        return missing;
+      }
       return cur;
     }
   }

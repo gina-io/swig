@@ -75,7 +75,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     while (pos < tokens.length && tokens[pos].type === types.WHITESPACE) { pos += 1; }
     if (pos >= tokens.length) { break; }
     var posOut = {};
-    var expr = parser.parseExpr(tokens.slice(pos), {}, posOut);
+    var expr = parser.missingAsEmpty(parser.parseExpr(tokens.slice(pos), {}, posOut));
     pos += posOut.pos;
     args.push(expr);
   }

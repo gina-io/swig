@@ -89,7 +89,7 @@ function parsePairs(tokens, parser, types, line, opts) {
     pos = j + 1;
     skipWS();
     var posOut = {};
-    var valExpr = parser.parseExpr(tokens.slice(pos), {}, posOut);
+    var valExpr = parser.missingAsEmpty(parser.parseExpr(tokens.slice(pos), {}, posOut));
     pos += posOut.pos;
     props.push(ir.objectProperty(ir.literal('string', nameTok.match), valExpr));
   }
@@ -134,7 +134,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
       utils.throwError('Expected a single variable name after "as" in "with" tag', line, opts.filename);
     }
     guardName(nameTokens[0].match, line, opts);
-    props = [ir.objectProperty(ir.literal('string', nameTokens[0].match), parser.parseExpr(exprTokens))];
+    props = [ir.objectProperty(ir.literal('string', nameTokens[0].match), parser.missingAsEmpty(parser.parseExpr(exprTokens)))];
   } else {
     props = parsePairs(tokens, parser, types, line, opts);
   }
