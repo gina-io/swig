@@ -126,6 +126,14 @@
  * and the item; over a mapping they still bind the key and the value. Absent
  * both, the backend emits the same JS as before.
  *
+ * `dictIter` is an opt-in flag, set by the Django frontend when the iterable
+ * ends in `.keys`, `.values` or `.items`: `{ name, pairs }`, with the
+ * iterable then the mapping, the path without that last segment. The backend
+ * passes the mapping to `_utils.dictIter`, which reads the mapping's own key
+ * of that name first, as Django's lookup does, and otherwise applies the dict
+ * method; `pairs` marks a one-name `.items` loop, which binds each
+ * [key, value] pair. Absent the flag the emit is unchanged.
+ *
  * `test` is an opt-in loop filter, set by the Jinja2 frontend for
  * `{% for x in xs if cond %}`: an {@link IRExpr} evaluated once per item,
  * with the loop names bound as in the body and the enclosing loop's
@@ -145,6 +153,7 @@
  * @property {boolean} [loopParent]           Opt-in: expose the enclosing loop as `<loopName>.parentloop` (Django forloop.parentloop).
  * @property {boolean} [mapKeys]              Opt-in: one name over a mapping binds each key (Jinja2, Django).
  * @property {boolean} [unpack]               Opt-in: two names over a list unpack each item into its first and second values (Jinja2, Django).
+ * @property {Object} [dictIter]              Opt-in dict iteration: `{ name, pairs }`, the mapping's own key read first (Django).
  * @property {IRExpr} [test]                  Opt-in loop filter: only the items it holds for are iterated (Jinja2).
  * @property {IRLoc} [loc]
  */

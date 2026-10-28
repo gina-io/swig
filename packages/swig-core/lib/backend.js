@@ -498,6 +498,15 @@ exports.compile = function (template, parents, options, blockName) {
       } else {
         forIterable = node.iterable;
       }
+      // Opt-in dict iteration (`dictIter`, set by the Django frontend when a
+      // loop's iterable ends in .keys, .values or .items; the iterable is then
+      // the mapping): _utils.dictIter reads the mapping's own key of that name
+      // first, as Django's lookup does, and otherwise applies the dict method.
+      // The helper is called through the closure, never looked up in the
+      // template context. Absent the flag the emit is unchanged.
+      if (node.dictIter) {
+        forIterable = '_utils.dictIter(' + forIterable + ', ' + JSON.stringify(node.dictIter.name) + (node.dictIter.pairs ? ', true' : '') + ')';
+      }
       utils.each(node.body, function (b) {
         if (b.type === 'LegacyJS') { forBodyJS += b.js; return; }
         if (b.type === 'Text' || b.type === 'Raw') {

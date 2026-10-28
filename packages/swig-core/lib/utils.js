@@ -670,6 +670,57 @@ exports.values = function (obj) {
 };
 
 /**
+ * What a Django `for` loop over `<mapping>.keys`, `.values` or `.items`
+ * iterates, found as Django finds it: a mapping that holds its own key of
+ * that name is read first, since Django's dictionary lookup comes before the
+ * method, through the per-segment lookup `resolve` uses (a callable value is
+ * called). Otherwise the name acts as the dict method: `keys` gives the keys,
+ * `values` the values, and `items` the mapping itself, which a two-name loop
+ * walks as key and value. A one-name `items` loop (`pairs`) gets each
+ * [key, value] pair, Django's (key, value) tuple, and nothing when the value
+ * is not a mapping, where Django finds no `items` method.
+ *
+ * The Django `for` tag sets the `dictIter` flag of its IRFor node, and the
+ * backend's For emit calls this helper on the mapping.
+ *
+ * @example
+ * // {% for item in page.data.items %}, with page.data = { items: [1, 2] }
+ * utils.dictIter({ items: [1, 2] }, 'items', true);
+ * // => [1, 2]
+ * // {% for pair in d.items %}, with d = { a: 1 }
+ * utils.dictIter({ a: 1 }, 'items', true);
+ * // => [['a', 1]]
+ *
+ * @param  {*}       obj     The mapping: the loop's iterable without its last segment.
+ * @param  {string}  name    `keys`, `values` or `items`.
+ * @param  {boolean} [pairs] Set for a one-name `items` loop.
+ * @return {*}               What the loop iterates.
+ */
+exports.dictIter = function (obj, name, pairs) {
+  var out = [], ks, i;
+  if (obj !== null && typeof obj === 'object' && !isArray(obj) && Object.prototype.hasOwnProperty.call(obj, name)) {
+    return resolveSeg(obj, name);
+  }
+  if (name === 'keys') {
+    return exports.keys(obj);
+  }
+  if (name === 'values') {
+    return exports.values(obj);
+  }
+  if (!pairs) {
+    return obj;
+  }
+  if (obj === null || typeof obj !== 'object' || isArray(obj)) {
+    return out;
+  }
+  ks = exports.keys(obj);
+  for (i = 0; i < ks.length; i += 1) {
+    out.push([ks[i], obj[ks[i]]]);
+  }
+  return out;
+};
+
+/**
  * The values a two-name loop binds from one item of a list, as Python
  * unpacks it: a list gives its own items, a string its characters (code
  * points, a surrogate pair kept together), a mapping its keys, anything else

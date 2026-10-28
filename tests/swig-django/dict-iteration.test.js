@@ -10,17 +10,16 @@ var django = require('@rhinostone/swig-django'),
  * variable resolver in place a trailing `.keys` / `.values` / `.items` would
  * otherwise resolve to a (usually missing) object property and yield an empty
  * loop, so the `for` tag intercepts it (packages/swig-django/lib/tags/for.js,
- * rewriteDictIterable):
- *   - .keys   → _utils.keys(obj) array         (one-name → key)
- *   - .values → _utils.values(obj) array       (one-name → value)
- *   - .items  → the object, two-name iteration (two-name → key, value)
- * The one-name `.items` tuple form is rejected (no _utils.entries to
- * synthesize a (key, value) sequence flavor-locally).
+ * rewriteDictIterable) and `_utils.dictIter` reads, at render, a key of that
+ * name when the mapping has its own (as Django does), and otherwise:
+ *   - .keys   → the keys                       (one-name → key)
+ *   - .values → the values                     (one-name → value)
+ *   - .items  → the object, two-name iteration (two-name → key, value),
+ *               or each [key, value] pair      (one-name → pair)
  *
- * Single-variable iteration over a bare dict yields the keys, as Django does.
- * Documented divergence (covered below so it stays locked): the pseudo-method
- * interception is unconditional (an object with a literal `items` / `keys` /
- * `values` key is still treated as the pseudo-method).
+ * Single-variable iteration over a bare dict yields the keys, as Django does,
+ * and a mapping's own `items` / `keys` / `values` key is read before the
+ * pseudo-method, as Django does (both covered below so they stay locked).
  */
 describe('@rhinostone/swig-django — dict iteration', function () {
 
@@ -83,11 +82,10 @@ describe('@rhinostone/swig-django — dict iteration', function () {
     expect(r('{% for k in d.keys %}[{{ k }}]{% empty %}EMPTY{% endfor %}', { d: {} })).to.equal('EMPTY');
   });
 
-  /* ---- one-name .items is rejected ---------------------------- */
+  /* ---- one-name .items binds pairs ---------------------------- */
 
-  it('rejects one-name {% for x in d.items %} with a clear message', function () {
-    var msg = threw(function () { r('{% for pair in d.items %}{{ pair }}{% endfor %}', { d: d }); });
-    expect(msg).to.contain('requires two loop variables');
+  it('binds each key and value in a one-name d.items loop, as Django does', function () {
+    expect(r('{% for pair in d.items %}[{{ pair.0 }}={{ pair.1 }}]{% endfor %}', { d: d })).to.equal('[a=1][b=2][c=3]');
   });
 
   /* ---- no over-interception ----------------------------------- */
@@ -104,19 +102,18 @@ describe('@rhinostone/swig-django — dict iteration', function () {
       .to.contain('prototype-chain guard');
   });
 
-  /* ---- documented divergences (locked) ------------------------ */
+  /* ---- Django's binding and precedence (locked) --------------- */
 
   it('single-variable iteration over a bare dict yields KEYS, as Django does', function () {
     // Django yields the keys here, and so does swig-django.
     expect(r('{% for x in d %}[{{ x }}]{% endfor %}', { d: d })).to.equal('[a][b][c]');
   });
 
-  it('treats a literal "items" key as the pseudo-method (precedence divergence)', function () {
-    // Real Django returns d["items"] when present; swig always treats the
-    // trailing .items as the pseudo-method, so it walks the whole object.
-    var withKey = { items: 'LITERAL', z: 9 };
+  it('reads a mapping\'s own "items" key before the pseudo-method, as Django does', function () {
+    // Django returns d["items"] when present, before the dict method.
+    var withKey = { items: [['x', 1], ['y', 2]], z: 9 };
     expect(r('{% for k, v in withKey.items %}[{{ k }}={{ v }}]{% endfor %}', { withKey: withKey }))
-      .to.equal('[items=LITERAL][z=9]');
+      .to.equal('[x=1][y=2]');
   });
 
 });
