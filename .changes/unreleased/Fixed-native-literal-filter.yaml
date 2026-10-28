@@ -1,0 +1,5 @@
+kind: fixed
+body: 'In native swig a filter after a literal in an output now applies to that literal when the output also holds an operator or a ternary. The filter, and everything after it, was dropped since 2.0.0: in 2.9.10, with x = "ab", `{{ "ab"|upper == x }}` rendered « ab », `{{ x == "ab"|upper }}` « true », `{{ 3|default(1) + 1 }}` « 3 » and `{{ true |json + x }}` « true », and `{{ x ? "lit"|upper : "n" }}` failed to compile. They now render « false », « false », « 4 », « trueab » and « LIT ».'
+time: 2026-10-28T23:37:04.000000+00:00
+custom:
+  Issue: ""

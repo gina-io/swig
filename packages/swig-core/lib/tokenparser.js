@@ -628,12 +628,14 @@ TokenParser.prototype = {
       if (!tok) { bail('Unexpected end of expression'); }
       var m;
       switch (tok.type) {
+      // A literal takes the postfix operators too (`"ab"|upper`,
+      // `3|default(1)`), as an operand or an argument.
       case _t.STRING:
-        return ir.literal('string', unquoteString(tok.match));
+        return parsePostfix(ir.literal('string', unquoteString(tok.match)));
       case _t.NUMBER:
-        return ir.literal('number', parseFloat(tok.match));
+        return parsePostfix(ir.literal('number', parseFloat(tok.match)));
       case _t.BOOL:
-        return ir.literal('bool', tok.match === 'true');
+        return parsePostfix(ir.literal('bool', tok.match === 'true'));
       case _t.NOT:
         return ir.unaryOp('!', parseUnary());
       case _t.OPERATOR:
