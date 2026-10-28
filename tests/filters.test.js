@@ -310,7 +310,7 @@ describe('Filters:', function () {
     });
 
     it('json does not throw on values JSON.stringify cannot represent', function () {
-      expect(swig.render('{{ d|json }}', { locals: { d: function () {} } })).to.equal('undefined');
+      expect(swig.render('{{ d|json }}', { locals: { d: function () {} } })).to.equal('');
     });
 
     it('url_encode output is no longer autoescaped (apostrophe survives)', function () {

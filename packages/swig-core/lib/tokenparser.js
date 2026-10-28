@@ -35,6 +35,22 @@ var _dangerousProps = require('./security').dangerousProps;
 
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
+/*!
+ * The e filter's argument list for a string escape value: none for the
+ * tag's bare `true` and for an empty option (no escaping), the unquoted
+ * strategy for a quoted literal, and null for any other shape. @private
+ */
+function escapeStrategyArgs(raw) {
+  if (raw === 'true' || raw === '') { return undefined; }
+  if (raw.length >= 2) {
+    var first = raw.charAt(0), last = raw.charAt(raw.length - 1);
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return [ir.literal('string', raw.slice(1, -1))];
+    }
+  }
+  return null;
+}
+
 /**
  * Parse strings of variables and tags into tokens for future compilation.
  * @class
@@ -764,7 +780,14 @@ TokenParser.prototype = {
       if (tokens[i].type !== _t.WHITESPACE) { hasContent = true; break; }
     }
     if (!hasContent) { return legacyFallback(); }
-    if (typeof self.escape === 'string') { return legacyFallback(); }
+    // A string escape value (the autoescape option as a quoted literal, or
+    // the {% autoescape %} tag's raw token) becomes the e filter's argument;
+    // a shape escapeStrategyArgs does not know keeps the legacy walk.
+    var escArgs;
+    if (typeof self.escape === 'string') {
+      escArgs = escapeStrategyArgs(self.escape);
+      if (escArgs === null) { return legacyFallback(); }
+    }
 
     var depth = 0,
       hasTopOp = false,
@@ -854,7 +877,7 @@ TokenParser.prototype = {
       // parseExpr consumes the whole ternary, branch filters included.
       if (hasTopTernary || (hasTopOp && hasTopFilter)) {
         var exprPO = self.parseExpr(tokens);
-        var fcallsPO = escape ? [ir.filterCall('e')] : [];
+        var fcallsPO = escape ? [ir.filterCall('e', escArgs)] : [];
         var nodePO = ir.output(exprPO, fcallsPO.length > 0 ? fcallsPO : undefined);
         // A non-VarRef output renders null / undefined as "", as a VarRef does.
         if (exprPO.type !== 'VarRef') { nodePO.coerce = true; }
@@ -946,11 +969,13 @@ TokenParser.prototype = {
         }
       }
 
-      if (escape) { filterCalls.push(ir.filterCall('e')); }
+      if (escape) { filterCalls.push(ir.filterCall('e', escArgs)); }
 
       var nodeOut = ir.output(expr, filterCalls.length > 0 ? filterCalls : undefined);
-      // A non-VarRef output renders null / undefined as "", as a VarRef does.
-      if (expr.type !== 'VarRef') { nodeOut.coerce = true; }
+      // A non-VarRef output renders null / undefined as "", as a VarRef does;
+      // so does a VarRef followed by a filter of its own (the autoescape e
+      // alone does not count: it returns the VarRef's "" unchanged).
+      if (expr.type !== 'VarRef' || filterCalls.length > (escape ? 1 : 0)) { nodeOut.coerce = true; }
       return nodeOut;
     } catch (e) {
       // A top-level ternary cannot be expressed by the legacy parseToken
