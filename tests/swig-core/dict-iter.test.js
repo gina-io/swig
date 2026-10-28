@@ -88,7 +88,7 @@ describe('swig-core — dict iteration (dictIter)', function () {
     it('does not read a named property of a list', function () {
       var arr = [1, 2];
       arr.items = [9];
-      expect(utils.dictIter(arr, 'items')).to.be(arr);
+      expect(utils.dictIter(arr, 'items')).to.eql([]);
       expect(utils.dictIter(arr, 'items', true)).to.eql([]);
     });
 

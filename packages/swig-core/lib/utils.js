@@ -677,8 +677,9 @@ exports.values = function (obj) {
  * called). Otherwise the name acts as the dict method: `keys` gives the keys,
  * `values` the values, and `items` the mapping itself, which a two-name loop
  * walks as key and value. A one-name `items` loop (`pairs`) gets each
- * [key, value] pair, Django's (key, value) tuple, and nothing when the value
- * is not a mapping, where Django finds no `items` method.
+ * [key, value] pair, Django's (key, value) tuple. A list, a string, a number
+ * or a boolean gives nothing for all three names, since Django finds no dict
+ * method on it.
  *
  * The Django `for` tag sets the `dictIter` flag of its IRFor node, and the
  * backend's For emit calls this helper on the mapping.
@@ -700,6 +701,11 @@ exports.dictIter = function (obj, name, pairs) {
   var out = [], ks, i;
   if (obj !== null && typeof obj === 'object' && !isArray(obj) && Object.prototype.hasOwnProperty.call(obj, name)) {
     return resolveSeg(obj, name);
+  }
+  // A list, a string, a number or a boolean has no items, keys or values
+  // method in Django, so a loop over one runs no item.
+  if (obj !== null && obj !== undefined && (typeof obj !== 'object' || isArray(obj))) {
+    return out;
   }
   if (name === 'keys') {
     return exports.keys(obj);
