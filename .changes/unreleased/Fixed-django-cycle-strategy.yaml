@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-django {% cycle %} escapes its value with a string autoescape strategy, as {{ }} and {% firstof %} do: under the autoescape: "js" option, 2.9.8 escaped a cycle value for HTML (&lt;x&#39;&gt;) where {{ }} and firstof escaped it for JavaScript.'
-time: 2026-10-28T02:15:15Z
-custom:
-  Issue: ""

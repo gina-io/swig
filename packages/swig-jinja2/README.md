@@ -31,7 +31,8 @@ A near-subset of Python Jinja2 — everything below was cross-checked against Ji
 
 * **Tags** — `set`, `if` / `elif` / `else`, `for` (with `else` and loop filters, `{% for x in xs if x > 1 %}`), `block`, `extends`, `include`, `macro`, `import`, `from`, `raw`, `filter`, `with`, `autoescape`.
 * **Operators** — `**` power, `//` floor-division, `~` string concat, inline-if (`a if c else b`), Python slicing (`seq[start:stop:step]`), `is <test>` / `is not <test>`, plus `{{- … -}}` / `{%- … -%}` whitespace control.
-* **Built-in `is` tests** — `defined`, `undefined`, `none`, `even`, `odd`, `divisibleby`, `iterable`, `mapping`, `sequence`, `string`, `number`, `boolean`, `callable`, `lower`, `upper`, `sameas`.
+* **Built-in `is` tests** — `defined`, `undefined`, `none`, `even`, `odd`, `divisibleby`, `iterable`, `mapping`, `sequence`, `string`, `number`, `boolean`, `true`, `false`, `callable`, `lower`, `upper`, `sameas`.
+* **Constants** — `true`, `false` and `none`, each also capitalised.
 * **Filters** — 39 built-ins (`upper`, `lower`, `capitalize`, `title`, `trim`, `truncate`, `replace`, `striptags`, `format`, `wordcount`, `wordwrap`, `indent`, `center`, `urlencode`, `escape` / `e`, `safe`, `first`, `last`, `join`, `reverse`, `sort`, `length` / `count`, `list`, `unique`, `batch`, `slice`, `dictsort`, `groupby`, `min`, `max`, `sum`, `random`, `abs`, `round`, `int`, `float`, `default` / `d`, `tojson`, `date`). See `lib/filters.js` for the full list.
 * **Async** — `renderFile(path, locals, cb)` against a loader with `async === true`, or `compileFile` with `codegenMode: 'async'`; `renderFileAsync` / `compileFileAsync` still work but are deprecated.
 

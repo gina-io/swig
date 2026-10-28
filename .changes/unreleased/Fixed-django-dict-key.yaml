@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-django for loops over a mapping''s items, keys or values read a key of that name first when the mapping has one, as Django does, and otherwise apply the dict method as before. The for tag rewrote these three names when the template compiled, so such a key was never read: {% for item in page.data.items %} over { items: [1, 2] } failed to compile ("requires two loop variables"), {% for v in d.values %} over { values: [7, 8], z: 1 } gave the values of both keys instead of the list stored under values, and .keys and a two-name .items loop likewise walked the whole mapping. One loop variable over .items on a mapping without an items key now binds each key and value as a pair, so {% for pair in d.items %}{{ pair.0 }}={{ pair.1 }}{% endfor %} works as in Django, where it failed to compile; over an empty mapping, a list, a string or a missing value it runs the {% empty %} branch, as in Django. A pair printed whole renders as JavaScript joins it (a,1), where Django prints the tuple.'
-time: 2026-10-28T01:02:03Z
-custom:
-  Issue: ""

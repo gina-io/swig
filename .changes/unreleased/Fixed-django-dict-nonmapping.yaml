@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-django for loops over .items, .keys or .values of a list, a string, a number or a boolean run no item, as in Django, which finds no dict method on such a value. In 2.9.8 a two-name .items loop over a list of pairs unpacked each pair ([1=2] for [[1, 2]]) and .keys over a list gave its indices ([0][1]). A mapping is unchanged.'
-time: 2026-10-28T01:50:17Z
-custom:
-  Issue: ""

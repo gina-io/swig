@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-jinja2 {% else %} and swig-django {% else %} and {% empty %} reject arguments when the template compiles, as Jinja2 and Django do. In 2.9.8 they ignored them, so {% if a %}A{% else if b %}B{% endif %} rendered B with a and b both false (else if is not elif); such a template now fails to compile, naming the tag, the line and the file.'
-time: 2026-10-28T02:17:26Z
-custom:
-  Issue: ""

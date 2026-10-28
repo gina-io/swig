@@ -10,11 +10,9 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 | Status | Item |
 | --- | --- |
-| Planned | swig-jinja2 parity: `not(x)` written without a space, the `none` / `True` / `False` constants, and the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
+| Planned | swig-jinja2 parity: the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
 | Planned | Unknown filter and test names rejected when a Twig, Jinja2 or Django template compiles; today the error comes only at render, or never when the branch does not run. Native swig already rejects an unknown filter. |
-| Planned | swig-django: `not` binds below the comparisons and `in`, as in Django; today `not x == y` reads as `(not x) == y`. |
 | Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
-| Planned | swig-django: a `{% for %}` over a mapping key named `items`, `keys` or `values`; today the pseudo-method of that name shadows the key, where Django reads the key first. |
 | Planned | Native swig: `{% parent %}` in nested blocks renders as Jinja2's `super()` does; today, on the sync render path, an override of a nested block that calls `{% parent %}` drops the parent's part and an outer block rendered through `{% parent %}` ignores the child's override of the inner block, and on both paths a block that calls `{% parent %}` inside an overriding block renders without the parent's content. |
 
 ## Future (post-2.0)
@@ -29,6 +27,15 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.9.9 (October 2026)
+
+- swig-django: a variable that fails to resolve reaches its filters as `""`, as in Django; `{% for %}` reads a mapping's own `items`, `keys` or `values` key before the dict method, binds one loop variable over `.items` to key-value pairs, and runs no item for those names over a value that is not a mapping; `not`, `in` and the comparisons bind at Django's levels; `{% cycle %}` escapes with a string autoescape strategy.
+- swig-jinja2: `true`, `false` and `none`, each also capitalised, are constants, with the tests `true` and `false`.
+- All four flavors: `and`, `or`, `not`, `in` and `not in` read as operators when `(` follows them with no space.
+- swig-jinja2 `{% else %}` and swig-django `{% else %}` and `{% empty %}` reject arguments when the template compiles.
+- swig-twig, swig-jinja2 and swig-django: a key named `_ext`, `_utils` or `Math` in the template context no longer replaces the engine helpers.
+- All five packages released in lockstep at `2.9.9`.
 
 ### v2.9.8 (October 2026)
 

@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-django if expressions bind not, in and the comparisons at the levels Django uses: not takes a comparison, in, not in or is into its operand, and in and not in bind more loosely than the comparisons. In 2.9.8 not bound only the name after it, so {% if not x == y %} with x 1 and y 2 was false (Django: true), and so were {% if not x in y %} with 5 and [1, 2, 3] and {% if not x is None %} with x 1; and in bound more tightly than == and !=, so {% if a == b in c %} read a == (b in c). and and or are unchanged.'
-time: 2026-10-28T02:13:09Z
-custom:
-  Issue: ""

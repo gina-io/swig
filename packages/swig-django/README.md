@@ -43,7 +43,7 @@ Explicitly unsupported (parse-time throw or absent)
 * `{% url %}`, `{% static %}`, `{% csrf_token %}`, `{% trans %}`, `{% blocktrans %}` — framework infrastructure, out of scope.
 * No whitespace-control (`{%- … -%}`) — not part of the Django Template Language.
 * No `is` tests — Django's `is` is identity comparison, not Jinja2-style tests.
-* `{{ block.super }}`, `{% for … reversed %}`, and one-variable `{% for x in dict.items %}` are deferred (clear parse-time errors).
+* `{% for … reversed %}` is deferred (a clear parse-time error). `{{ block.super }}` is deferred too, and renders an empty string with no error.
 * Deferred filters — `dictsort` / `dictsortreversed`, `stringformat`, `random`, `urlize` / `urlizetrunc`, `timesince` / `timeuntil`, `unordered_list`, `json_script`, `truncatechars_html` / `truncatewords_html`, `safeseq`, `pprint`.
 
 Repository

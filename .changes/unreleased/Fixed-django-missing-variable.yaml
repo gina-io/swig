@@ -1,5 +1,0 @@
-kind: fixed
-body: 'In swig-django a variable that fails to resolve (a missing name, key or index, or a None value that a later segment of its path reads) reaches its filters as "", as in Django, which gives it string_if_invalid before any filter runs, in {{ }} outputs and in the values of with, cycle and include-with. In 2.9.8 {{ missing|upper }}, {{ missing|lower }} and a with, cycle or include-with value such as missing|upper threw (Cannot read properties of undefined), title and capfirst rendered "Undefined", slugify, striptags, cut, urlencode and others rendered "undefined", truncatechars:3 rendered "un…", wordcount 1, yesno "maybe" and default_if_none its default, {{ x.y|upper }} with x None rendered "[object Object]", and {% cycle missing "z" %} rendered "undefined". default_if_none now gives "" for a missing variable, as in Django (default covers it). if, for and firstof are unchanged (Django reads a failed lookup there as None), and so is a None value.'
-time: 2026-10-28T02:06:36Z
-custom:
-  Issue: ""
