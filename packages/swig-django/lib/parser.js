@@ -169,6 +169,10 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     }
   }
 
+  // Levels follow Django's smartif: `or` 1, `and` 2, then `not` (parsed in
+  // parseUnary, with an operand at level 4), `in` / `not in` 4, and the
+  // comparisons with `is` / `is not` 5, so `not x == y` is `not (x == y)` and
+  // `a == b in c` is `(a == b) in c`. Arithmetic (6, 8) is a swig extension.
   function getBinaryOpInfo(tok) {
     var m;
     if (tok.type === _t.LOGIC) {
@@ -177,22 +181,22 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     }
     if (tok.type === _t.COMPARATOR) {
       m = tok.match;
-      if (m === '===' || m === '!==' || m === '==' || m === '!=') {
-        return { op: m, prec: 3 };
-      }
       if (/^not\s+in$/.test(m)) {
         return { op: 'not in', prec: 4 };
       }
-      return { op: m, prec: 4 };
+      if (m === 'in') {
+        return { op: m, prec: 4 };
+      }
+      return { op: m, prec: 5 };
     }
     // Django `is` / `is not` are *identity* comparisons (not Jinja2 test
     // calls): lowered to `===` / `!==` in parseExpression. Same precedence
     // level as `==` so `x is None` / `x is not None` group naturally.
     if (tok.type === _t.IS) {
-      return { op: 'is', prec: 3 };
+      return { op: 'is', prec: 5 };
     }
     if (tok.type === _t.ISNOT) {
-      return { op: 'is not', prec: 3 };
+      return { op: 'is not', prec: 5 };
     }
     if (tok.type === _t.OPERATOR) {
       m = tok.match;
@@ -461,7 +465,9 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     var tok = peek();
     if (tok && tok.type === _t.NOT) {
       consume();
-      return ir.unaryOp('!', parseUnary());
+      // Django's `not` takes in, not in, the comparisons and is into its
+      // operand, and stops at `and` / `or`.
+      return ir.unaryOp('!', parseExpression(4));
     }
     if (tok && tok.type === _t.OPERATOR && (tok.match === '+' || tok.match === '-')) {
       consume();
