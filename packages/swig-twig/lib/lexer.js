@@ -23,9 +23,14 @@ var TYPES = require('./tokentypes');
  *   - ISNOT above IS above VAR — the `is` keyword would otherwise be
  *     gobbled by VAR's `^[a-zA-Z_$]\w*` pattern. ISNOT above IS because
  *     `is not` must be consumed as a single token, not IS + NOT.
- *     Precedent: swig-core's `in\s` rule bakes the keyword sequence
+ *     Precedent: swig-core's `in` rule bakes the keyword sequence
  *     into COMPARATOR rather than emitting a separate identifier;
- *     similarly, the NOT rule bakes `not\s+`.
+ *     similarly, the NOT rule bakes `not`.
+ *   - FUNCTION / FUNCTIONEMPTY skip `and`, `or`, `not` and `in`, and the
+ *     LOGIC, NOT and COMPARATOR rules take whitespace or `(` after the
+ *     keyword, so `not(x)` and `a and(b)` read as the operators while a
+ *     name that starts with one (`android`, `index`) or an object key
+ *     (`{and: 1}`) stays a name.
  *   - NULLCOALESCE above QMARK — `??` must win over two bare `?` via
  *     first-match-wins.
  *
@@ -78,14 +83,14 @@ var rules = [
   {
     type: TYPES.FUNCTIONEMPTY,
     regex: [
-      /^\s*(\w+)\(\)/
+      /^\s*(?!(?:and|or|not|in)\()(\w+)\(\)/
     ],
     idx: 1
   },
   {
     type: TYPES.FUNCTION,
     regex: [
-      /^\s*(\w+)\(/
+      /^\s*(?!(?:and|or|not|in)\()(\w+)\(/
     ],
     idx: 1
   },
@@ -111,7 +116,7 @@ var rules = [
     type: TYPES.LOGIC,
     regex: [
       /^(&&|\|\|)\s*/,
-      /^(and|or)\s+/
+      /^(and|or)(?=[\s(])\s*/
     ],
     idx: 1,
     replace: {
@@ -122,7 +127,7 @@ var rules = [
   {
     type: TYPES.COMPARATOR,
     regex: [
-      /^(===|==|\!==|\!=|<=|<|>=|>|not\s+in\s|in\s)\s*/
+      /^(===|==|\!==|\!=|<=|<|>=|>|not\s+in(?=[\s(])|in(?=[\s(]))\s*/
     ],
     idx: 1
   },
@@ -136,7 +141,7 @@ var rules = [
     type: TYPES.NOT,
     regex: [
       /^\!\s*/,
-      /^not\s+/
+      /^not(?=[\s(])\s*/
     ],
     replace: {
       'not': '!'

@@ -23,10 +23,15 @@ var TYPES = require('./tokentypes');
  *
  *   - FILTER / FILTEREMPTY / FUNCTION above VAR — `|name(` and `name(`
  *     must be consumed as filter / function tokens before VAR's
- *     `^[a-zA-Z_$]\w*` pattern gobbles the bare identifier.
+ *     `^[a-zA-Z_$]\w*` pattern gobbles the bare identifier. FUNCTION and
+ *     FUNCTIONEMPTY skip `and`, `or`, `not`, `in`, `if` and `else`, so
+ *     `not(x)` and `a if(c) else b` read as the keywords, as in Jinja2.
  *   - LOGIC (`and` / `or`), NOT (`not`), BOOL (`true` / `false`), and the
- *     COMPARATOR `in\s` keyword above VAR — same reason: bake the keyword
+ *     COMPARATOR `in` keyword above VAR — same reason: bake the keyword
  *     sequence into the operator token rather than emit an identifier.
+ *     The `and`, `or`, `not` and `in` rules take whitespace or `(` after
+ *     the keyword, so a name that starts with one (`android`, `index`) or
+ *     an object key (`{and: 1}`) stays a name.
  *
  * Rules are tried in order; first match wins. Patterns are anchored at
  * start-of-string because the consumer slices `str` before each dispatch.
@@ -64,14 +69,14 @@ var rules = [
   {
     type: TYPES.FUNCTIONEMPTY,
     regex: [
-      /^\s*(\w+)\(\)/
+      /^\s*(?!(?:and|or|not|in|if|else)\()(\w+)\(\)/
     ],
     idx: 1
   },
   {
     type: TYPES.FUNCTION,
     regex: [
-      /^\s*(\w+)\(/
+      /^\s*(?!(?:and|or|not|in|if|else)\()(\w+)\(/
     ],
     idx: 1
   },
@@ -97,7 +102,7 @@ var rules = [
     type: TYPES.LOGIC,
     regex: [
       /^(&&|\|\|)\s*/,
-      /^(and|or)\s+/
+      /^(and|or)(?=[\s(])\s*/
     ],
     idx: 1,
     replace: {
@@ -108,7 +113,7 @@ var rules = [
   {
     type: TYPES.COMPARATOR,
     regex: [
-      /^(===|==|\!==|\!=|<=|<|>=|>|not\s+in\s|in\s)\s*/
+      /^(===|==|\!==|\!=|<=|<|>=|>|not\s+in(?=[\s(])|in(?=[\s(]))\s*/
     ],
     idx: 1
   },
@@ -122,7 +127,7 @@ var rules = [
     type: TYPES.NOT,
     regex: [
       /^\!\s*/,
-      /^not\s+/
+      /^not(?=[\s(])\s*/
     ],
     replace: {
       'not': '!'

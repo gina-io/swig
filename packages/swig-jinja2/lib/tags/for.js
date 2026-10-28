@@ -55,8 +55,7 @@ exports.block = false;
  * Index of the token that starts a loop filter in the iterable's tokens, or
  * -1: the first `if` at depth 0, unless an `else` is left for it once each
  * nested `if` has taken the next `else`, as parseExpr pairs them (the tail
- * is then an inline-if iterable). `if(` and `if()` lex as FUNCTION and
- * FUNCTIONEMPTY tokens named `if`, and `else(` likewise, so those count.
+ * is then an inline-if iterable).
  *
  * @param  {Array}  tokens The tokens after `in`.
  * @param  {object} types  Jinja2 lexer token-type enum.
@@ -65,7 +64,7 @@ exports.block = false;
  */
 function loopFilterIndex(tokens, types) {
   function isWord(tok, word) {
-    return tok.match === word && (tok.type === types.VAR || tok.type === types.FUNCTION || tok.type === types.FUNCTIONEMPTY);
+    return tok.type === types.VAR && tok.match === word;
   }
   function step(tok, depth) {
     if (tok.type === types.PARENOPEN || tok.type === types.BRACKETOPEN || tok.type === types.CURLYOPEN || tok.type === types.FUNCTION || tok.type === types.FILTER) {
@@ -173,16 +172,8 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     token.irExpr = parser.parseExpr(iterableTokens);
     return true;
   }
-  // The test gets back the parentheses that `if(` or `if()` lexed into.
-  var splitTok = iterableTokens[split],
-    iterTokens = iterableTokens.slice(0, split),
+  var iterTokens = iterableTokens.slice(0, split),
     testTokens = iterableTokens.slice(split + 1);
-  if (splitTok.type === types.FUNCTIONEMPTY) {
-    testTokens.unshift({ type: types.PARENCLOSE, match: ')', length: 1 });
-  }
-  if (splitTok.type !== types.VAR) {
-    testTokens.unshift({ type: types.PARENOPEN, match: '(', length: 1 });
-  }
   function hasToken(list) {
     return list.some(function (t) { return t.type !== types.WHITESPACE; });
   }

@@ -35,12 +35,15 @@ var TYPES = require('./tokentypes');
  *
  *   - FILTEREMPTY / FUNCTION above VAR — `|name` and `name(` must be
  *     consumed as filter / function tokens before VAR's `^[a-zA-Z_$]\w*`
- *     pattern gobbles the bare identifier.
+ *     pattern gobbles the bare identifier. FUNCTION and FUNCTIONEMPTY skip
+ *     `and`, `or`, `not` and `in`, so `not(x)` reads as `not (x)`.
  *   - LOGIC (`and` / `or`), NOT (`not`), BOOL (`True` / `False`), NONE
  *     (`None`), and the `is` / `is not` keywords above VAR — same reason:
  *     bake the keyword sequence into its own token rather than emit an
  *     identifier. The `\b` word boundary keeps identifiers like `Truthy`,
- *     `Nonexistent`, or `island` from matching.
+ *     `Nonexistent`, or `island` from matching; the `and`, `or`, `not` and
+ *     `in` rules take whitespace or `(` after the keyword, so an object key
+ *     such as `{and: 1}` stays a name.
  *
  * Rules are tried in order; first match wins. Patterns are anchored at
  * start-of-string because the consumer slices `str` before each dispatch.
@@ -71,14 +74,14 @@ var rules = [
   {
     type: TYPES.FUNCTIONEMPTY,
     regex: [
-      /^\s*(\w+)\(\)/
+      /^\s*(?!(?:and|or|not|in)\()(\w+)\(\)/
     ],
     idx: 1
   },
   {
     type: TYPES.FUNCTION,
     regex: [
-      /^\s*(\w+)\(/
+      /^\s*(?!(?:and|or|not|in)\()(\w+)\(/
     ],
     idx: 1
   },
@@ -104,7 +107,7 @@ var rules = [
     type: TYPES.LOGIC,
     regex: [
       /^(&&|\|\|)\s*/,
-      /^(and|or)\s+/
+      /^(and|or)(?=[\s(])\s*/
     ],
     idx: 1,
     replace: {
@@ -115,7 +118,7 @@ var rules = [
   {
     type: TYPES.COMPARATOR,
     regex: [
-      /^(===|==|\!==|\!=|<=|<|>=|>|not\s+in\s|in\s)\s*/
+      /^(===|==|\!==|\!=|<=|<|>=|>|not\s+in(?=[\s(])|in(?=[\s(]))\s*/
     ],
     idx: 1
   },
@@ -129,7 +132,7 @@ var rules = [
     type: TYPES.NOT,
     regex: [
       /^\!\s*/,
-      /^not\s+/
+      /^not(?=[\s(])\s*/
     ],
     replace: {
       'not': '!'
