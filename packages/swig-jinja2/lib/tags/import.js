@@ -107,6 +107,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
   if (_dangerousProps.indexOf(aliasTok.match) !== -1) {
     utils.throwError('Unsafe import alias "' + aliasTok.match + '" is not allowed (prototype-chain guard)', line, opts.filename);
   }
+  parser.guardConstantName(aliasTok.match, 'import', line, opts.filename);
 
   if (peek()) {
     utils.throwError('Unexpected token "' + peek().match + '" after alias in "import" tag', line, opts.filename);

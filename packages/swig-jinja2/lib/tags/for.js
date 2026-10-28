@@ -138,6 +138,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     if (_dangerousProps.indexOf(tok.match) !== -1) {
       utils.throwError('Unsafe loop variable "' + tok.match + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
+    parser.guardConstantName(tok.match, 'for', line, opts.filename);
     return tok.match;
   }
 

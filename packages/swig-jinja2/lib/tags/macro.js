@@ -82,6 +82,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     if (_dangerousProps.indexOf(name) !== -1) {
       utils.throwError('Unsafe ' + role.toLowerCase() + ' "' + name + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
+    parser.guardConstantName(name, 'macro', line, opts.filename);
   }
 
   var head = consume();

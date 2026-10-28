@@ -85,6 +85,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
       utils.throwError('Unsafe assignment to "' + segment + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
   });
+  parser.guardConstantName(path[0], 'set', line, opts.filename);
 
   // DOTKEY tail — the Jinja2 lexer folds `foo.bar` into one VAR match, but a
   // dot after whitespace (`foo .bar`) lexes as its own DOTKEY token, so this

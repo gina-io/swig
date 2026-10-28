@@ -79,6 +79,7 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
       if (_dangerousProps.indexOf(nameTok.match) !== -1) {
         utils.throwError('Unsafe "with" assignment to "' + nameTok.match + '" is not allowed (prototype-chain guard)', line, opts.filename);
       }
+      parser.guardConstantName(nameTok.match, 'with', line, opts.filename);
 
       var eqTok = consume();
       if (!eqTok || eqTok.type !== types.ASSIGNMENT || eqTok.match !== '=') {

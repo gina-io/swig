@@ -22,6 +22,74 @@ function escapeRegExp(str) {
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
 /**
+ * Jinja2's constant names: `true`, `false` and `none`, each also
+ * capitalised. An expression reads them as literals (`none` as `null`),
+ * and a tag may not bind them, as in Jinja2 (« can't assign »).
+ * @private
+ */
+var _constants = ['true', 'false', 'none', 'True', 'False', 'None'];
+
+/**
+ * Build the literal for one of Jinja2's constant names.
+ *
+ * @param  {string} name  One of `_constants`.
+ * @return {object}       IRLiteral (`bool`, or `null` for none / None).
+ * @private
+ */
+function constantLiteral(name) {
+  var lower = name.toLowerCase();
+  if (lower === 'none') {
+    return ir.literal('null', null);
+  }
+  return ir.literal('bool', lower === 'true');
+}
+
+/**
+ * Read `x == none` / `x != none` (a VarRef on either side) like `x is none`
+ * / `x is not none`: emitVarRef turns a missing or null value into "", so
+ * a plain comparison with null would never hold for a None value.
+ *
+ * @param  {string} op     `==` or `!=`.
+ * @param  {object} left   Left operand IR.
+ * @param  {object} right  Right operand IR.
+ * @return {object|null}   IRVarRefExists (negated for `==`), or null when
+ *                         neither side is a VarRef compared with none.
+ * @private
+ */
+function noneComparison(op, left, right) {
+  var ref = null, exists;
+  if (left.type === 'VarRef' && right.type === 'Literal' && right.kind === 'null') {
+    ref = left;
+  } else if (right.type === 'VarRef' && left.type === 'Literal' && left.kind === 'null') {
+    ref = right;
+  }
+  if (!ref) {
+    return null;
+  }
+  exists = ir.varRefExists(ref.path, ref.loc);
+  return op === '==' ? ir.unaryOp('!', exists) : exists;
+}
+
+/**
+ * Throw when a tag binds one of Jinja2's constant names, as Jinja2 does
+ * (`{% set none = 1 %}`, `{% for True in xs %}`, `{% macro m(None) %}`).
+ * The set, for, macro, with, import and from tags call it beside their
+ * prototype-chain guards.
+ *
+ * @param  {string} name      Name the tag binds.
+ * @param  {string} tagName   Tag name, for the message.
+ * @param  {number} line      Template line.
+ * @param  {string} filename  Template file name.
+ * @return {undefined}
+ * @private
+ */
+exports.guardConstantName = function (name, tagName, line, filename) {
+  if (_constants.indexOf(name) !== -1) {
+    utils.throwError('Cannot assign to the constant "' + name + '" in "' + tagName + '" tag', line, filename);
+  }
+};
+
+/**
  * Build the IR of `left in right`, or of `left not in right` when `negate`
  * is set: a BinaryOp `in` flagged with this flavor's name, so swig-core
  * emits Jinja2's membership test (`_utils.isIn`) instead of the JavaScript
@@ -229,7 +297,9 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     if (!nameTok) { bail('Expected test name after "is" / "is not"'); }
     var testName;
     var testArgs = [];
-    if (nameTok.type === _t.VAR) {
+    // `true` and `false` lex as BOOL when a space or the end follows them
+    // (`x is true`); a VAR otherwise (`(x is true)`).
+    if (nameTok.type === _t.VAR || nameTok.type === _t.BOOL) {
       if (nameTok.match.indexOf('.') !== -1) {
         bail('Dotted names are not valid test names');
       }
@@ -277,13 +347,17 @@ exports.parseExpr = function (tokens, filters, _posOut) {
   // because emitVarRef coerces a missing or null lookup to "" and so loses
   // the defined/undefined signal those tests depend on. Other subjects
   // evaluate to a concrete value (no coercion) and use the generic helper
-  // the engine registers.
+  // the engine registers. `sameas none` with a VarRef on either side reads
+  // like `none` (noneComparison).
   function lowerTest(subject, negated) {
     var test = parseTest(), testCall;
     if (test.args.length === 0 && subject.type === 'VarRef' && test.name === 'defined') {
       testCall = ir.varRefExists(subject.path, subject.loc);
     } else if (test.args.length === 0 && subject.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
       testCall = ir.unaryOp('!', ir.varRefExists(subject.path, subject.loc));
+    } else if (test.name === 'sameas' && test.args.length === 1) {
+      testCall = noneComparison('==', subject, test.args[0]) ||
+        helperCall(['_ext', '_test_sameas'], [subject].concat(test.args));
     } else {
       testCall = helperCall(['_ext', '_test_' + test.name], [subject].concat(test.args));
     }
@@ -360,6 +434,12 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     while (true) {
       var tok = peek();
       if (!tok) { break; }
+      // A none that is subscripted or passed to a filter reads as "", as a
+      // variable holding None does (emitVarRef turns null into "").
+      if (expr.type === 'Literal' && expr.kind === 'null' && (tok.type === _t.DOTKEY || tok.type === _t.BRACKETOPEN ||
+          (withFilter && (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY)))) {
+        expr = ir.literal('string', '');
+      }
       if (tok.type === _t.DOTKEY) {
         consume();
         guardSegment(tok.match);
@@ -425,6 +505,12 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     case _t.CURLYOPEN:
       return parseObjectLiteral();
     case _t.VAR:
+      // Jinja2's constants. `true` / `false` reach here as a VAR when the
+      // lexer's BOOL rule does not match (`true)`, `true,`); the
+      // capitalised forms and `none` / `None` always do.
+      if (_constants.indexOf(tok.match) !== -1) {
+        return constantLiteral(tok.match);
+      }
       var path = tok.match.split('.');
       if (_reserved.indexOf(path[0]) !== -1) {
         bail('Reserved keyword "' + path[0] + '" attempted to be used as a variable');
@@ -513,7 +599,16 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       } else if (info.op === 'in' || info.op === 'not in') {
         left = membership(left, right, info.op === 'not in');
       } else {
-        left = ir.binaryOp(info.op, left, right);
+        // `x == none` / `x != none` on a VarRef reads like `x is [not]
+        // none` (noneComparison).
+        if (info.op === '~' || info.op === '+') {
+          // An operand none of ~ or + reads as "", as a variable holding
+          // None does, so it never adds the text "null".
+          left = left.type === 'Literal' && left.kind === 'null' ? ir.literal('string', '') : left;
+          right = right.type === 'Literal' && right.kind === 'null' ? ir.literal('string', '') : right;
+        }
+        left = ((info.op === '==' || info.op === '!=') && noneComparison(info.op, left, right)) ||
+          ir.binaryOp(info.op, left, right);
       }
     }
     // Inline conditional `<then> if <cond> else <else>` — binds looser than

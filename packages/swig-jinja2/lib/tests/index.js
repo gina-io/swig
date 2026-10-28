@@ -85,6 +85,28 @@ exports['boolean'] = function (v) {
 };
 
 /**
+ * `foo is true` — true when the subject is the boolean `true` (Python's
+ * `value is True`).
+ *
+ * @param  {*} v
+ * @return {boolean}
+ */
+exports['true'] = function (v) {
+  return v === true;
+};
+
+/**
+ * `foo is false` — true when the subject is the boolean `false` (Python's
+ * `value is False`).
+ *
+ * @param  {*} v
+ * @return {boolean}
+ */
+exports['false'] = function (v) {
+  return v === false;
+};
+
+/**
  * `foo is number` — true for any JavaScript number, NaN and the
  * infinities included, as Python's `numbers.Number` test.
  *

@@ -1103,7 +1103,8 @@ exports.unique = function (input, caseSensitive) {
  *
  * @param  {*}      input
  * @param  {number} size
- * @param  {*}      [fill]  Pad the last row up to `size` with this value.
+ * @param  {*}      [fill]  Pad the last row up to `size` with this value; `none`
+ *                          (null) pads nothing, as in Jinja2.
  * @return {Array}
  */
 exports.batch = function (input, size, fill) {
@@ -1131,7 +1132,7 @@ exports.batch = function (input, size, fill) {
     // could exhaust the heap and abort the process (a size of 1e8 does under
     // a 256 MB heap).
     // if (fill !== undefined && typeof size === 'number' && isFinite(size)) {
-    if (fill !== undefined && typeof size === 'number' && isFinite(size) && size <= utils.maxSize) {
+    if (fill != null && typeof size === 'number' && isFinite(size) && size <= utils.maxSize) {
       while (tmp.length < size) {
         tmp.push(fill);
       }
@@ -1156,7 +1157,8 @@ exports.batch = function (input, size, fill) {
  *
  * @param  {*}      input
  * @param  {number} slices  Number of columns.
- * @param  {*}      [fill]  Pad the shorter columns with this value.
+ * @param  {*}      [fill]  Pad the shorter columns with this value; `none`
+ *                          (null) pads nothing, as in Jinja2.
  * @return {Array}
  */
 exports.slice = function (input, slices, fill) {
@@ -1193,7 +1195,7 @@ exports.slice = function (input, slices, fill) {
     }
     end = offset + (i + 1) * perSlice;
     tmp = seq.slice(start, end);
-    if (fill !== undefined && i >= withExtra) {
+    if (fill != null && i >= withExtra) {
       tmp.push(fill);
     }
     out.push(tmp);
