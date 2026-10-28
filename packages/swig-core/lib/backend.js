@@ -1316,6 +1316,16 @@ function emitFnCall(node, d) {
       checkDangerousSegment(segment, d, callee);
     });
 
+    // Opt-in `node.closure`, set by the frontends on calls to the engine's
+    // own helpers (`_ext._test_<name>`, `_utils.range`, `_utils.slice`,
+    // `Math.pow`, `Math.floor`): read the callee from the compiled
+    // template's scope only, never from `_ctx`, where a locals key such as
+    // `_ext` would replace it. An unregistered test still falls back to _fn.
+    if (node.closure && callee.path.length > 1) {
+      return '(' + callee.path.join('.') + ' || _fn).call(' + callee.path.slice(0, -1).join('.') +
+        (argsJS ? ', ' + argsJS : '') + ')';
+    }
+
     if (callee.path.length === 1) {
       name = callee.path[0];
       return '((typeof _ctx.' + name + ' !== "undefined") ? _ctx.' + name +

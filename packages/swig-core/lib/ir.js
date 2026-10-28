@@ -533,6 +533,7 @@
  * @property {'FnCall'} type
  * @property {IRExpr} callee
  * @property {IRExpr[]} args
+ * @property {boolean} [closure]               Opt-in: a call to an engine helper (`_ext._test_<name>`, `_utils.range`, `Math.pow`, ...) whose callee path is read from the compiled template's scope, never from the template context.
  * @property {IRLoc} [loc]
  */
 

@@ -43,6 +43,24 @@ function membership(left, right, negate) {
 }
 
 /**
+ * Build the IR of a call to one of the engine's own helpers (an `_ext` test,
+ * an `_utils` function, a `Math` function), flagged so swig-core reads the
+ * callee from the compiled template's scope and never from the template
+ * context, where a locals key such as `_ext`, `_utils` or `Math` would
+ * replace it.
+ *
+ * @param  {string[]} path  Callee path (`['_utils', 'range']`).
+ * @param  {object[]} args  Argument expressions.
+ * @return {object}         IRFnCall with `closure === true`.
+ * @private
+ */
+function helperCall(path, args) {
+  var node = ir.fnCall(ir.varRef(path), args);
+  node.closure = true;
+  return node;
+}
+
+/**
  * Build a VarRef IR node flagged for Django-style runtime resolution. The
  * `resolve` flag makes swig-core's emitVarRef emit `_utils.resolve(_ctx,
  * path)` — dictionary / attribute / method lookup, numeric index access
@@ -358,7 +376,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       }
     }
     expectBracketClose();
-    return ir.fnCall(ir.varRef(['_utils', 'slice']), [
+    return helperCall(['_utils', 'slice'], [
       obj,
       startExpr || undefinedLiteral(),
       stopExpr || undefinedLiteral(),

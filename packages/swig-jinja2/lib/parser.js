@@ -43,6 +43,24 @@ function membership(left, right, negate) {
 }
 
 /**
+ * Build the IR of a call to one of the engine's own helpers (an `_ext` test,
+ * an `_utils` function, a `Math` function), flagged so swig-core reads the
+ * callee from the compiled template's scope and never from the template
+ * context, where a locals key such as `_ext`, `_utils` or `Math` would
+ * replace it.
+ *
+ * @param  {string[]} path  Callee path (`['_utils', 'range']`).
+ * @param  {object[]} args  Argument expressions.
+ * @return {object}         IRFnCall with `closure === true`.
+ * @private
+ */
+function helperCall(path, args) {
+  var node = ir.fnCall(ir.varRef(path), args);
+  node.closure = true;
+  return node;
+}
+
+/**
  * Jinja2 expression parser — Pratt-style recursive descent.
  *
  * Consumes a flat LexerToken[] (produced by swig-jinja2's lexer) and
@@ -267,7 +285,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     } else if (test.args.length === 0 && subject.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
       testCall = ir.unaryOp('!', ir.varRefExists(subject.path, subject.loc));
     } else {
-      testCall = ir.fnCall(ir.varRef(['_ext', '_test_' + test.name]), [subject].concat(test.args));
+      testCall = helperCall(['_ext', '_test_' + test.name], [subject].concat(test.args));
     }
     return negated ? ir.unaryOp('!', testCall) : testCall;
   }
@@ -326,7 +344,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       }
     }
     expectBracketClose();
-    return ir.fnCall(ir.varRef(['_utils', 'slice']), [
+    return helperCall(['_utils', 'slice'], [
       obj,
       startExpr || undefinedLiteral(),
       stopExpr || undefinedLiteral(),
@@ -462,7 +480,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
       // Math.pow because the emit is parenthesis-safe — a bare `a ** b`
       // emission would mis-group when an operand is itself a binary op and
       // would SyntaxError when the base is a unary (`-2 ** 3`).
-      left = ir.fnCall(ir.varRef(['Math', 'pow']), [left, parseUnary(true)]);
+      left = helperCall(['Math', 'pow'], [left, parseUnary(true)]);
       next = peek();
     }
     return left;
@@ -491,7 +509,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         // Floor division — JS `a // b` is a line comment, so lower to
         // Math.floor(a / b). Matches Python `//` for ints and floats,
         // including negative operands (floors toward negative infinity).
-        left = ir.fnCall(ir.varRef(['Math', 'floor']), [ir.binaryOp('/', left, right)]);
+        left = helperCall(['Math', 'floor'], [ir.binaryOp('/', left, right)]);
       } else if (info.op === 'in' || info.op === 'not in') {
         left = membership(left, right, info.op === 'not in');
       } else {

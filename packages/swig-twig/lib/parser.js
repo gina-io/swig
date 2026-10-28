@@ -43,6 +43,24 @@ function membership(left, right, negate) {
 }
 
 /**
+ * Build the IR of a call to one of the engine's own helpers (an `_ext` test,
+ * an `_utils` function, a `Math` function), flagged so swig-core reads the
+ * callee from the compiled template's scope and never from the template
+ * context, where a locals key such as `_ext`, `_utils` or `Math` would
+ * replace it.
+ *
+ * @param  {string[]} path  Callee path (`['_utils', 'range']`).
+ * @param  {object[]} args  Argument expressions.
+ * @return {object}         IRFnCall with `closure === true`.
+ * @private
+ */
+function helperCall(path, args) {
+  var node = ir.fnCall(ir.varRef(path), args);
+  node.closure = true;
+  return node;
+}
+
+/**
  * Twig expression parser — Pratt-style recursive descent.
  *
  * Consumes a flat LexerToken[] (produced by swig-twig's lexer) and
@@ -414,14 +432,14 @@ exports.parseExpr = function (tokens, filters, _posOut) {
         } else if (test.args.length === 0 && left.type === 'VarRef' && test.name === 'null') {
           testCall = ir.unaryOp('!', ir.varRefExists(left.path, left.loc));
         } else {
-          testCall = ir.fnCall(ir.varRef(['_ext', '_test_' + test.name]), [left].concat(test.args));
+          testCall = helperCall(['_ext', '_test_' + test.name], [left].concat(test.args));
         }
         left = info.op === 'is not' ? ir.unaryOp('!', testCall) : testCall;
         continue;
       }
       var right = parseExpression(info.prec + 1);
       if (info.op === '..') {
-        left = ir.fnCall(ir.varRef(['_utils', 'range']), [left, right]);
+        left = helperCall(['_utils', 'range'], [left, right]);
       } else if (info.op === 'in' || info.op === 'not in') {
         left = membership(left, right, info.op === 'not in');
       } else {
