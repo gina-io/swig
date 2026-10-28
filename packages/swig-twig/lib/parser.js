@@ -640,7 +640,10 @@ exports.parse = function (swig, source, opts, tags, filters) {
       }
       tail = [ir.filterCall('e', escapeArgs)];
     }
-    return ir.output(expr, tail);
+    var node = ir.output(expr, tail);
+    // A non-VarRef output renders null / undefined as "", as a VarRef does.
+    if (expr.type !== 'VarRef') { node.coerce = true; }
+    return node;
   }
 
   /**

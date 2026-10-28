@@ -928,13 +928,42 @@ exports.slice = function (obj, start, stop, step) {
 };
 
 /**
+ * Read `o[k]` for a template subscript or member access: undefined when
+ * `o` is null or undefined, so `arr[0].x` over an empty list does not
+ * throw. The backend emits it for every Access node.
+ *
+ * @param  {*} o
+ * @param  {*} k
+ * @return {*} `o[k]`, or undefined when `o` is null / undefined.
+ */
+exports.access = function (o, k) {
+  return (o === null || o === undefined) ? undefined : o[k];
+};
+
+/**
+ * Call `o[k]` with `o` as the receiver, for a template call on a subscript
+ * or member (`arr[0].fn()`, `"ab".toUpperCase()`): "" when `o` is null or
+ * undefined or `o[k]` is not a function.
+ *
+ * @param  {*}     o
+ * @param  {*}     k
+ * @param  {Array} args
+ * @return {*} The call's result, or "".
+ */
+exports.callAccess = function (o, k, args) {
+  var f = (o === null || o === undefined) ? undefined : o[k];
+  return (typeof f === 'function') ? f.apply(o, args) : '';
+};
+
+/**
  * Coerce a value for string output: `null` and `undefined` become the
  * empty string, everything else passes through unchanged. Used by the
  * backend's `Output` emit when a frontend opts in via `IROutput.coerce`,
  * so a non-VarRef expression that evaluates to null / undefined renders
  * as "" rather than the literal word "null" / "undefined". (VarRef
  * outputs already coerce in `emitVarRef`, so frontends only flag
- * non-VarRef outputs.)
+ * non-VarRef outputs.) The backend also wraps a subscript result in it
+ * where it enters a filter or an arithmetic, `~` or unary operand.
  *
  * @param  {*} v
  * @return {*} `v`, or "" when `v` is null / undefined.

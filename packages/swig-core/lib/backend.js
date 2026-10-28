@@ -945,6 +945,7 @@ exports.compile = function (template, parents, options, blockName) {
       }
       var outExprJS = exports.emitExpr(node.expr);
       if (node.filters && node.filters.length) {
+        outExprJS = asValue(node.expr, outExprJS);
         utils.each(node.filters, function (fc) {
           var fcArgsJS = '';
           if (fc.args && fc.args.length) {
@@ -1188,13 +1189,15 @@ function checkMatchExpr(match) {
 /*!
  * Emit a dynamic bracket access. When the key is a string literal, guard
  * it against prototype-chain pollution — mirrors the STRING-in-
- * BRACKETOPEN check in TokenParser. @private
+ * BRACKETOPEN check in TokenParser. The read goes through `_utils.access`,
+ * so a subscript of a null or undefined value gives undefined instead of
+ * throwing. @private
  */
 function emitAccess(node, d) {
   if (node.key && node.key.type === 'Literal' && node.key.kind === 'string') {
     checkDangerousSegment(node.key.value, d, node);
   }
-  return groupOperand(node.object, emitExpr(node.object, d), true) + '[' + emitExpr(node.key, d) + ']';
+  return '_utils.access(' + emitExpr(node.object, d) + ', ' + emitExpr(node.key, d) + ')';
 }
 
 /*!
@@ -1223,6 +1226,16 @@ function groupOperand(node, js, unary) {
 }
 
 /*!
+ * An undefined or null subscript or member result reads as "" where it
+ * enters a filter, an arithmetic operand or a `~` operand, as a missing
+ * variable does in emitVarRef. Other positions keep the raw value, so
+ * `??`, comparisons and tests still see undefined. @private
+ */
+function asValue(node, js) {
+  return (node && node.type === 'Access') ? '_utils.coerceOutput(' + js + ')' : js;
+}
+
+/*!
  * The flavor name `emitBinaryOp` writes into an `_utils.isIn` call: one of
  * the three names `isIn` knows, never the flag's own text. @private
  */
@@ -1233,6 +1246,10 @@ function membershipMode(flag) {
 function emitBinaryOp(node, d) {
   var left = groupOperand(node.left, emitExpr(node.left, d)),
     right = groupOperand(node.right, emitExpr(node.right, d));
+  if (isArithmeticOp(node.op) || node.op === '~') {
+    left = asValue(node.left, left);
+    right = asValue(node.right, right);
+  }
   if (isArithmeticOp(node.op)) {
     return left + ' ' + node.op + ' ' + right;
   }
@@ -1266,7 +1283,9 @@ function emitBinaryOp(node, d) {
 }
 
 function emitUnaryOp(node, d) {
-  return node.op + groupOperand(node.operand, emitExpr(node.operand, d), true);
+  var operand = groupOperand(node.operand, emitExpr(node.operand, d), true);
+  if (node.op === '-' || node.op === '+') { operand = asValue(node.operand, operand); }
+  return node.op + operand;
 }
 
 function emitConditional(node, d) {
@@ -1340,6 +1359,14 @@ function emitFnCall(node, d) {
       ')';
   }
 
+  // A call on a subscript or member keeps its receiver, and gives "" when
+  // the object is null or undefined or the member is not a function.
+  if (callee && callee.type === 'Access') {
+    if (callee.key && callee.key.type === 'Literal' && callee.key.kind === 'string') {
+      checkDangerousSegment(callee.key.value, d, callee);
+    }
+    return '_utils.callAccess(' + emitExpr(callee.object, d) + ', ' + emitExpr(callee.key, d) + ', [' + argsJS + '])';
+  }
   return '(' + emitExpr(callee, d) + ')(' + argsJS + ')';
 }
 
@@ -1350,7 +1377,7 @@ function emitFnCall(node, d) {
  * {@link IRExpr}) rather than accumulating positionally. @private
  */
 function emitFilterCall(node, d) {
-  var inputJS = emitExpr(node.input, d),
+  var inputJS = asValue(node.input, emitExpr(node.input, d)),
     argsJS = '';
   if (node.args && node.args.length) {
     var parts = [];

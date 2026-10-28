@@ -162,13 +162,13 @@ describe('swig-core/lib/backend — emitExpr', function () {
     it('emits object[key] with both operands recursively reduced', function () {
       var node = ir.access(ir.varRef(['items']), ir.literal('number', 0));
       var js = backend.emitExpr(node);
-      expect(js).to.match(/^\(.*\)\[0\]$/);
+      expect(js).to.match(/^_utils\.access\(\(.*\), 0\)$/);
     });
 
     it('allows non-dangerous string-literal keys', function () {
       var node = ir.access(ir.varRef(['obj']), ir.literal('string', 'name'));
       var js = backend.emitExpr(node);
-      expect(js).to.contain('["name"]');
+      expect(js).to.contain(', "name")');
     });
 
     it('throws CVE-2023-25345 on a dangerous string-literal key', function () {
@@ -317,7 +317,7 @@ describe('swig-core/lib/backend — emitExpr', function () {
 
     it('non-VarRef callee falls through to a plain call', function () {
       var node = ir.fnCall(
-        ir.access(ir.varRef(['handlers']), ir.literal('string', 'go')),
+        ir.fnCall(ir.varRef(['handlers']), []),
         [ir.literal('number', 1)]
       );
       var js = backend.emitExpr(node);

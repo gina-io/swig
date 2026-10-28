@@ -362,7 +362,8 @@ describe('swig-core/lib/tokenparser — parseExpr', function () {
 
     it('bracket access with string literal round-trips', function () {
       var js = emit('obj["name"]');
-      expect(js).to.contain('["name"]');
+      expect(js).to.contain('_utils.access(');
+      expect(js).to.contain(', "name")');
     });
 
     it('arithmetic binary op round-trips with surrounding spaces', function () {

@@ -1,0 +1,5 @@
+kind: fixed
+body: 'A subscript or member of a missing value no longer prints « undefined » or « null » and no longer throws. In swig, swig-twig and swig-jinja2, `{{ arr[0].x }}`, `{{ obj["k"].x }}` and `{{ arr[0][1] }}` over an empty list or object failed with « Cannot read properties of undefined » and now render an empty string; in swig and swig-twig `{{ arr[0] }}` and `{{ obj["k"] }}` printed « undefined » (« null » for a null item) and now render an empty string, as a missing variable does. A missing subscript that enters a filter or an arithmetic, `~` or unary operand reads as an empty string too: `arr[0]|upper` failed, `arr[0] ~ "x"` gave « undefinedx » and `arr[0] * 2` gave « NaN ». A call on a subscript keeps its receiver and gives an empty string when there is nothing to call. Behaviour change: in swig and swig-twig, any output that comes out undefined or null now renders an empty string, as swig-jinja2 already did, including a function or macro result that printed « undefined » or « null » before.'
+time: 2026-10-28T20:30:00.000000+00:00
+custom:
+  Issue: ""

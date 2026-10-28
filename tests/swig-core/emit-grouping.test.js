@@ -26,9 +26,9 @@ describe('swig-core/lib/backend — grouping of nested operands', function () {
     expect(backend.emitExpr(ir.binaryOp('&&', ir.binaryOp('||', bool(true), bool(false)), bool(false)))).to.be('(true||false)&&false');
   });
 
-  it('wraps a binary or unary object under a subscript', function () {
-    expect(backend.emitExpr(ir.access(ir.binaryOp('+', str('a'), str('b')), num(1)))).to.be('("a" + "b")[1]');
-    expect(backend.emitExpr(ir.access(ir.unaryOp('-', num(1)), num(0)))).to.be('(-1)[0]');
+  it('keeps a binary or unary object under a subscript grouped', function () {
+    expect(backend.emitExpr(ir.access(ir.binaryOp('+', str('a'), str('b')), num(1)))).to.be('_utils.access("a" + "b", 1)');
+    expect(backend.emitExpr(ir.access(ir.unaryOp('-', num(1)), num(0)))).to.be('_utils.access(-1, 0)');
   });
 
   it('wraps a unary operand under a unary prefix', function () {

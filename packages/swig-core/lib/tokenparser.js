@@ -855,7 +855,10 @@ TokenParser.prototype = {
       if (hasTopTernary || (hasTopOp && hasTopFilter)) {
         var exprPO = self.parseExpr(tokens);
         var fcallsPO = escape ? [ir.filterCall('e')] : [];
-        return ir.output(exprPO, fcallsPO.length > 0 ? fcallsPO : undefined);
+        var nodePO = ir.output(exprPO, fcallsPO.length > 0 ? fcallsPO : undefined);
+        // A non-VarRef output renders null / undefined as "", as a VarRef does.
+        if (exprPO.type !== 'VarRef') { nodePO.coerce = true; }
+        return nodePO;
       }
 
       var prefixEnd = firstTopFilterIdx >= 0 ? firstTopFilterIdx : tokens.length,
@@ -945,7 +948,10 @@ TokenParser.prototype = {
 
       if (escape) { filterCalls.push(ir.filterCall('e')); }
 
-      return ir.output(expr, filterCalls.length > 0 ? filterCalls : undefined);
+      var nodeOut = ir.output(expr, filterCalls.length > 0 ? filterCalls : undefined);
+      // A non-VarRef output renders null / undefined as "", as a VarRef does.
+      if (expr.type !== 'VarRef') { nodeOut.coerce = true; }
+      return nodeOut;
     } catch (e) {
       // A top-level ternary cannot be expressed by the legacy parseToken
       // path (no QMARK handling), so legacyFallback would only throw a

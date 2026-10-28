@@ -349,8 +349,7 @@ var shapes = [
     imp: '{% import "outer.html" as s %}{{ s.m0() }}',
     from: '{% from "outer.html" import m0 %}{{ m0() }}',
     locals: function () { return { pick: function (c) { return c && c.y; } }; },
-    sync: '[undefined]',
-    syncJinja2: '[]',
+    sync: '[]',
     async: '[Y]'
   },
   {
@@ -401,8 +400,7 @@ var shapes = [
     imp: '{% import "outer.html" as s %}{{ s.m0() }}',
     from: '{% from "outer.html" import m0 %}{{ m0() }}',
     locals: function () { return { pick: function (c) { return c && c.y; } }; },
-    sync: '[undefined]',
-    syncJinja2: '[]',
+    sync: '[]',
     async: '[Y]'
   },
   {
@@ -434,8 +432,7 @@ var shapes = [
     from: '{% from "outer.html" import m0 %}{{ m0() }}',
     only: ['twig', 'jinja2'],
     locals: function () { return { pick: function (c) { return c && c.y; } }; },
-    sync: '[undefined]',
-    syncJinja2: '[]',
+    sync: '[]',
     async: '[Y]'
   },
   {
