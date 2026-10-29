@@ -1,5 +1,0 @@
-kind: fixed
-body: 'In native swig an output whose variable is followed by a filter of its own no longer prints « undefined » or « null » when the last filter returns one: `{{ items|first }}` and `{{ items|last }}` over an empty list, `{{ obj|first }}` over an empty object, `{{ fn|json }}` for a function and a custom filter that returns undefined or null now render an empty string, as swig-twig and swig-jinja2 already did. Native outputs under a string escape strategy (the autoescape ''html'' or ''js'' option) and inside an `{% autoescape %}` region that turns escaping on, `{% autoescape true %}` included, now follow the rule that 2.9.10 brought to other outputs: `{{ arr[0] }}`, `{{ obj["k"] }}` and a call that returns undefined render an empty string instead of « undefined », and `{{ arr[0].x }}` and `{{ arr[0]|upper }}` no longer throw. The 2.9.10 entry said that in swig any output that comes out undefined or null renders an empty string; that did not hold for these outputs.'
-time: 2026-10-28T22:16:00.000000+00:00
-custom:
-  Issue: ""

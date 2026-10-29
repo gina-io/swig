@@ -43,12 +43,14 @@ Features
 * Robust without the bloat — a single runtime dependency ([`@rhinostone/swig-core`](https://www.npmjs.com/package/@rhinostone/swig-core)).
 * Extendable and customizable — register custom filters, tags, and loaders per-instance.
 
-What's new in v2.9.10
+What's new in v2.9.11
 ---------------------
 
-> **One behaviour change.** In swig and swig-twig, an output that comes out `undefined` or `null` now renders an empty string, as it already did in swig-jinja2. This includes a function result: `{{ fn() }}`, with `fn` returning nothing, renders `""` where 2.9.9 printed `undefined` (`null` for a null result).
+> **One behaviour change.** In native swig, a filter after a call in an `{% if %}` test now applies to that call only: `{% if z and f(x)|upper %}` with z = 0 is false, where 2.9.10 applied the filter to `z and f(x)` and took the branch.
 
-* **Fixed — subscripts and members of a missing value.** In swig, swig-twig and swig-jinja2, `{{ arr[0].x }}`, `{{ obj["k"].x }}` and `{{ arr[0][1] }}` over an empty list or object render an empty string, where 2.9.9 failed with `Cannot read properties of undefined`. In swig and swig-twig, `{{ arr[0] }}` and `{{ obj["k"] }}` render an empty string, as a missing variable does, where 2.9.9 printed `undefined` (`null` for a null item). A missing subscript that enters a filter or an arithmetic, `~` or unary operand reads as an empty string too: `arr[0]|upper` failed, `arr[0] ~ "x"` gave `undefinedx` and `arr[0] * 2` gave `NaN` (now `0`). A call on a subscript keeps its receiver and gives an empty string when there is nothing to call. In native swig, a tag argument that applies a filter, such as `{% set y = arr[0]|upper %}`, still fails on a missing subscript.
+* **Fixed — native outputs that 2.9.10 missed.** In native swig an output whose variable is followed by a filter of its own no longer prints `undefined` or `null` when the last filter returns one: `{{ items|first }}` and `{{ items|last }}` over an empty list, `{{ obj|first }}` over an empty object, `{{ fn|json }}` for a function and a custom filter that returns `undefined` or `null` now render an empty string, as swig-twig and swig-jinja2 already did. Outputs under a string escape strategy (the autoescape `'html'` or `'js'` option) and inside an `{% autoescape %}` region that turns escaping on now follow the rule 2.9.10 brought to other outputs: `{{ arr[0] }}`, `{{ obj["k"] }}` and a call that returns `undefined` render an empty string, and `{{ arr[0].x }}` and `{{ arr[0]|upper }}` no longer throw. The 2.9.10 notes said that in swig any output that comes out `undefined` or `null` renders an empty string; that did not hold for these outputs.
+* **Fixed — filters in native tag arguments.** A filter inside a `{% set %}`, `{% if %}`, `{% elseif %}`, `{% for %}`, `{% include %}` or `{% filter %}` argument now applies to its own operand, as it does in an output: `{% set y = arr[0]|upper %}` and `{% if arr[0]|length %}` over an empty list no longer throw at render, and `{% set y = (x)|upper %}`, `{% for c in (x)|reverse %}`, `{% include name|default("p.html") %}` and `{% filter replace("a", x|upper) %}` now compile. `{% filter upper() %}` works, and a group in double parentheses no longer breaks a set or a for tag. A prototype-chain name called in a filtered tag argument, as in `{% set r = __proto__(x)|upper %}`, now fails at compile with the prototype-chain guard, as it does without the filter.
+* **Fixed — a filter after a literal.** In native swig a filter after a literal in an output now applies to that literal when the output also holds an operator or a ternary; since 2.0.0 the filter and everything after it were dropped. With x = "ab", in 2.9.10 `{{ "ab"|upper == x }}` rendered `ab` (now `false`), `{{ 3|default(1) + 1 }}` rendered `3` (now `4`) and `{{ x ? "lit"|upper : "n" }}` failed to compile (now `LIT`).
 
 See the full [HISTORY.md](./HISTORY.md) and [ROADMAP.md](./ROADMAP.md).
 
@@ -61,7 +63,7 @@ Benchmarks
 cd benchmarks && npm install && node render.js
 ```
 
-In production-typical settings (autoescape on), `@rhinostone/swig` leads Nunjucks on all five workload shapes — narrowly on simple variable output (1.07×), and by 3.9–5.0× on iteration-heavy templates (median of 5 runs, 2026-10-28, `2.9.10`). See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
+In production-typical settings (autoescape on), `@rhinostone/swig` leads Nunjucks on all five workload shapes — narrowly on simple variable output (1.06×), and by 3.7–5.0× on iteration-heavy templates (median of 5 runs, 2026-10-29, `2.9.11`). See [`benchmarks/README.md`](./benchmarks/README.md) for the methodology, the full result table, and how to reproduce on your own hardware.
 
 Need Help? Have Questions? Comments?
 ------------------------------------

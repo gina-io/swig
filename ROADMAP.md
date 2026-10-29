@@ -14,7 +14,6 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | Planned | Unknown filter and test names rejected when a Twig, Jinja2 or Django template compiles; today the error comes only at render, or never when the branch does not run. Native swig already rejects an unknown filter. |
 | Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
 | Planned | Native swig: `{% parent %}` in nested blocks renders as Jinja2's `super()` does; today, on the sync render path, an override of a nested block that calls `{% parent %}` drops the parent's part and an outer block rendered through `{% parent %}` ignores the child's override of the inner block, and on both paths a block that calls `{% parent %}` inside an overriding block renders without the parent's content. |
-| Planned | Native swig: a missing subscript in a tag argument that applies a filter, such as `{% set y = arr[0]|upper %}` or `{% if arr[0]|length %}`, reads as an empty string, as it does in an output since 2.9.10; today it still fails. |
 
 ## Future (post-2.0)
 
@@ -28,6 +27,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.9.11 (October 2026)
+
+- Native swig: an output whose variable is followed by a filter of its own renders an empty string when the last filter returns `undefined` or `null`, and outputs under a string escape strategy or inside an `{% autoescape %}` region follow the 2.9.10 rule for missing subscripts and calls.
+- Native swig: a filter in a `{% set %}`, `{% if %}`, `{% elseif %}`, `{% for %}`, `{% include %}` or `{% filter %}` argument applies to its own operand, as it does in an output, and a filter after a literal in an output applies to that literal.
+- All five packages released in lockstep at `2.9.11`.
 
 ### v2.9.10 (October 2026)
 
