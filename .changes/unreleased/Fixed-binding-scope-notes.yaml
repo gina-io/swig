@@ -1,0 +1,5 @@
+kind: fixed
+body: 'The 2.9.11 notes named one behaviour change, for a filter after a call in an `{% if %}` test. It also holds in `{% set %}`, `{% elseif %}` and `{% for %}` arguments: up to 2.9.10 a filter after a function or method call in those arguments applied to everything before it, and since 2.9.11 it applies to the call only, as in an output. With a = "x", x = "ab" and f returning its argument, `{% set y = a + f(x)|upper %}` gave « XAB » and gives « xAB », and `{% for c in a + f(x)|upper %}` loops over « xAB ». A filter after a variable is unchanged.'
+time: 2026-10-29T01:30:00.000000+00:00
+custom:
+  Issue: ""
