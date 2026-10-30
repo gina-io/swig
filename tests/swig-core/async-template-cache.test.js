@@ -132,6 +132,22 @@ FLAVORS.forEach(function (flavor) {
       });
     });
 
+    it('picks a dynamic extends parent on each render', function () {
+      var loader = asyncLoader({
+          '/child.html': '{% extends layout %}{% block b %}C{% endblock %}',
+          '/a.html': 'a{% block b %}{% endblock %}',
+          '/b.html': 'b{% block b %}{% endblock %}'
+        }),
+        s = new Ctor({ loader: loader });
+      return render(s, '/child.html', { layout: '/a.html' }).then(function (out) {
+        expect(out).to.equal('aC');
+        return render(s, '/child.html', { layout: '/b.html' });
+      }).then(function (out) {
+        expect(out).to.equal('bC');
+        expect(loader.log).to.eql(['/child.html', '/a.html', '/b.html']);
+      });
+    });
+
     it('loads on every render with cache: false on the instance', function () {
       var loader = asyncLoader({ '/page.html': '[{{ x }}]{% include "/p.html" %}', '/p.html': 'p' }),
         s = new Ctor({ loader: loader, cache: false });
