@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-twig: a filter or test name the instance does not hold is a compile error wherever it stands, as in Twig (`Invalid filter "nosuch" on line 3 in file page.html.`, `Invalid test "frob" on line 2.`). An unknown filter used to compile, then throw `_filters.nosuch is not a function` at render, or pass unnoticed in a branch not taken; an unknown test used to read as false, and `is not` as true, with no error. Four things change for a template or a setup that relied on that: a name in a branch not taken stops the compile; a filter registered with setFilter or a test registered with setExtension after the compile that uses it fails at that compile; `{{ x|toString }}`, `{{ x|hasOwnProperty }}` and the like, which called the Object.prototype method, are rejected; and `is none`, `is sequence`, `is mapping` and `is constant`, Twig tests that swig-twig does not provide, no longer read as false.'
+time: 2026-10-30T22:00:00.000000+00:00
+custom:
+  Issue: ""
