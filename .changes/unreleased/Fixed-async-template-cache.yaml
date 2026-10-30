@@ -1,0 +1,5 @@
+kind: fixed
+body: 'The async render path (renderFile with `loader.async`, compileFile with `codegenMode: ''async''`) keeps compiled templates in the instance''s cache: with `cache: ''memory''` (the default) or a custom cache, a template, an included partial and an extends parent are loaded and compiled once, where every render and every include loaded and compiled them again (a 200-item loop with one include called the loader 201 times per render). Behaviour change, as on the sync path: an edited template is no longer picked up until `invalidateCache()` is called, and the first compile of a file fixes its compile options. `cache: false` keeps loading on every render.'
+time: 2026-10-30T20:30:00.000000000+01:00
+custom:
+  Issue: ""

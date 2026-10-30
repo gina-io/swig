@@ -1082,10 +1082,11 @@ exports.install = function (self, frontend) {
    * slice, `IRExtendsDeferred`) when an async-mode template needs to
    * load a child template at render time.
    *
-   * Cache semantics — bypasses the cache via `options.cache = false` on
-   * the inner compile call. `compile` and `compileFile` keep async-mode
-   * entries under their own key (see `compileCacheKey`), so a compile in
-   * either mode is never served the other mode's function.
+   * Cache semantics — a compiled template is kept in the instance's cache
+   * like any other, under the key of the async mode (see `compileCacheKey`),
+   * so a template is loaded and compiled once and a compile in either mode is
+   * never served the other mode's function. `cache: false` on the instance or
+   * in `options` loads and compiles on every call.
    *
    * @param  {string} pathname    Template path; resolved via the active loader.
    * @param  {object} [options]   Per-call options. Honored: `resolveFrom`,
@@ -1103,10 +1104,14 @@ exports.install = function (self, frontend) {
     }
 
     var compileOpts = utils.extend({}, options, {
-      filename: options.filename || resolved,
-      codegenMode: 'async',
-      cache: false
-    });
+        filename: options.filename || resolved,
+        codegenMode: 'async'
+      }),
+      cached = cacheGet(compileCacheKey(compileOpts.filename, compileOpts), compileOpts);
+
+    if (cached) {
+      return Promise.resolve(bindOptionLocals(cached, compileOpts));
+    }
 
     return new Promise(function (resolve, reject) {
       function onLoaded(err, src) {
