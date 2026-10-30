@@ -27,6 +27,10 @@ function asText(input) {
  *
  * Fidelity notes (cross-checked against Django 5.2 `defaultfilters.py`):
  *
+ * - **None.** The string filters read None, and a variable that fails to
+ *   resolve where Django reads it as None (`if`, `for`, `firstof`), as the
+ *   text None, as Django's `stringfilter` does. `escape`, `escapejs` and
+ *   `safe` keep the empty string of `{{ x }}`.
  * - **`.safe` vs Django `is_safe`.** Django's `is_safe=True` does NOT bypass
  *   autoescape — it only means the filter preserves an already-safe input.
  *   Only filters that Django wraps in `mark_safe()` (always returning trusted
@@ -130,7 +134,10 @@ function urlQuote(value, safe) {
 /**
  * Add the argument to the value. Numeric addition is tried first (Django's
  * `int(value) + int(arg)`); on failure it falls back to concatenation
- * (strings and arrays), then to the empty string.
+ * (strings and arrays), then to the empty string: a string and a number, a
+ * list or a mapping with anything but a list, and two mappings give the empty
+ * string, since Python cannot add them. A None or missing input or argument
+ * gives the empty string too.
  *
  * @example
  * {{ 4|add:2 }}
@@ -857,7 +864,7 @@ exports.ljust = function (input, width) {
  * {{ "SWIG"|lower }}
  * // => swig
  *
- * @param  {*} input
+ * @param  {*} input  None reads as the text None.
  * @return {*}
  */
 exports.lower = function (input) {
@@ -1236,7 +1243,7 @@ exports.truncatewords = function (input, arg) {
  * {{ "swig"|upper }}
  * // => SWIG
  *
- * @param  {*} input
+ * @param  {*} input  None reads as the text None.
  * @return {*}
  */
 exports.upper = function (input) {

@@ -27,7 +27,7 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
  * // => 5
  *
  * @param  {*} input
- * @return {*} The length of the input.
+ * @return {*} The length of the input; 0 for undefined, null and an empty string.
  */
 exports.length = function (input) {
   if (input === undefined || input === null || input === '') {
@@ -89,7 +89,7 @@ exports.upper = function (input) {
  * // => a
  *
  * @param  {*} input
- * @return {*}
+ * @return {*} An empty string for undefined or null.
  */
 exports.first = function (input) {
   if (input === undefined || input === null) {
@@ -115,7 +115,7 @@ exports.first = function (input) {
  * // => c
  *
  * @param  {*} input
- * @return {*}
+ * @return {*} An empty string for undefined or null.
  */
 exports.last = function (input) {
   if (input === undefined || input === null) {
@@ -635,7 +635,7 @@ exports.number_format = function (input, decimals, decimalPoint, thousandSep) {
  * // => jello
  *
  * @param  {string} input
- * @param  {object} from   Map of search strings to replacement strings.
+ * @param  {object} from   Map of search strings to replacement strings. A replacement that is undefined or null writes an empty string.
  * @return {string}
  */
 exports.replace = function (input, from) {

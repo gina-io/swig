@@ -1393,7 +1393,7 @@ function urlQuote(s, forQs) {
  * // => q=a+b
  *
  * @param  {*} input
- * @return {string}
+ * @return {string} An empty string for undefined or null.
  */
 exports.urlencode = function (input) {
   if (input === undefined || input === null) {
