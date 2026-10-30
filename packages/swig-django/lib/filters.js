@@ -148,19 +148,27 @@ exports.add = function (input, arg) {
   if (input === undefined || input === null || arg === undefined || arg === null) {
     return '';
   }
+  if (utils.isArray(input) && utils.isArray(arg)) {
+    return input.concat(arg);
+  }
+  // Python raises on a list or a mapping with anything else and on two mappings,
+  // and Django then gives an empty string.
+  if (typeof input === 'object' || typeof arg === 'object') {
+    return '';
+  }
+  // Python's int() reads a boolean as a number.
+  if (typeof input === 'boolean') { input = Number(input); }
+  if (typeof arg === 'boolean') { arg = Number(arg); }
   var a = parseInt(input, 10),
     b = parseInt(arg, 10);
   if (!isNaN(a) && !isNaN(b) && String(input).trim() === String(a) && String(arg).trim() === String(b)) {
     return a + b;
   }
-  if (utils.isArray(input) && utils.isArray(arg)) {
-    return input.concat(arg);
-  }
-  try {
-    return input + arg;
-  } catch (e) {
+  // Python's + raises on two different types.
+  if (typeof input !== typeof arg || (typeof input !== 'string' && typeof input !== 'number')) {
     return '';
   }
+  return input + arg;
 };
 
 /**
