@@ -5,6 +5,10 @@ var ir = require('@rhinostone/swig-core/lib/ir'),
 var lexer = require('./lexer');
 var _t = require('./tokentypes');
 
+// A catalog entry is read as an own property: a filter can be registered under
+// the name hasOwnProperty, and a name like toString is not a filter.
+var hasOwn = Object.prototype.hasOwnProperty;
+
 /**
  * Make a string safe for embedding into a regular expression.
  * @param  {string} str
@@ -155,7 +159,9 @@ exports.missingAsEmpty = function (expr) {
  *                                `_posOut.pos` to let callers detect partial
  *                                consumption.
  * @param  {object}   [_scope]   Set by `exports.parse`: the `line` and the
- *                                `filename` an error names.
+ *                                `filename` an error names, and the instance's
+ *                                `extensions`, which make a filter name the
+ *                                catalog does not hold an error.
  * @return {object}              IRExpr tree.
  */
 exports.parseExpr = function (tokens, filters, _posOut, _scope) {
@@ -408,7 +414,7 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
       } else if (tok.type === _t.FILTEREMPTY || tok.type === _t.FILTER) {
         consume();
         fname = tok.match;
-        if (filters.hasOwnProperty(fname) && typeof filters[fname] !== 'function') {
+        if (hasOwn.call(filters, fname) ? typeof filters[fname] !== 'function' : (_scope && _scope.extensions)) {
           bail('Invalid filter "' + fname + '"');
         }
         // Django colon-filter: an optional single positional argument
@@ -593,9 +599,10 @@ exports.parse = function (swig, source, opts, tags, filters) {
   filters = filters || {};
 
   // Where parseExpr is working, so that an expression error can name its line
-  // and file. A tag gets a handle on this module whose parseExpr works in the
-  // same scope and on this parse's filter catalog.
-  var scope = { line: 0, filename: opts.filename };
+  // and file, and whether it has a catalog to check a filter name against (only
+  // an engine instance has). A tag gets a handle on this module whose parseExpr
+  // works in the same scope and on this parse's filter catalog.
+  var scope = { line: 0, filename: opts.filename, extensions: swig && swig.extensions };
   var exprParser = Object.create(exports);
   exprParser.parseExpr = function (tokens, _filters, posOut) {
     return exports.parseExpr(tokens, filters, posOut, scope);
@@ -672,7 +679,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
     var sawSafe = false;
     utils.each(lexed, function (tok) {
       if (tok.type === _t.FILTEREMPTY || tok.type === _t.FILTER) {
-        if (filters.hasOwnProperty(tok.match) && filters[tok.match].safe === true) {
+        if (hasOwn.call(filters, tok.match) && filters[tok.match].safe === true) {
           sawSafe = true;
         }
       }
