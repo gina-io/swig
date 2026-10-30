@@ -1159,10 +1159,11 @@ exports.install = function (self, frontend) {
       // not a dispatch signal (the built-in fs + memory loaders are
       // dual-mode with length 2 and must keep the sync-cb path).
       if (self.options.loader && self.options.loader.async === true) {
+        // Two arguments, not a trailing catch: an exception the callback throws
+        // must not come back to the callback.
         self.getTemplate(pathName)
           .then(function (fn) { return fn(locals); })
-          .then(function (result) { cb(null, result.output); })
-          .catch(cb);
+          .then(function (result) { cb(null, result.output); }, function (err) { cb(err); });
         return;
       }
 
