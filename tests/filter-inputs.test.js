@@ -84,6 +84,17 @@ describe('Filter inputs that are undefined or null', function () {
       expect(filters.addslashes(true)).to.equal('true');
     });
 
+    it('replace still fails on an array or an object without a replace method', function () {
+      expect(function () { filters.replace(['a'], 'a', 'b'); }).to.throwError(/input\.replace is not a function/);
+      expect(function () { filters.replace({ k: 'a' }, 'a', 'b'); }).to.throwError(/input\.replace is not a function/);
+      expect(function () { swig.render('{{ a|replace("a", "b") }}', { locals: { a: ['a'] } }); }).to.throwError(/input\.replace is not a function/);
+    });
+
+    it('replace still calls the replace method of an object that has one', function () {
+      expect(filters.replace({ replace: function () { return 'own'; } }, 'a', 'b')).to.equal('own');
+      expect(filters.replace(Object('abc'), 'b', 'x')).to.equal('axc');
+    });
+
     it('replace reads a missing replacement as an empty string', function () {
       expect(filters.replace('abc', 'b', undefined)).to.equal('ac');
       expect(filters.replace('abc', 'b', null)).to.equal('ac');
