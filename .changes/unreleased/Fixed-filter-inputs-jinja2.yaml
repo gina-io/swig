@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-jinja2: a filter whose input is undefined or null no longer fails or prints undefined, null, Undefined or [object Object]. A filter after a filter or a call that found nothing renders an empty string (`{{ items|first|lower }}` over an empty list threw, and `{{ f()|upper }}` printed [object Object] for a null result). truncate, indent, center, urlencode, striptags and title read such an input as an empty string, and wordcount gives 0 (it gave 1). length and count give 0 for undefined, null and an empty string (they gave an empty string). date gives an empty string for a missing, null, empty or invalid value (it printed NaN, or 1970 for a filter or call result of null).'
+time: 2026-10-30T19:45:00.000000000+01:00
+custom:
+  Issue: ""

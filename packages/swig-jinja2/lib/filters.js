@@ -1,6 +1,7 @@
 var utils = require('@rhinostone/swig-core/lib/utils'),
   dateFormatter = require('@rhinostone/swig-core/lib/dateformatter'),
-  iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter;
+  iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter,
+  asText = require('@rhinostone/swig-core/lib/filters').asText;
 
 /**
  * Jinja2 filter catalog.
@@ -151,9 +152,13 @@ exports.e = exports.escape;
  * // => 5
  *
  * @param  {*} input
- * @return {number|string} The length, or "" when the input has none.
+ * @return {number|string} The length; 0 for undefined, null and an empty string; "" when the input has none.
  */
 exports.length = function (input) {
+  if (input === undefined || input === null || input === '') {
+    return 0;
+  }
+
   if (typeof input === 'object' && input !== null && !utils.isArray(input)) {
     return utils.keys(input).length;
   }
@@ -466,7 +471,7 @@ exports.float = function (input, def) {
  * @return {string}
  */
 exports.truncate = function (input, length, killwords, end, leeway) {
-  input = String(input);
+  input = asText(input);
   length = length || 255;
   if (end === undefined) { end = '...'; }
   if (leeway === undefined) { leeway = 5; }
@@ -890,7 +895,7 @@ exports.format = function (input) {
  * @return {number}
  */
 exports.wordcount = function (input) {
-  var m = String(input).match(/\w+/g);
+  var m = asText(input).match(/\w+/g);
   return m ? m.length : 0;
 };
 
@@ -981,7 +986,7 @@ exports.indent = function (input, width, first, blank) {
   var indent, lines, rv, head;
   if (width === undefined || width === null) { width = 4; }
   indent = (typeof width === 'number') ? new Array(width + 1).join(' ') : String(width);
-  lines = (String(input) + '\n').split('\n');
+  lines = (asText(input) + '\n').split('\n');
   if (lines.length && lines[lines.length - 1] === '') {
     lines.pop();
   }
@@ -1017,7 +1022,7 @@ exports.indent = function (input, width, first, blank) {
  */
 exports.center = function (input, width) {
   var marg, left, right;
-  input = String(input);
+  input = asText(input);
   if (width === undefined || width === null) { width = 80; }
   marg = width - input.length;
   if (marg <= 0) {
@@ -1391,6 +1396,9 @@ function urlQuote(s, forQs) {
  * @return {string}
  */
 exports.urlencode = function (input) {
+  if (input === undefined || input === null) {
+    return '';
+  }
   if (typeof input === 'string') {
     return urlQuote(input, false);
   }
@@ -1447,7 +1455,7 @@ exports.random = function (input) {
  * @param  {string} format
  * @param  {number} [offset]  Timezone offset in minutes from GMT.
  * @param  {string} [abbr]    Output timezone abbreviation.
- * @return {string}
+ * @return {string}           Formatted date string, or an empty string when the input is undefined, null or no date.
  */
 exports.date = function (input, format, offset, abbr) {
   var l = format.length,
@@ -1455,6 +1463,10 @@ exports.date = function (input, format, offset, abbr) {
     cur,
     i = 0,
     out = '';
+
+  if (input === null || isNaN(date.dateZ.getTime())) {
+    return '';
+  }
 
   if (offset) {
     date.setTimezoneOffset(offset, abbr);
