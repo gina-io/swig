@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-django: the string filters read a None value, and a variable that fails to resolve where Django reads it as None (if, for, firstof), as the text None, as Django does. `{{ x|upper }}` with x None renders NONE (it printed [object Object]), title, capfirst, linebreaks and the other string filters print None (they printed null or Null), `{% if user.role|lower == "admin" %}` over a missing role takes the else branch (it threw), and `{% for c in x|make_list %}` over a missing x walks None (it walked undefined). escape, escapejs and safe keep the empty string of `{{ x }}`. add gives an empty string when its input or its argument is None or missing (it printed aundefined for a missing argument, or the other operand for None), date gives an empty string for a string that is no date (it printed NaN), and floatformat with an invalid argument gives an empty string for None (it printed null).'
-time: 2026-10-30T20:00:00.000000000+01:00
-custom:
-  Issue: ""

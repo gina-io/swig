@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Native swig: a filter whose input is undefined or null no longer fails or prints [object Object]. A filter after a filter or a call that found nothing renders an empty string, so `{{ items|first|lower }}` over an empty list and `{{ f()|upper }}` with an undefined or null result, which threw or printed [object Object], render nothing, in outputs and in tag arguments. first, last and replace give an empty string for such an input (they threw) and length gives 0 (it threw on undefined). date gives an empty string for a missing, null, empty or invalid value (it printed NaN, or 1970 for a filter or call result of null). replace reads a missing replacement, such as a subscript that found nothing, as an empty string (it printed undefined), and replace and addslashes take a number or a boolean (they threw); replace on an array or an object still fails. Behaviour change for a custom filter that calls `iterateFilter`: an undefined or null input now gives it an empty string back, so its own code no longer runs on undefined, and null no longer gives it an empty object.'
-time: 2026-10-30T19:10:00.000000000+01:00
-custom:
-  Issue: ""

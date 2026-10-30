@@ -27,6 +27,15 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Completed
 
+### v2.9.13 (October 2026)
+
+- A filter whose input is `undefined` or `null` no longer fails or prints `[object Object]`, in all four flavors: a filter after a filter or a call that found nothing renders an empty string; swig-django's string filters read None as the text None, as Django does; swig-twig `date` gives the current date for a missing value, as Twig does.
+- A filter or call result that is `undefined` or `null` reads as an empty string at an arithmetic, `~` or unary operand, as a variable holding one does.
+- The async render path keeps compiled templates in the instance's cache: a template, an included partial and an extends parent are loaded and compiled once, and an edited template needs `invalidateCache()`, as on the sync path.
+- `renderFile` on the async render path calls its callback once when the callback throws.
+- swig-django `add` gives an empty string for operands Python cannot add, as Django does.
+- All five packages released in lockstep at `2.9.13`.
+
 ### v2.9.12 (October 2026)
 
 - Blocks nested in blocks follow one chain of definitions per block name, on the sync and async render paths, in all four flavors: native `{% parent %}` in a nested block, or in a block nested in an override, renders the next definition of its name, a block rendered through `{% parent %}` keeps the overrides of the blocks nested in it, and a block nested in any block of an extending template is a definition of its name.

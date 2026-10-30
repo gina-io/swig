@@ -1,5 +1,0 @@
-kind: fixed
-body: 'renderFile on the async render path no longer calls its callback a second time when the callback throws, with the exception as the error. The exception now surfaces as an unhandled rejection.'
-time: 2026-10-30T20:40:00.000000000+01:00
-custom:
-  Issue: ""

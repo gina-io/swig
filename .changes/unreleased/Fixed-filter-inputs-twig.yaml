@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-twig: a filter whose input is undefined or null no longer fails or prints [object Object]. A filter after a filter or a call that found nothing renders an empty string (`{{ items|first|lower }}` over an empty list threw), and first and last give an empty string for such an input (they threw). length gives 0 for undefined, null and an empty string (it gave an empty string for undefined and an empty string). date follows Twig: a missing value, null, an empty string and "now" give the current date (they printed NaN, or 1970 for a filter or call result of null), and a string that is no date gives an empty string (it printed NaN). replace writes a replacement that is undefined or null as an empty string (it printed undefined or null).'
-time: 2026-10-30T19:30:00.000000000+01:00
-custom:
-  Issue: ""

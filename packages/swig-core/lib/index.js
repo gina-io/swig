@@ -15,7 +15,7 @@
  *
  * @type {String}
  */
-exports.version = "2.9.12";
+exports.version = "2.9.13";
 
 exports.utils = require('./utils');
 exports.security = require('./security');
