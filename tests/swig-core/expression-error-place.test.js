@@ -176,4 +176,41 @@ describe('flavor expression errors name their line and file', function () {
       inst.compile('x\n{{ a|nosuch }}', { filename: 'page.tpl' });
     }).to.throwError(regex('Invalid filter "nosuch" on line 2 in file page.tpl.'));
   });
+
+  describe('the line after whitespace control strips line breaks', function () {
+    var rows = [
+      ['after -%}', 'a\n{% if 1 -%}\n{% endif %}\n{{ x|nosuch }}', 4],
+      ['after -}}', 'a\n{{ 1 -}}\n{{ x|nosuch }}', 3],
+      ['after -%} and three blank lines', 'a\n{% if 1 -%}\n\n\n{% endif %}\n{{ x|nosuch }}', 6],
+      ['after two of them', 'a\n{% if 1 -%}\n{%- endif -%}\n{{ x|nosuch }}', 4],
+      ['before {%-, which needs no correction', 'a\n{% if 1 %}\n{%- endif %}\n{{ x|nosuch }}', 4],
+      ['in a tag', 'a\n{% if 1 -%}\n{% endif %}\n{% if x|nosuch %}{% endif %}', 4]
+    ];
+
+    ['twig', 'jinja2'].forEach(function (flavor) {
+      rows.forEach(function (row) {
+        it(flavor + ': ' + row[0], function () {
+          var msg = message(flavor, row[1]);
+          // swig-jinja2 lets the if tag's own condition compile, as Jinja2 does.
+          if (msg === 'no error') {
+            msg = (function () {
+              try {
+                new flavors[flavor].Ctor({ cache: false }).render(row[1], { filename: 'page.tpl', locals: { x: 1 } });
+              } catch (e) {
+                return e.message;
+              }
+              return 'no error';
+            }());
+          }
+          expect(msg).to.equal('Invalid filter "nosuch" on line ' + row[2] + ' in file page.tpl.');
+        });
+      });
+
+      it(flavor + ': the text after the marker is still stripped', function () {
+        var inst = new flavors[flavor].Ctor({ cache: false });
+        expect(inst.render('[{% if 1 -%}\n\n x{% endif %}]')).to.equal('[x]');
+        expect(inst.render('[{{ 1 -}}\n x]')).to.equal('[1x]');
+      });
+    });
+  });
 });

@@ -983,11 +983,9 @@ exports.parse = function (swig, source, opts, tags, filters) {
       line += lines ? lines.length : 0;
       return;
     } else {
-      if (stripNext) {
-        chunk = chunk.replace(/^\s*/, '');
-        stripNext = false;
-      }
-      token = ir.text(chunk);
+      // Strip the token only: the line count below reads the whole chunk.
+      token = ir.text(stripNext ? chunk.replace(/^\s*/, '') : chunk);
+      stripNext = false;
     }
 
     // `{{-` / `{%-` strips the previous text chunk's trailing whitespace.
