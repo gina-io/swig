@@ -1,5 +1,5 @@
 kind: fixed
-body: 'swig-django: add gives an empty string for operands Python cannot add, as Django does: a string and a number, a list or a mapping with anything but a list, and two mappings. `{{ "a"|add:1 }}` printed a1, `{{ 1|add:"a" }}` 1a, `{{ x|add:1 }}` over a missing x 1, and two mappings [object Object][object Object]. Behaviour change for a template that used add to join a string and a number. Numbers, numeric strings, two strings and two lists add as before.'
+body: 'swig-django: add gives an empty string for operands Python cannot add, as Django does: a string and a number, a list or a mapping with anything but a list, and two mappings. `{{ "a"|add:1 }}` printed a1, `{{ 1|add:"a" }}` 1a, `{{ x|add:1 }}` over a missing x 1, and two mappings [object Object][object Object]. Behaviour change for a template that used add to join a string and a number. Numbers, numeric strings, two strings and two lists add as before, except that two lists of one number each now join (`{{ a|add:b }}` with [1] and [2] gave 3).'
 time: 2026-10-30T21:00:00.000000000+01:00
 custom:
   Issue: ""

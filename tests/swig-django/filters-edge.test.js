@@ -70,6 +70,12 @@ describe('@rhinostone/swig-django — filter edge inputs', function () {
       };
       expect(filters.add(operand, 1.5)).to.equal('');
     });
+    it('add joins two lists of one number each', function () {
+      expect(filters.add([1], [2])).to.eql([1, 2]);
+    });
+    it('add returns an empty string for two functions', function () {
+      expect(filters.add(function () {}, function () {})).to.equal('');
+    });
     it('divisibleby zero is false', function () {
       expect(filters.divisibleby(6, 0)).to.equal(false);
     });
