@@ -1,0 +1,5 @@
+kind: fixed
+body: 'A filter or call result that is undefined or null reads as an empty string at an arithmetic, ~ or unary operand, as a variable holding one does, in swig, swig-twig and swig-jinja2: `{{ 1 + f() }}` renders 1 and `{{ -f() }}` renders 0 with an undefined result (they printed NaN), and `{{ items|first ~ "a" }}` over an empty list and `{{ f() ~ "a" }}` render a (they printed undefineda or nulla). The change is in the compiled code, so templates precompiled by an earlier release keep the old output until they are compiled again.'
+time: 2026-10-30T20:15:00.000000000+01:00
+custom:
+  Issue: ""

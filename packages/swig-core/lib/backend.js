@@ -1243,6 +1243,15 @@ function asValue(node, js) {
 }
 
 /*!
+ * At an arithmetic, `~` or unary operand a filter or call result reads as ""
+ * too. A filter input stays on asValue, so that a filter still gets what the
+ * call or the filter before it returned (`default` reads undefined). @private
+ */
+function asOperand(node, js) {
+  return (node && (node.type === 'FilterCall' || node.type === 'FnCall')) ? '_utils.coerceOutput(' + js + ')' : asValue(node, js);
+}
+
+/*!
  * The flavor name `emitBinaryOp` writes into an `_utils.isIn` call: one of
  * the three names `isIn` knows, never the flag's own text. @private
  */
@@ -1254,8 +1263,8 @@ function emitBinaryOp(node, d) {
   var left = groupOperand(node.left, emitExpr(node.left, d)),
     right = groupOperand(node.right, emitExpr(node.right, d));
   if (isArithmeticOp(node.op) || node.op === '~') {
-    left = asValue(node.left, left);
-    right = asValue(node.right, right);
+    left = asOperand(node.left, left);
+    right = asOperand(node.right, right);
   }
   if (isArithmeticOp(node.op)) {
     return left + ' ' + node.op + ' ' + right;
@@ -1291,7 +1300,7 @@ function emitBinaryOp(node, d) {
 
 function emitUnaryOp(node, d) {
   var operand = groupOperand(node.operand, emitExpr(node.operand, d), true);
-  if (node.op === '-' || node.op === '+') { operand = asValue(node.operand, operand); }
+  if (node.op === '-' || node.op === '+') { operand = asOperand(node.operand, operand); }
   return node.op + operand;
 }
 
