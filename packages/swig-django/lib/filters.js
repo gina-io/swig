@@ -2,6 +2,15 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
   dateFormatter = require('@rhinostone/swig-core/lib/dateformatter'),
   iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter;
 
+/*!
+ * Text of a filter input, as Django's stringfilter gives it: None for null, and for a
+ * variable that fails to resolve where Django reads it as None (if, for, firstof).
+ * @private
+ */
+function asText(input) {
+  return (input === undefined || input === null) ? 'None' : String(input);
+}
+
 /**
  * Django filter catalog.
  *
@@ -136,6 +145,9 @@ function urlQuote(value, safe) {
  * @return {*}
  */
 exports.add = function (input, arg) {
+  if (input === undefined || input === null || arg === undefined || arg === null) {
+    return '';
+  }
   var a = parseInt(input, 10),
     b = parseInt(arg, 10);
   if (!isNaN(a) && !isNaN(b) && String(input).trim() === String(a) && String(arg).trim() === String(b)) {
@@ -163,7 +175,7 @@ exports.add = function (input, arg) {
  * @return {string}
  */
 exports.addslashes = function (input) {
-  return String(input).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
+  return asText(input).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'");
 };
 
 /**
@@ -179,7 +191,7 @@ exports.addslashes = function (input) {
  * @return {string}
  */
 exports.capfirst = function (input) {
-  var s = String(input);
+  var s = asText(input);
   if (!s.length) {
     return s;
   }
@@ -200,7 +212,7 @@ exports.capfirst = function (input) {
  * @return {string}
  */
 exports.center = function (input, width) {
-  var s = String(input),
+  var s = asText(input),
     w = parseInt(width, 10),
     marg,
     left,
@@ -226,7 +238,7 @@ exports.center = function (input, width) {
  * @return {string}
  */
 exports.cut = function (input, arg) {
-  return String(input).split(String(arg)).join('');
+  return asText(input).split(String(arg)).join('');
 };
 
 /**
@@ -246,7 +258,7 @@ exports.cut = function (input, arg) {
  * @param  {string} [format='F j, Y']
  * @param  {number} [offset]  Timezone offset in minutes west of GMT.
  * @param  {string} [abbr]    Output timezone abbreviation.
- * @return {string}
+ * @return {string}           Formatted date string, or an empty string when the input is undefined, null or no date.
  */
 exports.date = function (input, format, offset, abbr) {
   var l,
@@ -262,6 +274,10 @@ exports.date = function (input, format, offset, abbr) {
   format = (format === undefined || format === null || format === '') ? 'F j, Y' : String(format);
   l = format.length;
   date = new dateFormatter.DateZ(input);
+
+  if (isNaN(date.dateZ.getTime())) {
+    return '';
+  }
 
   if (offset) {
     date.setTimezoneOffset(offset, abbr);
@@ -565,7 +581,7 @@ exports.floatformat = function (input, arg) {
     a = utils.trimEnd(String(arg), 'gu');
     p = parseInt(a, 10);
     if (isNaN(p)) {
-      return String(input);
+      return (input === undefined || input === null) ? '' : String(input);
     }
   }
 
@@ -595,7 +611,7 @@ exports.floatformat = function (input, arg) {
  * @return {string}
  */
 exports.force_escape = function (input) {
-  return exports.escape(String(input));
+  return exports.escape(asText(input));
 };
 exports.force_escape.safe = true;
 
@@ -644,7 +660,7 @@ exports.get_digit = function (input, arg) {
  * @return {string}
  */
 exports.iriencode = function (input) {
-  var s = String(input),
+  var s = asText(input),
     out = '',
     i,
     c,
@@ -756,7 +772,7 @@ exports.length = function (input) {
  * @return {string}
  */
 exports.linebreaks = function (input) {
-  var paras = normalizeNewlines(input).split(/\n{2,}/);
+  var paras = normalizeNewlines(asText(input)).split(/\n{2,}/);
   return utils.map(paras, function (p) {
     return '<p>' + exports.escape(p).replace(/\n/g, '<br>') + '</p>';
   }).join('\n\n');
@@ -775,7 +791,7 @@ exports.linebreaks.safe = true;
  * @return {string}
  */
 exports.linebreaksbr = function (input) {
-  return exports.escape(normalizeNewlines(input)).replace(/\n/g, '<br>');
+  return exports.escape(normalizeNewlines(asText(input))).replace(/\n/g, '<br>');
 };
 exports.linebreaksbr.safe = true;
 
@@ -792,7 +808,7 @@ exports.linebreaksbr.safe = true;
  * @return {string}
  */
 exports.linenumbers = function (input) {
-  var lines = String(input).split('\n'),
+  var lines = asText(input).split('\n'),
     width = String(lines.length).length;
   return utils.map(lines, function (line, i) {
     var n = String(i + 1);
@@ -817,7 +833,7 @@ exports.linenumbers.safe = true;
  * @return {string}
  */
 exports.ljust = function (input, width) {
-  var s = String(input),
+  var s = asText(input),
     w = parseInt(width, 10);
   if (isNaN(w) || s.length >= w) {
     return s;
@@ -837,6 +853,9 @@ exports.ljust = function (input, width) {
  * @return {*}
  */
 exports.lower = function (input) {
+  if (input === undefined || input === null) {
+    input = 'None';
+  }
   var out = iterateFilter.apply(exports.lower, arguments);
   if (out !== undefined) {
     return out;
@@ -856,7 +875,7 @@ exports.lower = function (input) {
  * @return {Array}
  */
 exports.make_list = function (input) {
-  return String(input).split('');
+  return asText(input).split('');
 };
 
 /**
@@ -876,7 +895,7 @@ exports.phone2numeric = function (input) {
     j: '5', k: '5', l: '5', m: '6', n: '6', o: '6', p: '7', q: '7', r: '7',
     s: '7', t: '8', u: '8', v: '8', w: '9', x: '9', y: '9', z: '9'
   };
-  return String(input).toLowerCase().replace(/[a-z]/g, function (c) {
+  return asText(input).toLowerCase().replace(/[a-z]/g, function (c) {
     return map[c];
   });
 };
@@ -971,7 +990,7 @@ exports.pluralize = function (input, arg) {
  * @return {string}
  */
 exports.rjust = function (input, width) {
-  var s = String(input),
+  var s = asText(input),
     w = parseInt(width, 10);
   if (isNaN(w) || s.length >= w) {
     return s;
@@ -1051,7 +1070,7 @@ exports.slice = function (input, arg) {
  * @return {string}
  */
 exports.slugify = function (input) {
-  var value = String(input);
+  var value = asText(input);
   if (value.normalize) {
     value = value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
   }
@@ -1077,7 +1096,7 @@ exports.striptags = function (input) {
   // after them (about 5 s for 100 000 characters); stripTags gives the same
   // output in linear time.
   // return String(input).replace(/(<([^>]+)>)/ig, '');
-  return utils.stripTags(String(input));
+  return utils.stripTags(asText(input));
 };
 
 /**
@@ -1111,7 +1130,7 @@ exports.time = function (input, format, offset, abbr) {
  * @return {string}
  */
 exports.title = function (input) {
-  return String(input).replace(/\w\S*/g, function (str) {
+  return asText(input).replace(/\w\S*/g, function (str) {
     return str.charAt(0).toUpperCase() + str.substr(1).toLowerCase();
   });
 };
@@ -1151,7 +1170,7 @@ function pyInt(arg) {
  * @return {string}
  */
 exports.truncatechars = function (input, arg) {
-  var s = String(input),
+  var s = asText(input),
     n = pyInt(arg);
   if (isNaN(n)) {
     return s;
@@ -1183,7 +1202,7 @@ exports.truncatewords = function (input, arg) {
   var n = pyInt(arg),
     words;
   if (isNaN(n)) {
-    return String(input);
+    return asText(input);
   }
   if (n <= 0) {
     return '';
@@ -1191,7 +1210,7 @@ exports.truncatewords = function (input, arg) {
   // A trailing \s+$ takes quadratic time on a long run of whitespace inside
   // the value; utils.strip gives the same output in linear time.
   // words = String(input).replace(/^\s+|\s+$/g, '').split(/\s+/);
-  words = utils.strip(String(input)).split(/\s+/);
+  words = utils.strip(asText(input)).split(/\s+/);
   if (words.length === 1 && words[0] === '') {
     return '';
   }
@@ -1213,6 +1232,9 @@ exports.truncatewords = function (input, arg) {
  * @return {*}
  */
 exports.upper = function (input) {
+  if (input === undefined || input === null) {
+    input = 'None';
+  }
   var out = iterateFilter.apply(exports.upper, arguments);
   if (out !== undefined) {
     return out;
@@ -1235,7 +1257,7 @@ exports.upper = function (input) {
  */
 exports.urlencode = function (input, safe) {
   var safeChars = (safe === undefined || safe === null) ? '/' : String(safe);
-  return urlQuote(input, safeChars);
+  return urlQuote(asText(input), safeChars);
 };
 
 /**
@@ -1250,7 +1272,7 @@ exports.urlencode = function (input, safe) {
  * @return {number}
  */
 exports.wordcount = function (input) {
-  var m = String(input).match(/\S+/g);
+  var m = asText(input).match(/\S+/g);
   return m ? m.length : 0;
 };
 
@@ -1274,9 +1296,9 @@ exports.wordwrap = function (input, width) {
     i,
     word;
   if (isNaN(w) || w <= 0) {
-    return String(input);
+    return asText(input);
   }
-  words = String(input).split(/(\s+)/);
+  words = asText(input).split(/(\s+)/);
   lines = [];
   cur = '';
   for (i = 0; i < words.length; i += 1) {
