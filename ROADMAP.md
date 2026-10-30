@@ -13,7 +13,6 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | Planned | swig-jinja2 parity: the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
 | Planned | Unknown filter and test names rejected when a Twig, Jinja2 or Django template compiles; today the error comes only at render, or never when the branch does not run. Native swig already rejects an unknown filter. |
 | Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
-| Planned | Native swig: `{% parent %}` in nested blocks renders as Jinja2's `super()` does; today, on the sync render path, an override of a nested block that calls `{% parent %}` drops the parent's part and an outer block rendered through `{% parent %}` ignores the child's override of the inner block, and on both paths a block that calls `{% parent %}` inside an overriding block renders without the parent's content. |
 
 ## Future (post-2.0)
 
@@ -27,6 +26,13 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.9.12 (October 2026)
+
+- Blocks nested in blocks follow one chain of definitions per block name, on the sync and async render paths, in all four flavors: native `{% parent %}` in a nested block, or in a block nested in an override, renders the next definition of its name, a block rendered through `{% parent %}` keeps the overrides of the blocks nested in it, and a block nested in any block of an extending template is a definition of its name.
+- A block that renders itself through a nested block or `{% parent %}` fails with an error naming the block.
+- The 2.9.11 notes corrected: the filter binding change also holds in `{% set %}`, `{% elseif %}` and `{% for %}` arguments.
+- All five packages released in lockstep at `2.9.12`.
 
 ### v2.9.11 (October 2026)
 

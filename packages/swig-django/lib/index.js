@@ -32,7 +32,7 @@ exports.name = 'django';
  *
  * @type {String}
  */
-exports.version = "2.9.11";
+exports.version = "2.9.12";
 
 /**
  * Expression-level parser — Pratt-style recursive descent that consumes
