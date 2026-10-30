@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-twig, swig-jinja2 and swig-django: an expression error names its line and file, as native swig and the tag errors of those flavors do. `{{ ) }}` threw `Unexpected token ")".` and now throws `Unexpected token ")" on line 1 in file page.html.`, in outputs and in tag arguments, and so do the prototype-chain guard errors and the error for a character the lexer rejects (`{{ " }}`).'
+time: 2026-10-30T21:50:00.000000+00:00
+custom:
+  Issue: ""

@@ -154,9 +154,11 @@ exports.missingAsEmpty = function (expr) {
  * @param  {object}   [_posOut]  Optional out-param; final cursor stored on
  *                                `_posOut.pos` to let callers detect partial
  *                                consumption.
+ * @param  {object}   [_scope]   Set by `exports.parse`: the `line` and the
+ *                                `filename` an error names.
  * @return {object}              IRExpr tree.
  */
-exports.parseExpr = function (tokens, filters, _posOut) {
+exports.parseExpr = function (tokens, filters, _posOut, _scope) {
   var pos = 0;
   filters = filters || {};
 
@@ -173,7 +175,7 @@ exports.parseExpr = function (tokens, filters, _posOut) {
     return t;
   }
   function bail(msg) {
-    utils.throwError(msg);
+    utils.throwError(msg, _scope && _scope.line, _scope && _scope.filename);
   }
 
   function guardSegment(segment) {
@@ -590,6 +592,24 @@ exports.parse = function (swig, source, opts, tags, filters) {
   tags = tags || {};
   filters = filters || {};
 
+  // Where parseExpr is working, so that an expression error can name its line
+  // and file. A tag gets a handle on this module whose parseExpr works in the
+  // same scope and on this parse's filter catalog.
+  var scope = { line: 0, filename: opts.filename };
+  var exprParser = Object.create(exports);
+  exprParser.parseExpr = function (tokens, _filters, posOut) {
+    return exports.parseExpr(tokens, filters, posOut, scope);
+  };
+
+  // The lexer does not know where it is working, so the place of its error is
+  // named here. An error from a nested parse has its place already.
+  function throwPlaced(err) {
+    if (err.unplaced) {
+      utils.throwError(err.message.slice(0, -1), scope.line, scope.filename);
+    }
+    throw err;
+  }
+
   var varControls = opts.varControls || ['{{', '}}'];
   var tagControls = opts.tagControls || ['{%', '%}'];
   var cmtControls = opts.cmtControls || ['{#', '#}'];
@@ -642,7 +662,13 @@ exports.parse = function (swig, source, opts, tags, filters) {
    * @private
    */
   function parseVariable(str, _line) {
-    var lexed = lexer.read(utils.strip(str));
+    scope.line = _line;
+    var lexed;
+    try {
+      lexed = lexer.read(utils.strip(str));
+    } catch (e) {
+      throwPlaced(e);
+    }
     var sawSafe = false;
     utils.each(lexed, function (tok) {
       if (tok.type === _t.FILTEREMPTY || tok.type === _t.FILTER) {
@@ -651,7 +677,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
         }
       }
     });
-    var expr = exports.missingAsEmpty(exports.parseExpr(lexed, filters));
+    var expr = exports.missingAsEmpty(exports.parseExpr(lexed, filters, undefined, scope));
     var tail;
     var esc = escapeStack[escapeStack.length - 1];
     if (esc && !sawSafe) {
@@ -734,7 +760,13 @@ exports.parse = function (swig, source, opts, tags, filters) {
       escape: escapeStack[escapeStack.length - 1]
     };
 
-    var ok = tag.parse(tagArgs, _line, exports, _t, stack, opts, swig, token);
+    scope.line = _line;
+    var ok;
+    try {
+      ok = tag.parse(tagArgs, _line, exprParser, _t, stack, opts, swig, token);
+    } catch (e) {
+      throwPlaced(e);
+    }
     if (!ok) {
       utils.throwError('Unexpected tag "' + tagName + '"', _line, opts.filename);
     }

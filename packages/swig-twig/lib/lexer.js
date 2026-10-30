@@ -260,11 +260,10 @@ exports.types = TYPES;
 /**
  * Match the next token at the start of `str`.
  *
- * Throws via utils.throwError when no rule matches — including every
- * Twig-only operator until its rules land. The throw is
- * opaque (no line / file info); the Twig frontend's onCompileError
- * callback attaches filename + line per the swig-core / frontend seam
- * rule.
+ * Throws when no rule matches — including every Twig-only operator until
+ * its rules land. This module does not know the line or the file, so the
+ * error is flagged `unplaced` and the Twig frontend's `exports.parse` names
+ * them.
  *
  * @param  {string}     str Input slice starting at the unconsumed offset.
  * @return {LexerToken}     Matched token.
@@ -296,7 +295,9 @@ function reader(str) {
   });
 
   if (!matched) {
-    utils.throwError('Unexpected token "' + str.charAt(0) + '" in Twig expression');
+    var err = new Error('Unexpected token "' + str.charAt(0) + '" in Twig expression.');
+    err.unplaced = true;
+    throw err;
   }
 
   return matched;
