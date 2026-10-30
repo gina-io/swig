@@ -666,21 +666,25 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       expect(body).to.not.contain('await');
     });
 
-    it('IRBlock async emit wraps inline body in _blocks check', function () {
+    it('IRBlock async emit renders through callBlock and hoists the body to a block function', function () {
       var blockNode = ir.block('content', [ir.text('default body')]);
-      var body = backend.compile({ tokens: [blockNode] }, [], { codegenMode: 'async' });
+      var opts = { codegenMode: 'async' };
+      var body = backend.compile({ tokens: [blockNode] }, [], opts);
 
-      expect(body).to.contain('_output += await _utils.callBlock(_blocks, "content", _ctx, async function (_ctx, _parentBlock) {');
-      expect(body).to.contain('  var _output = "";');
-      expect(body).to.contain('_output += "default body"');
-      expect(body).to.contain('  return _output;\n});');
+      expect(body).to.contain('_output += await _utils.callBlock(_blocks, "content", _ctx);');
+      expect(opts.blockHoist.js).to.contain('_ownBlocks["content"] = async function (_ctx, _parentBlock, _blocks) {');
+      expect(opts.blockHoist.js).to.contain('  var _output = "";');
+      expect(opts.blockHoist.js).to.contain('_output += "default body"');
+      expect(opts.blockHoist.js).to.contain('  return _output;\n};');
     });
 
     it('IRBlock async emit JSON-stringifies the block name (handles quotes / unicode)', function () {
       var blockNode = ir.block('weird "name"', [ir.text('body')]);
-      var body = backend.compile({ tokens: [blockNode] }, [], { codegenMode: 'async' });
+      var opts = { codegenMode: 'async' };
+      var body = backend.compile({ tokens: [blockNode] }, [], opts);
 
-      expect(body).to.contain('_utils.callBlock(_blocks, "weird \\"name\\"", _ctx,');
+      expect(body).to.contain('_utils.callBlock(_blocks, "weird \\"name\\"", _ctx);');
+      expect(opts.blockHoist.js).to.contain('_ownBlocks["weird \\"name\\""] = async function');
     });
 
     it('end-to-end: emits inline body when _blocks is undefined', function (done) {
@@ -814,11 +818,13 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
 
   describe('IRExtendsDeferred emit shape', function () {
 
-    it('emits _localChildBlocks declaration even when childBlocks is empty', function () {
+    it('hoists no block function when childBlocks is empty', function () {
       var node = ir.extendsDeferred(ir.literal('string', 'base.html'), {}, [], '');
-      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+      var opts = { codegenMode: 'async' };
+      var body = backend.compile({ tokens: [node] }, [], opts);
 
-      expect(body).to.contain('var _localChildBlocks = {};');
+      expect(opts.blockHoist).to.be(undefined);
+      expect(body).to.not.contain('_ownBlocks');
     });
 
     it('emits an async function for each childBlock, keyed by block name', function () {
@@ -831,13 +837,14 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
         [],
         ''
       );
-      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+      var opts = { codegenMode: 'async' };
+      backend.compile({ tokens: [node] }, [], opts);
 
-      expect(body).to.contain('_localChildBlocks["A"] = async function (_ctx, _parentBlock) {');
-      expect(body).to.contain('_localChildBlocks["B"] = async function (_ctx, _parentBlock) {');
-      expect(body).to.contain('_output += "child-A"');
-      expect(body).to.contain('_output += "child-B"');
-      expect(body).to.contain('return _output;');
+      expect(opts.blockHoist.js).to.contain('_ownBlocks["A"] = async function (_ctx, _parentBlock, _blocks) {');
+      expect(opts.blockHoist.js).to.contain('_ownBlocks["B"] = async function (_ctx, _parentBlock, _blocks) {');
+      expect(opts.blockHoist.js).to.contain('_output += "child-A"');
+      expect(opts.blockHoist.js).to.contain('_output += "child-B"');
+      expect(opts.blockHoist.js).to.contain('return _output;');
     });
 
     it('shadows _output inside each block fn with a local accumulator', function () {
@@ -847,18 +854,19 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
         [],
         ''
       );
-      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+      var opts = { codegenMode: 'async' };
+      backend.compile({ tokens: [node] }, [], opts);
 
       // The block fn body declares its own var _output = ""; so writes
       // accumulate locally and don't leak into the outer wrapper's _output.
-      expect(body).to.match(/_localChildBlocks\["A"\] = async function \(_ctx, _parentBlock\) \{\s*\n\s*var _output = "";/);
+      expect(opts.blockHoist.js).to.match(/_ownBlocks\["A"\] = async function \(_ctx, _parentBlock, _blocks\) \{\s*\n\s*var _output = "";/);
     });
 
-    it('merges _localChildBlocks with inherited _blocks (child wins)', function () {
-      var node = ir.extendsDeferred(ir.literal('string', 'base.html'), {}, [], '');
-      var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
+    it('folds the hoisted block functions with inherited _blocks (child wins)', function () {
+      var node = ir.extendsDeferred(ir.literal('string', 'base.html'), { A: ir.block('A', [ir.text('hi')]) }, [], '');
+      var fn = engine.buildTemplateFunction({ tokens: [node] }, [], { codegenMode: 'async' });
 
-      expect(body).to.contain('var _mergedBlocks = _utils.chainBlocks(_localChildBlocks, _blocks);');
+      expect(fn.toString()).to.contain('_blocks = _utils.chainBlocks(_ownBlocks, _blocks);');
     });
 
     it('awaits _swig.getTemplate then awaits _parent call with merged blocks', function () {
@@ -866,7 +874,7 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
 
       expect(body).to.contain('var _parentTpl = await _swig.getTemplate("base.html", {resolveFrom: ""});');
-      expect(body).to.contain('var _parentResult = await _parentTpl(_ctx, _mergedBlocks);');
+      expect(body).to.contain('var _parentResult = await _parentTpl(_ctx, _blocks);');
     });
 
     it('takes parent.output but discards parent.exports (sync parity)', function () {
@@ -886,7 +894,7 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       expect(body).to.contain('resolveFrom: "/abs/child.html"');
     });
 
-    it('emits childIRs preludes BEFORE the _localChildBlocks declaration', function () {
+    it('emits childIRs preludes BEFORE the parent call', function () {
       // Use a LegacyJS prelude so we can assert ordering by substring index.
       var node = ir.extendsDeferred(
         ir.literal('string', 'base.html'),
@@ -897,10 +905,10 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       var body = backend.compile({ tokens: [node] }, [], { codegenMode: 'async' });
 
       var preludeIdx = body.indexOf('PRELUDE_MARKER');
-      var localBlocksIdx = body.indexOf('var _localChildBlocks');
+      var parentCallIdx = body.indexOf('var _parentTpl');
       expect(preludeIdx).to.be.greaterThan(-1);
-      expect(localBlocksIdx).to.be.greaterThan(-1);
-      expect(preludeIdx).to.be.lessThan(localBlocksIdx);
+      expect(parentCallIdx).to.be.greaterThan(-1);
+      expect(preludeIdx).to.be.lessThan(parentCallIdx);
     });
 
     it('emits childIRs preludes via recursive backend.compile (handles real IR)', function () {

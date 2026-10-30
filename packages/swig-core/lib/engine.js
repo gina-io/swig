@@ -207,7 +207,15 @@ function buildExtendsDeferred(tokens, options) {
       }
       return;
     }
-    var result = blockToken.compile(backend.compile, args, content, [], options, undefined, blockToken);
+    // A block nested in a macro or a set of an extending template is not an
+    // override (nor on the sync path): compile such entries with hoisting off.
+    var result;
+    options.blockHoist.off = true;
+    try {
+      result = blockToken.compile(backend.compile, args, content, [], options, undefined, blockToken);
+    } finally {
+      options.blockHoist.off = false;
+    }
     if (result === undefined || result === null || result === '') { return; }
     if (typeof result === 'string') {
       childIRs.push(ir.legacyJS(result));
@@ -276,15 +284,14 @@ function copyParseTree(entry) {
  * @param  {object} [options] Per-call Swig options. `options.filename` is
  *                            required when `tokens.parent` is set.
  * @param  {object} deps      Injected frontend helpers.
- * @return {array}            Parent templates, outermost-first.
+ * @return {array}            Parent templates, nearest first.
  */
 exports.getParents = function (tokens, options, deps) {
   var parentName = tokens.parent,
     parentFiles = [],
     parents = [],
     parentFile,
-    parent,
-    l;
+    parent;
 
   while (parentName) {
     if (!options || !options.filename) {
@@ -296,15 +303,16 @@ exports.getParents = function (tokens, options, deps) {
     // Only a compile-cached entry carries the parse tree (compile extends the
     // wrapper with the token properties); a registered template function does
     // not. Falling through to parseFile keeps a registration from shadowing a
-    // loadable parent, which would otherwise remap blocks against an undefined
+    // loadable parent, which would otherwise resolve blocks against an undefined
     // token list and render an empty string with no error.
     parent = deps.cacheGet(parentFile, options);
     if (!parent || !parent.tokens) {
       parent = deps.parseFile(parentFile, utils.extend({}, options, { filename: parentFile }));
     } else {
-      // A compile-cache entry: the remap below rewrites the parse tree it
-      // walks, so it gets a copy; remapping the cached tree itself carried one
-      // child's block overrides into every child compiled after it.
+      // A compile-cache entry gets a copy: nothing done with the parse tree may
+      // reach the cache (a remap of the cached tree once carried one child's
+      // block overrides into every child compiled after it), and the copy can
+      // take the file name, which the cached function's read-only name cannot.
       parent = copyParseTree(parent);
       parent.name = parentFile;
     }
@@ -318,15 +326,227 @@ exports.getParents = function (tokens, options, deps) {
     parents.push(parent);
   }
 
-  // Remap each parent's(1) blocks onto its own parent(2), receiving the full
-  // token list for rendering the original parent(1) on its own.
-  l = parents.length;
-  for (l = parents.length - 2; l >= 0; l -= 1) {
-    parents[l].tokens = exports.remapBlocks(parents[l].blocks, parents[l + 1].tokens);
-    exports.importNonBlocks(parents[l].blocks, parents[l].tokens);
+  return parents;
+};
+
+/*!
+ * A block tag's name, as the parser keys its block map.
+ * @private
+ */
+function blockKey(token) {
+  return token.args ? token.args.join('') : '';
+}
+
+/*!
+ * Whether a token of a parse tree is a block tag.
+ * @private
+ */
+function isBlockTag(token) {
+  return !!token && token.name === 'block';
+}
+
+/*!
+ * The block tags of one template. Each template defines a block name once: by
+ * its top-level block tag of that name (the parser keeps the last one), else by
+ * the first block tag of that name nested in its top-level block tags, at any
+ * depth (in a root, anywhere in its token list). `defs` maps each name to its
+ * definition ({ token, top }), `tags` lists the tags walked, and `selfNested`
+ * holds those nested in a block of their own name.
+ * @private
+ */
+function scanBlocks(tpl, isRoot) {
+  var defs = new Map(), tags = [], selfNested = new Set(), tops = [];
+  function walk(list, inside) {
+    utils.each(list || [], function (token) {
+      var name;
+      if (!isBlockTag(token)) {
+        if (token && token.content) {
+          walk(token.content, inside);
+        }
+        return;
+      }
+      name = blockKey(token);
+      if (!defs.has(name)) {
+        defs.set(name, { token: token, top: false });
+      }
+      if (inside.indexOf(name) !== -1) {
+        selfNested.add(token);
+      }
+      tags.push(token);
+      walk(token.content, inside.concat(name));
+    });
+  }
+  utils.each(tpl.blocks || {}, function (token) {
+    if (isBlockTag(token)) {
+      defs.set(blockKey(token), { token: token, top: true });
+      tops.push(token);
+    }
+  });
+  if (isRoot) {
+    walk(tpl.tokens, []);
+  } else {
+    utils.each(tops, function (token) { walk(token.content, [blockKey(token)]); });
+  }
+  return { defs: defs, tags: tags, selfNested: selfNested };
+}
+
+/*!
+ * Mark the block tags of a freshly parsed template that are not its definition
+ * of their name, for the async render path, where a name has one function per
+ * template (see hoistBlock in the backend): the mark ends up on the IRBlock the
+ * tag compiles to.
+ * @private
+ */
+function markBlockRoles(tokens) {
+  var isRoot = !tokens.parent, scan = scanBlocks(tokens, isRoot);
+  utils.each(scan.tags, function (token) {
+    var def = scan.defs.get(blockKey(token)), compile = token.compile, role;
+    if (scan.selfNested.has(token)) {
+      role = 'inner';
+    } else if (def.token !== token) {
+      role = (def.top && !isRoot) ? 'replaced' : 'repeat';
+    } else {
+      return;
+    }
+    token.compile = function () {
+      var node = compile.apply(this, arguments);
+      if (node && node.type === 'Block') {
+        node.blockRole = role;
+      }
+      return node;
+    };
+  });
+}
+
+/**
+ * Build the token list a template renders when it extends others, on the sync
+ * render path, without changing any parse tree. `chain` holds the template and
+ * its parents, nearest first; the last entry is the root, whose token list is
+ * the skeleton of the render.
+ *
+ * Each template defines a block name once (see scanBlocks). In the skeleton, a
+ * block tag at any depth is replaced by a copy of the nearest definition of its
+ * name in a nearer template, if there is one, whose content is resolved the same
+ * way; in an extending template, a tag nested in its blocks is also replaced by
+ * its own top-level definition of the name. A tag nested in a block of its own
+ * name keeps its own content. The non-block block-level tags of every template
+ * but the root (set, import, macro) are prepended, nearest template first; the
+ * blocks they hold take only nearer definitions.
+ *
+ * A copy carries the farther definitions of its name as `parentChain`, in the
+ * shape of `parents` entries ({ name, blocks: { <name>: copy } }), nearest
+ * first, and its compile passes them as `parents` to the block tag, so that a
+ * {% parent %} inside renders the next definition, and the blocks nested in
+ * that definition take their own nearest nearer definitions in turn. Where this
+ * leads a block back to itself the compile stops with a throw at that point, so
+ * a render fails only if it gets there.
+ *
+ * @param  {array} chain  Parse trees: the extending template first, its root last.
+ * @return {array}        The resolved token list.
+ */
+exports.resolveBlocks = function (chain) {
+  var last = chain.length - 1,
+    defs = new Map(),
+    selfNested = new Set(),
+    copies = new Map(),
+    compiling = new Set(),
+    out = [],
+    level;
+
+  utils.each(chain, function (tpl, lvl) {
+    var scan = scanBlocks(tpl, lvl === last);
+    scan.defs.forEach(function (def, name) {
+      if (!defs.has(name)) {
+        defs.set(name, []);
+      }
+      // The templates are read nearest first, so the levels come in increasing order.
+      defs.get(name).push({ level: lvl, token: def.token, top: def.top });
+    });
+    scan.selfNested.forEach(function (token) { selfNested.add(token); });
+  });
+
+  function nearest(name, lvl, prelude) {
+    var list = defs.get(name) || [], i;
+    for (i = 0; i < list.length; i += 1) {
+      if (list[i].level < lvl || (list[i].level === lvl && list[i].top && lvl < last && !prelude)) {
+        return list[i];
+      }
+    }
+    return null;
+  }
+  function farther(name, lvl) {
+    var list = defs.get(name) || [], rest = [], i;
+    for (i = 0; i < list.length; i += 1) {
+      if (list[i].level > lvl) {
+        rest.push(list[i]);
+      }
+    }
+    return rest;
+  }
+  function copyBlock(token, lvl, prelude) {
+    var copy = copies.get(token), name;
+    if (copy) {
+      return copy;
+    }
+    name = blockKey(token);
+    copy = utils.extend({}, token);
+    copies.set(token, copy);
+    copy.content = resolve(token.content || [], lvl, prelude);
+    copy.parentChain = utils.map(farther(name, lvl), function (d) {
+      var entry = { name: chain[d.level].name, blocks: {} };
+      entry.blocks[name] = copyBlock(d.token, d.level);
+      return entry;
+    });
+    copy.compile = function (compiler, args, content, parents, options, blockName, tok) {
+      if (compiling.has(copy)) {
+        return ir.block(name, [ir.legacyJS('throw new Error(' + JSON.stringify('Block "' + name + '" renders itself through a nested block or {% parent %}.') + ');\n')]);
+      }
+      compiling.add(copy);
+      try {
+        return token.compile(compiler, args, content, copy.parentChain, options, blockName, tok);
+      } finally {
+        compiling.delete(copy);
+      }
+    };
+    return copy;
+  }
+  // A token whose content holds no block is kept as it is; a list where no
+  // token changed is kept too.
+  function resolve(list, lvl, prelude) {
+    var changed = false,
+      out = utils.map(list, function (token) {
+        var d, copy, content;
+        if (!token || typeof token !== 'object') {
+          return token;
+        }
+        if (isBlockTag(token)) {
+          changed = true;
+          d = selfNested.has(token) ? null : nearest(blockKey(token), lvl, prelude);
+          return d ? copyBlock(d.token, d.level) : copyBlock(token, lvl, prelude);
+        }
+        if (token.content && token.content.length) {
+          content = resolve(token.content, lvl, prelude);
+          if (content === token.content) {
+            return token;
+          }
+          changed = true;
+          copy = utils.extend({}, token);
+          copy.content = content;
+          return copy;
+        }
+        return token;
+      });
+    return changed ? out : list;
   }
 
-  return parents;
+  for (level = 0; level < last; level += 1) {
+    utils.each(chain[level].blocks || {}, function (token) {
+      if (!isBlockTag(token)) {
+        out.push(resolve([token], level, true)[0]);
+      }
+    });
+  }
+  return out.concat(resolve(chain[last].tokens, last));
 };
 
 /**
@@ -366,10 +586,20 @@ exports.getParents = function (tokens, options, deps) {
  */
 exports.buildTemplateFunction = function (tokens, parents, options) {
   if (options && options.codegenMode === 'async') {
-    var asyncBody = '  var _ext = _swig.extensions,\n' +
+    var opts = utils.extend({}, options),
+      compiled = backend.compile(tokens, parents, opts),
+      hoist = opts.blockHoist || {},
+      asyncBody = '  var _ext = _swig.extensions,\n' +
       '    _output = "",\n' +
-      '    _exports = {};\n' +
-      backend.compile(tokens, parents, options) + '\n' +
+      '    _exports = {}' +
+      // The definitions from nearer templates, for a block tag that repeats a
+      // name (see hoistBlock in the backend).
+      (hoist.nearer ? ',\n    _nearer = _blocks' : '') +
+      // A template with blocks: their functions, then every definition of a
+      // name, this template's and the extending templates', folded into one
+      // chain per name (nested blocks included).
+      (hoist.js ? ',\n    _ownBlocks = Object.create(null);\n' + hoist.js + '  _blocks = _utils.chainBlocks(_ownBlocks, _blocks);\n' : ';\n') +
+      compiled + '\n' +
       '  return { output: _output, exports: _exports };\n';
     return new AsyncFunction('_swig', '_ctx', '_filters', '_utils', '_fn', '_blocks', asyncBody);
   }
@@ -681,6 +911,12 @@ exports.install = function (self, frontend) {
       parents,
       tpl;
 
+    if (options && options.codegenMode === 'async') {
+      // The block functions the backend hoists while compiling this template
+      // (backend hoistBlock); written at the top of the body below.
+      options = utils.extend({}, options, { blockHoist: { js: '', nearer: false, off: false } });
+      markBlockRoles(tokens);
+    }
     if (options && options.codegenMode === 'async' && tokens.parent) {
       // Async extends — defer parent walking and block remapping to
       // runtime via the IRExtendsDeferred emit branch in backend.js.
@@ -701,8 +937,7 @@ exports.install = function (self, frontend) {
       }
       parents = getParentsInternal(tokens, options);
       if (parents.length) {
-        tokens.tokens = exports.remapBlocks(tokens.blocks, parents[0].tokens);
-        exports.importNonBlocks(tokens.blocks, tokens.tokens);
+        tokens.tokens = exports.resolveBlocks([tokens].concat(parents));
       }
     }
 
@@ -762,7 +997,7 @@ exports.install = function (self, frontend) {
       }
       // `blocks` is the optional async-mode block-override map supplied
       // by an extending child template's IRExtendsDeferred-emitted
-      // `_parent(_ctx, _mergedBlocks)` call. Sync templates ignore the
+      // `_parent(_ctx, _blocks)` call. Sync templates ignore the
       // extra positional arg (regular Function discards unread args);
       // async wrapper picks it up as `_blocks` and consults it from
       // IRBlock emits.

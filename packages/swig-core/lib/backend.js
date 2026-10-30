@@ -44,6 +44,47 @@ function holdsAwait(js, options) {
   return !!(options && options.codegenMode === 'async' && /\bawait\b/.test(js));
 }
 
+/*!
+ * On the async render path every block of a template, whatever its depth, is
+ * an async function of the template body, `_ownBlocks[name]`, so that
+ * `_utils.chainBlocks` folds every definition of a name into one chain, nested
+ * blocks included. The function goes to `options.blockHoist`, which the engine
+ * writes at the top of the body; the block renders through `_utils.callBlock`
+ * with the folded chain the template was given.
+ *
+ * A tag that is not its template's definition of the name (the engine marks
+ * it): `replaced` renders that definition, as a tag of the same name does on
+ * the sync path of an extending template; `repeat` keeps a function of its own
+ * place and renders it unless a nearer template defines the name; `inner`
+ * (nested in a block of its own name) always renders its own. So does a block
+ * while hoisting is off (the engine compiles a macro or a set of an extending
+ * template, whose blocks are no overrides, nor on the sync path).
+ * @private
+ */
+function hoistBlock(node, options) {
+  var hoist = options.blockHoist || (options.blockHoist = { js: '', nearer: false, off: false }),
+    nameJS = JSON.stringify(node.name),
+    role = node.blockRole,
+    fnJS = 'async function (_ctx, _parentBlock, _blocks) {\n  var _output = "";\n',
+    chainJS = '_output += await _utils.callBlock(_blocks, ' + nameJS + ', _ctx);\n';
+  utils.each(node.body, function (b) {
+    if (b.type === 'LegacyJS') { fnJS += b.js; return; }
+    if (b.type === 'Text' || b.type === 'Raw') {
+      fnJS += '_output += "' + escapeTextValue(b.value) + '";\n';
+    }
+  });
+  fnJS += '  return _output;\n}';
+  if (role === 'replaced') {
+    return chainJS;
+  }
+  if (role || hoist.off) {
+    hoist.nearer = hoist.nearer || role !== 'inner';
+    return '_output += await _utils.callOwnBlock(_blocks, ' + (role === 'inner' ? 'undefined' : '_nearer') + ', ' + nameJS + ', _ctx, ' + fnJS + ');\n';
+  }
+  hoist.js += '_ownBlocks[' + nameJS + '] = ' + fnJS + ';\n';
+  return chainJS;
+}
+
 /**
  * Wrap statements in a function expression that is called at once. In async
  * codegen mode, when the statements hold an `await`, the function is async and
@@ -85,7 +126,7 @@ var NOT_CLOSURE = ('break case catch class const continue debugger default delet
   'Date RegExp Error EvalError RangeError ReferenceError SyntaxError TypeError URIError Promise Proxy Reflect ' +
   'Map Set WeakMap WeakSet ArrayBuffer DataView parseInt parseFloat isNaN isFinite encodeURI encodeURIComponent ' +
   'decodeURI decodeURIComponent escape unescape console require module exports process Buffer window self ' +
-  'document _swig _ctx _filters _utils _fn _ext _output _exports _blocks _parentBlock _scope _imp').split(' ');
+  'document _swig _ctx _filters _utils _fn _ext _output _exports _blocks _parentBlock _ownBlocks _nearer _scope _imp').split(' ');
 
 /*!
  * Whether a name a sync import binds can be a closure variable of its scope
@@ -649,35 +690,22 @@ exports.compile = function (template, parents, options, blockName) {
       return;
     }
     if (node.type === 'Block') {
-      // Block tokens are resolved at parse time by the engine's
-      // remapBlocks / importNonBlocks — by the time the backend walks a
-      // block, its body carries whichever generation's content is active.
-      // Emit the body verbatim; the block name is carried as metadata for
-      // downstream tooling (parent-chain walks happen in the parent tag).
+      // Block tokens are resolved before the compile by the engine's
+      // resolveBlocks: by the time the backend walks a block, its body is the
+      // nearest definition of its name. Emit the body verbatim; the block name
+      // is carried as metadata for downstream tooling (parent-chain walks
+      // happen in the parent tag).
       //
-      // Async mode: block remapping happens at runtime instead of parse
-      // time. The block's body becomes an async function (_ctx, _parentBlock)
-      // that returns its own output, and _utils.callBlock renders the block:
-      // through the override an extending child passed in _blocks (its
-      // IRExtendsDeferred emit calls `_parentTpl(_ctx, _mergedBlocks)`), with
-      // this function as the override's parent block, or through this
-      // function when there is none (matches sync behavior). A {% parent %}
-      // in the body renders _parentBlock. The override closes over its own
-      // template's _swig / _filters / _utils / _ext, returns its own string,
-      // and the `_output += await ...` here appends it.
+      // Async mode: definitions are chained at runtime instead. The block's
+      // body becomes an async function (_ctx, _parentBlock, _blocks) that
+      // returns its own output (see hoistBlock), and the body folds this
+      // template's functions with the ones an extending template passed in
+      // _blocks; each definition's parent block is the next one down the
+      // chain. A {% parent %} in the body renders _parentBlock. A function
+      // closes over its own template's _swig / _filters / _utils / _ext,
+      // returns its own string, and the `_output += await ...` here appends it.
       if (options && options.codegenMode === 'async') {
-        var blockNameJS = JSON.stringify(node.name);
-        out += '_output += await _utils.callBlock(_blocks, ' + blockNameJS + ', _ctx, async function (_ctx, _parentBlock) {\n';
-        out += '  var _output = "";\n';
-        utils.each(node.body, function (b) {
-          if (b.type === 'LegacyJS') { out += b.js; return; }
-          if (b.type === 'Text' || b.type === 'Raw') {
-            out += '_output += "' + escapeTextValue(b.value) + '";\n';
-            return;
-          }
-        });
-        out += '  return _output;\n';
-        out += '});\n';
+        out += hoistBlock(node, options);
         return;
       }
       utils.each(node.body, function (b) {
@@ -830,24 +858,19 @@ exports.compile = function (template, parents, options, blockName) {
       //   1. childIRs preludes (set / import / macros) emit via recursive
       //      backend.compile so they populate _ctx and _exports with the
       //      child's own bindings before the parent runs.
-      //   2. Build _localChildBlocks — each block in node.childBlocks
-      //      becomes an `async function (_ctx, _parentBlock) ->
-      //      Promise<string>` that shadows _output to a local accumulator
-      //      and returns it; a {% parent %} in it renders _parentBlock. The
-      //      block body uses the same shallow Text/Raw/LegacyJS walker as
-      //      the IRBlock branch above.
-      //   3. Merge: _mergedBlocks = _utils.chainBlocks(_localChildBlocks,
-      //      _blocks). An inherited override from a deeper child wins per
-      //      name (matches sync's remapBlocks) and gets this template's
-      //      version as its parent block. Multi-level chain (child →
-      //      middle → grandparent) propagates correctly: middle merges
-      //      its own block bodies with the inherited child overrides,
-      //      and grandparent sees the merged map.
+      //   2. Hoist each block in node.childBlocks (see hoistBlock): it
+      //      becomes an `async function (_ctx, _parentBlock, _blocks) ->
+      //      Promise<string>` in _ownBlocks, as the blocks nested in it
+      //      already are, written at the top of the body.
+      //   3. The body folds _blocks = _utils.chainBlocks(_ownBlocks, _blocks).
+      //      An inherited override from a deeper child wins per name and gets
+      //      this template's version as its parent block. Multi-level chain
+      //      (child → middle → grandparent) propagates correctly: middle folds
+      //      its own blocks with the inherited child overrides, and grandparent
+      //      sees the folded map.
       //   4. Resolve parent via _swig.getTemplate (Promise<TemplateFn>),
-      //      then await _parent(_ctx, _mergedBlocks). Parent's body's
-      //      IRBlock branch renders each block through _utils.callBlock:
-      //      the override where present, with the parent's own version as
-      //      its parent block, and the parent's own version otherwise.
+      //      then await _parent(_ctx, _blocks). Parent's body folds its own
+      //      blocks in turn and renders each one through _utils.callBlock.
       //   5. _output = _parentResult.output. Parent's _exports is
       //      DISCARDED — _exports stays as the child's own preludes-
       //      populated map. Matches sync where {% import "child" %}
@@ -856,25 +879,9 @@ exports.compile = function (template, parents, options, blockName) {
       if (node.childIRs && node.childIRs.length) {
         out += exports.compile(node.childIRs, parents, options);
       }
-      out += 'var _localChildBlocks = {};\n';
       if (node.childBlocks) {
-        utils.each(node.childBlocks, function (block, name) {
-          var blockBodyJS = '';
-          utils.each(block.body, function (b) {
-            if (b.type === 'LegacyJS') { blockBodyJS += b.js; return; }
-            if (b.type === 'Text' || b.type === 'Raw') {
-              blockBodyJS += '_output += "' + escapeTextValue(b.value) + '";\n';
-              return;
-            }
-          });
-          out += '_localChildBlocks[' + JSON.stringify(name) + '] = async function (_ctx, _parentBlock) {\n' +
-            '  var _output = "";\n' +
-            blockBodyJS +
-            '  return _output;\n' +
-            '};\n';
-        });
+        utils.each(node.childBlocks, function (block) { hoistBlock(block, options); });
       }
-      out += 'var _mergedBlocks = _utils.chainBlocks(_localChildBlocks, _blocks);\n';
       var extPathJS;
       if (node.path && typeof node.path === 'object' && typeof node.path.type === 'string') {
         extPathJS = exports.emitExpr(node.path);
@@ -883,7 +890,7 @@ exports.compile = function (template, parents, options, blockName) {
       }
       var extOpts = '{resolveFrom: "' + escapeTextValue(String(node.resolveFrom || '')) + '"}';
       out += 'var _parentTpl = await _swig.getTemplate(' + extPathJS + ', ' + extOpts + ');\n';
-      out += 'var _parentResult = await _parentTpl(_ctx, _mergedBlocks);\n';
+      out += 'var _parentResult = await _parentTpl(_ctx, _blocks);\n';
       out += '_output = _parentResult.output;\n';
       return;
     }

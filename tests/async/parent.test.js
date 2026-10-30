@@ -80,8 +80,8 @@ describe('async render path — {% parent %} (native)', function () {
     });
   });
 
-  // Native sync drops the parent content in these nested shapes (a separate
-  // defect of the sync path); the async path renders what Jinja2 3.1.6 renders.
+  // Nested shapes: the async path renders what Jinja2 3.1.6 renders (the sync
+  // path does too: tests/tags/nested-blocks.test.js).
   var asJinja2 = [
     ['an inner override calling parent', { '/base.html': nested, '/t.html': '{% extends "base.html" %}{% block inner %}C{% parent %}{% endblock %}' }, '<O[CI]>'],
     ['outer and inner overrides both calling parent', { '/base.html': nested, '/t.html': '{% extends "base.html" %}{% block outer %}X{% parent %}{% endblock %}{% block inner %}C{% parent %}{% endblock %}' }, '<XO[CI]>'],

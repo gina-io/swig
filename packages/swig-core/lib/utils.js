@@ -272,22 +272,88 @@ exports.extend = function () {
   return target;
 };
 
+/*!
+ * Deepest nesting of blocks one async render may reach. A block can render
+ * itself, through a nested block of an extending template whose {% parent %}
+ * leads back to it; the render may yield between two levels, so the stack need
+ * not overflow, and without a bound it runs until the process is out of memory.
+ * The bound is far above any real nesting and low enough to come before the
+ * stack limit where no level yields, so that the error names the block.
+ * The count lives on the map of block functions that one render passes down.
+ * @private
+ */
+var MAX_BLOCK_NESTING = 200,
+  BLOCK_DEPTH = Symbol('blockDepth');
+
+/*!
+ * Whether a map of block functions holds a function of that name. Own
+ * properties only: the name comes from the template.
+ * @private
+ */
+function holdsBlock(blocks, name) {
+  return !!blocks && Object.prototype.hasOwnProperty.call(blocks, name) && typeof blocks[name] === 'function';
+}
+
+/*!
+ * Call a block function, counting the nesting.
+ * @private
+ */
+function runBlock(fn, name, ctx, blocks, parentBlock) {
+  var depth, out;
+  if (!blocks) {
+    return fn(ctx, parentBlock, blocks);
+  }
+  depth = blocks[BLOCK_DEPTH] || 0;
+  if (depth >= MAX_BLOCK_NESTING) {
+    throw new Error('Block "' + name + '" is nested more than ' + MAX_BLOCK_NESTING + ' levels deep: a block probably renders itself through a nested block or {% parent %}.');
+  }
+  blocks[BLOCK_DEPTH] = depth + 1;
+  out = fn(ctx, parentBlock, blocks);
+  if (out && typeof out.then === 'function') {
+    return out.then(function (s) {
+      blocks[BLOCK_DEPTH] = depth;
+      return s;
+    }, function (e) {
+      blocks[BLOCK_DEPTH] = depth;
+      throw e;
+    });
+  }
+  blocks[BLOCK_DEPTH] = depth;
+  return out;
+}
+
 /**
- * Render a block on the async render path. When `blocks`, the overrides an
- * extending template passed down, holds a function of that name, that
- * function renders the block with `own`, this template's version, as its
- * parent block (the one {% parent %} renders); otherwise `own` renders it.
- * @param  {object}   blocks Overrides by block name, or undefined.
+ * Render a block on the async render path: the function of that name in
+ * `blocks`, the chain of its definitions that the template folded, which it
+ * passes down to the blocks nested in it. Without one, `own`, or nothing. Only
+ * a body compiled by an earlier release passes `own`: its version of the block,
+ * which is also the parent block of the function in `blocks`.
+ * @param  {object}   blocks Block functions by name, or undefined.
  * @param  {string}   name   Block name.
  * @param  {object}   ctx    Render context.
- * @param  {Function} own    async function (ctx, parentBlock) rendering this template's version.
- * @return {Promise<string>} The rendered block.
+ * @param  {Function} [own]  async function (ctx, parentBlock) of a body compiled by an earlier release.
+ * @return {Promise<string>|string} The rendered block.
  */
 exports.callBlock = function (blocks, name, ctx, own) {
-  if (blocks && Object.prototype.hasOwnProperty.call(blocks, name) && typeof blocks[name] === 'function') {
-    return blocks[name](ctx, own);
+  if (holdsBlock(blocks, name)) {
+    return runBlock(blocks[name], name, ctx, blocks, own);
   }
-  return own(ctx);
+  return own ? runBlock(own, name, ctx, blocks) : '';
+};
+
+/**
+ * Render a block tag on the async render path that is not its template's
+ * definition of the name: its own function, unless `nearer`, the functions from
+ * nearer templates, holds that name, when the chain in `blocks` renders.
+ * @param  {object}   blocks Block functions by name, or undefined.
+ * @param  {object}   nearer Block functions from nearer templates, or undefined.
+ * @param  {string}   name   Block name.
+ * @param  {object}   ctx    Render context.
+ * @param  {Function} own    async function (ctx, parentBlock, blocks) of this tag.
+ * @return {Promise<string>|string} The rendered block.
+ */
+exports.callOwnBlock = function (blocks, nearer, name, ctx, own) {
+  return runBlock(holdsBlock(nearer, name) ? blocks[name] : own, name, ctx, blocks);
 };
 
 /*!
@@ -296,10 +362,10 @@ exports.callBlock = function (blocks, name, ctx, own) {
  * @private
  */
 function chainBlock(fn, mine) {
-  return function (ctx, parentBlock) {
+  return function (ctx, parentBlock, blocks) {
     return fn(ctx, function (c) {
-      return mine(c, parentBlock);
-    });
+      return mine(c, parentBlock, blocks);
+    }, blocks);
   };
 }
 
@@ -310,10 +376,10 @@ function chainBlock(fn, mine) {
  * the template above passes when it renders the block.
  * @param  {object} local     This template's block functions by name.
  * @param  {object} inherited Overrides from the extending template, or undefined.
- * @return {object}           The merged block functions by name.
+ * @return {object}           The merged block functions by name (no prototype: a name comes from the template).
  */
 exports.chainBlocks = function (local, inherited) {
-  var has = Object.prototype.hasOwnProperty, merged = {}, name;
+  var has = Object.prototype.hasOwnProperty, merged = Object.create(null), name;
   for (name in local) {
     if (has.call(local, name)) {
       merged[name] = local[name];
