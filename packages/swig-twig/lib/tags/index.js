@@ -7,7 +7,7 @@
  *   parse(str, line, parser, types, stack, opts, swig, token) → boolean
  *
  * The 8th `token` argument is the in-progress TagToken. Tag implementations
- * call `parser.parseExpr(lexer.read(str), filters)` directly and attach the
+ * call `parser.parseExpr(lexer.read(str))` directly and attach the
  * resulting IRExpr to `token.irExpr`, then return true. This avoids the
  * native-swig `parser.on(types.X, fn)` callback indirection — Twig tags own
  * their own arg-parsing path.

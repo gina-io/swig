@@ -171,6 +171,14 @@ describe('swig-twig: an unknown filter or test name is a compile error', functio
       }).to.throwError(regex('Invalid filter "mine" on line 1.'));
     });
 
+    it('is read as an own entry when a filter of that name returns nothing', function () {
+      var inst = new twig.Twig({ cache: false });
+      inst.setFilter('hasOwnProperty', function () {
+        return '';
+      });
+      expect(inst.render('{{ x|upper }}', { locals: { x: 'a' } })).to.equal('A');
+    });
+
     it('can have the name hasOwnProperty, and unknown names still fail', function () {
       var inst = new twig.Twig({ cache: false });
       inst.setFilter('hasOwnProperty', function (v) {
@@ -259,5 +267,23 @@ describe('swig-twig: an unknown filter or test name is a compile error', functio
     expect(parser.parse({}, '{% if x is frob %}Y{% endif %}', {}, tags, {}).tokens.length).to.equal(1);
     expect(parser.parse({}, '{% apply nosuch %}a{% endapply %}', {}, tags, {}).tokens.length).to.equal(1);
     expect(parser.parseExpr(lexer.read('x|nosuch'), {}).type).to.equal('FilterCall');
+    expect(tags.apply.parse('nosuch', 1, parser, lexer.types, [], {}, {}, { args: [] })).to.equal(true);
+    expect(function () {
+      parser.parseExpr(lexer.read('x|f'), { f: 1 });
+    }).to.throwError(regex('Invalid filter "f".'));
+  });
+
+  it('gives a custom tag the position parseExpr stopped at', function () {
+    var inst = new twig.Twig({ cache: false }), stopped;
+    inst.setTag('ctag', function (str, line, p, types, stack, opts, swig, token) {
+      var pos = {};
+      token.irExpr = p.parseExpr(lexer.read(str), undefined, pos);
+      stopped = pos.pos;
+      return true;
+    }, function () {
+      return '';
+    }, false, false);
+    inst.render('{% ctag x|upper %}');
+    expect(stopped).to.equal(2);
   });
 });

@@ -140,6 +140,14 @@ describe('swig-django: an unknown filter name is a compile error', function () {
       }).to.throwError(regex('Invalid filter "mine" on line 1.'));
     });
 
+    it('is read as an own entry when a filter of that name returns nothing', function () {
+      var inst = new django.Django({ cache: false });
+      inst.setFilter('hasOwnProperty', function () {
+        return '';
+      });
+      expect(inst.render('{{ x|upper }}', { locals: { x: 'a' } })).to.equal('A');
+    });
+
     it('can have the name hasOwnProperty, and unknown names still fail', function () {
       var inst = new django.Django({ cache: false });
       inst.setFilter('hasOwnProperty', function (v) {

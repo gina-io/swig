@@ -103,6 +103,7 @@ describe('swig-jinja2: an unknown filter or test name', function () {
     { label: '{% for i in l if i is frob %}{{ i }}{% endfor %}', files: { '/t': '{% for i in l if i is frob %}{{ i }}{% endfor %}' }, error: 'Invalid test "frob" on line 1 in file /t.', atCompile: true },
     { label: '{% if x is frob(1) %}Y{% endif %}', files: { '/t': '{% if x is frob(1) %}Y{% endif %}' }, error: 'Invalid test "frob" on line 1 in file /t.', compiles: true },
     { label: '{% if x is frob 1 %}Y{% endif %}', files: { '/t': '{% if x is frob 1 %}Y{% endif %}' }, error: 'Invalid test "frob" on line 1 in file /t.', compiles: true },
+    { label: '{{ x|if }}', files: { '/t': '{{ x|if }}' }, error: 'Invalid filter "if" on line 1 in file /t.', atCompile: true },
     { label: '{{ x|toString }}', files: { '/t': '{{ x|toString }}' }, error: 'Invalid filter "toString" on line 1 in file /t.', atCompile: true },
     { label: '{{ x|hasOwnProperty }}', files: { '/t': '{{ x|hasOwnProperty }}' }, error: 'Invalid filter "hasOwnProperty" on line 1 in file /t.', atCompile: true },
     { label: '{{ x|constructor }}', files: { '/t': '{{ x|constructor }}' }, error: 'Invalid filter "constructor" on line 1 in file /t.', atCompile: true },
@@ -223,6 +224,9 @@ describe('swig-jinja2: an unknown filter or test name', function () {
       expect(function () {
         jinja2.render('{{ x is test }}', { locals: { x: 'upper' } });
       }).to.throwError(regex('Invalid test "test" on line 1.'));
+      expect(function () {
+        jinja2.compile('{{ 1 is filter }}');
+      }).to.throwError(regex('Invalid test "filter" on line 1.'));
     });
   });
 
@@ -305,6 +309,7 @@ describe('swig-jinja2: an unknown filter or test name', function () {
         return 'H:' + v;
       });
       expect(inst.render('{{ x|hasOwnProperty }}', { locals: { x: 'a' } })).to.equal('H:a');
+      expect(inst.render('{% if f %}{{ x|nosuch }}{% endif %}A', { locals: { f: false } })).to.equal('A');
       expect(inst.render('{{ x|upper }}', { locals: { x: 'a' } })).to.equal('A');
       expect(inst.render('{% filter hasOwnProperty %}a{% endfilter %}')).to.equal('H:a');
       expect(inst.render('{% if "nosuch" is filter %}Y{% else %}N{% endif %}')).to.equal('N');
@@ -382,6 +387,7 @@ describe('swig-jinja2: an unknown filter or test name', function () {
     expect(parser.parse({}, '{% if x is frob %}Y{% endif %}', {}, tags, {}).tokens.length).to.equal(1);
     expect(parser.parse({}, '{% filter nosuch %}a{% endfilter %}', {}, tags, {}).tokens.length).to.equal(1);
     expect(parser.parseExpr(lexer.read('x|nosuch'), {}).type).to.equal('FilterCall');
+    expect(tags.filter.parse('nosuch', 1, parser, lexer.types, [], {}, {}, { args: [] })).to.equal(true);
     expect(parser.parseExpr(lexer.read('x is frob'), {}).type).to.equal('FnCall');
     expect(parser.parseExpr(lexer.read('"a" is filter'), {}).type).to.equal('FnCall');
   });
