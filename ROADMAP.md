@@ -11,7 +11,6 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | Status | Item |
 | --- | --- |
 | Planned | swig-jinja2 parity: the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
-| Planned | Unknown filter and test names rejected when a Twig, Jinja2 or Django template compiles; today the error comes only at render, or never when the branch does not run. Native swig already rejects an unknown filter. |
 | Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
 
 ## Future (post-2.0)
@@ -26,6 +25,13 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.10.0 (October 2026)
+
+- A filter or test name the instance does not hold now fails as in each reference engine: a compile error wherever it stands in swig-twig and swig-django; in swig-jinja2 a compile error too, except directly inside an `if` or an inline-if, where the same error is thrown when the expression is reached. Register custom filters and tests before the compile that uses them. Native `@rhinostone/swig` does not change.
+- swig-jinja2 gains the tests `is integer` and `is float` and the guards `"name" is filter` and `"name" is test`.
+- Expression errors in swig-twig, swig-jinja2 and swig-django name their line and file, and in swig-twig and swig-jinja2 an error names the right line after a `-%}` or `-}}` that strips line breaks.
+- All five packages released in lockstep at `2.10.0`.
 
 ### v2.9.13 (October 2026)
 

@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-twig and swig-jinja2: an error names the right line after a `-%}` or `-}}` that strips line breaks. The count skipped the line breaks it stripped, so a name on line 4 after one such marker was reported on line 3, in expression errors and in tag errors alike.'
-time: 2026-10-30T22:20:00.000000+00:00
-custom:
-  Issue: ""

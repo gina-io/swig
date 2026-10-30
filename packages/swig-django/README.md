@@ -33,6 +33,7 @@ Renders real Django templates — everything below was cross-checked against Dja
 * **Variable resolution** — Django-faithful attribute / dictionary / index lookup. Callable attributes are auto-called (honoring `alters_data` / `do_not_call_in_templates`), numeric indexing works (`{{ list.0 }}`), and dicts iterate via `.keys` / `.values` / `.items`.
 * **Filter arguments** — Django colon syntax (`{{ value|date:"Y-m-d" }}`).
 * **Filters** — 42 built-ins (`add`, `addslashes`, `capfirst`, `center`, `cut`, `date`, `default`, `default_if_none`, `divisibleby`, `escape` / `e`, `escapejs`, `filesizeformat`, `first`, `floatformat`, `force_escape`, `get_digit`, `iriencode`, `join`, `last`, `length`, `linebreaks`, `linebreaksbr`, `linenumbers`, `ljust`, `lower`, `make_list`, `phone2numeric`, `pluralize`, `rjust`, `safe`, `slice`, `slugify`, `striptags`, `time`, `title`, `truncatechars`, `truncatewords`, `upper`, `urlencode`, `wordcount`, `wordwrap`, `yesno`). See `lib/filters.js` for the full list.
+* **Unknown names** — a filter name the instance does not hold is a compile error wherever it stands, as in Django. Register custom filters before the compile that uses them.
 * **Async** — `renderFile(path, locals, cb)` against a loader with `async === true`, or `compileFile` with `codegenMode: 'async'`; `renderFileAsync` / `compileFileAsync` still work but are deprecated.
 
 Explicitly unsupported (parse-time throw or absent)
