@@ -845,6 +845,18 @@ exports.throwError = function (message, line, file) {
 };
 
 /**
+ * Throw the error a compiled template carries for a filter or test name it
+ * was allowed to compile with: swig-jinja2 makes such a name an error only
+ * when the expression is reached, inside an if or an inline-if, as Jinja2 does.
+ *
+ * @param  {string} message  The whole message, its place included.
+ * @throws {Error}
+ */
+exports.invalidName = function (message) {
+  throw new Error(message);
+};
+
+/**
  * The largest number of elements a builder creates from a number in the
  * data: the values of a numeric range (swig-twig's `a..b`), the columns of
  * swig-jinja2's `slice` filter and the padding of the `batch` filters. A

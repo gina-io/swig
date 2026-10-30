@@ -16,8 +16,8 @@
  * not in play. See parser.js `parseExpression` IS/ISNOT branch.
  *
  * JS / Python impedance notes (documented divergences):
- *   - No int/float distinction in JS, so `is integer` / `is float` are not
- *     provided; use `is number`.
+ *   - One number type in JS, so `is integer` reads the value, not its
+ *     spelling: 1.0 and 1e300 are integers here, floats in Python.
  *   - `is sequence` is array-or-string (ordered, integer-indexed); a dict
  *     is `is mapping` (not `is sequence`). `is iterable` covers arrays,
  *     strings, and objects, matching the `{% for %}` iterate-by-key rule.
@@ -263,4 +263,26 @@ exports['odd'] = function (v) {
  */
 exports['divisibleby'] = function (v, n) {
   return isNumber(v) && isNumber(n) && n !== 0 && v % n === 0;
+};
+
+/**
+ * `n is integer` — true for a number with no fractional part. Booleans are
+ * not integers here, as in Jinja2.
+ *
+ * @param  {*} v
+ * @return {boolean}
+ */
+exports['integer'] = function (v) {
+  return typeof v === 'number' && Number.isInteger(v);
+};
+
+/**
+ * `n is float` — true for a number with a fractional part, and for NaN and
+ * the infinities, which are floats in Python.
+ *
+ * @param  {*} v
+ * @return {boolean}
+ */
+exports['float'] = function (v) {
+  return typeof v === 'number' && !Number.isInteger(v);
 };

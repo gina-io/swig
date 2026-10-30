@@ -64,10 +64,13 @@ describe('swig-core — engine helpers are read from the template scope', functi
     { flavor: 'django', src: '[{{ l[1:]|join:"," }}]', locals: {"l": [1, 2, 3]}, key: {"_utils": "text"}, want: null }
   ];
 
-  it('keeps an unknown test false when the locals carry a function under its name', function () {
-    var locals = { x: 1, _ext: { _test_frobnicate: function () { return true; } } };
-    expect(render('jinja2', '{% if x is frobnicate %}Y{% else %}N{% endif %}', locals))
-      .to.equal(render('jinja2', '{% if x is frobnicate %}Y{% else %}N{% endif %}', { x: 1 }));
+  it('throws for an unknown test and never calls a function the locals carry under its name', function () {
+    var called = false,
+      locals = { x: 1, _ext: { _test_frobnicate: function () { called = true; return true; } } };
+    expect(function () {
+      render('jinja2', '{% if x is frobnicate %}Y{% else %}N{% endif %}', locals);
+    }).to.throwError(/^Invalid test "frobnicate" on line 1\.$/);
+    expect(called).to.be(false);
   });
 
   it('renders the same on the async render path', function (done) {

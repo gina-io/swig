@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-jinja2: a filter or test name the instance does not hold now fails as in Jinja2. It is a compile error (`Invalid filter "nosuch" on line 3 in file page.html.`), except directly inside an if or an inline-if, where the template compiles and the same error is thrown when the expression is reached. An unknown filter used to compile, then throw `_filters.nosuch is not a function` at render; an unknown test used to read as false, and `is not` as true, with no error. Four things change for a template or a setup that relied on that: a name that is never reached can stop the compile (in a for, with, macro or block body inside an if, or after a short-circuiting and or or); a filter registered with setFilter or a test registered with setExtension after the compile that uses it fails, at that compile or when reached; `{{ x|toString }}`, `{{ x|hasOwnProperty }}` and the like, which called the Object.prototype method, are rejected; and the Jinja2 tests that swig-jinja2 does not provide (`eq`, `ne`, `lt`, `le`, `gt`, `ge` and their aliases, `escaped`) no longer read as false.'
+time: 2026-10-30T22:05:00.000000+00:00
+custom:
+  Issue: ""

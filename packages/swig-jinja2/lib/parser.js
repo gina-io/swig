@@ -5,6 +5,10 @@ var ir = require('@rhinostone/swig-core/lib/ir'),
 var lexer = require('./lexer');
 var _t = require('./tokentypes');
 
+// A catalog entry is read as an own property: a filter can be registered under
+// the name hasOwnProperty, and a name like toString is not a filter.
+var hasOwn = Object.prototype.hasOwnProperty;
+
 /**
  * Make a string safe for embedding into a regular expression.
  * @param  {string} str
@@ -174,12 +178,18 @@ function helperCall(path, args) {
  *                                on `_posOut.pos` to let callers detect
  *                                partial consumption.
  * @param  {object}   [_scope]   Set by `exports.parse`: the `line` and the
- *                                `filename` an error names.
+ *                                `filename` an error names, the instance's
+ *                                `extensions`, which make a filter or test
+ *                                name the instance does not hold an error,
+ *                                and `soft`, which makes that error wait until
+ *                                the expression is reached.
  * @return {object}              IRExpr tree.
  */
 exports.parseExpr = function (tokens, filters, _posOut, _scope) {
   var pos = 0;
   filters = filters || {};
+  // Set when the parse has an engine instance, whose catalogs names are checked against.
+  var knownTests = _scope && _scope.extensions;
 
   function skipWS() {
     while (pos < tokens.length && tokens[pos].type === _t.WHITESPACE) { pos += 1; }
@@ -195,6 +205,18 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
   }
   function bail(msg) {
     utils.throwError(msg, _scope && _scope.line, _scope && _scope.filename);
+  }
+
+  function hasInlineIf() {
+    return tokens.some(function (t) { return t.type === _t.VAR && t.match === 'if'; });
+  }
+
+  // An unknown filter or test name: a compile error, or inside an if or an
+  // inline-if a node that throws the same error when it is reached.
+  function unknownName(msg) {
+    if (!_scope.soft && !hasInlineIf()) { bail(msg); }
+    return helperCall(['_utils', 'invalidName'], [ir.literal('string', msg + ' on line ' + _scope.line +
+      (_scope.filename ? ' in file ' + _scope.filename : '') + '.')]);
   }
 
   function guardSegment(segment) {
@@ -353,6 +375,15 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
   // like `none` (noneComparison).
   function lowerTest(subject, negated) {
     var test = parseTest(), testCall;
+    // Jinja2's guards for an optional name: `"name" is filter`, `"name" is test`.
+    if (knownTests && (test.name === 'filter' || test.name === 'test') && subject.type === 'Literal' && subject.kind === 'string') {
+      testCall = ir.literal('bool', test.name === 'filter' ? hasOwn.call(filters, subject.value) : hasOwn.call(knownTests, '_test_' + subject.value));
+      return negated ? ir.unaryOp('!', testCall) : testCall;
+    }
+    if (knownTests && !hasOwn.call(knownTests, '_test_' + test.name)) {
+      testCall = unknownName('Invalid test "' + test.name + '"');
+      return negated ? ir.unaryOp('!', testCall) : testCall;
+    }
     if (test.args.length === 0 && subject.type === 'VarRef' && test.name === 'defined') {
       testCall = ir.varRefExists(subject.path, subject.loc);
     } else if (test.args.length === 0 && subject.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
@@ -462,9 +493,10 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
       } else if (withFilter && (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY)) {
         consume();
         var fname = tok.match;
-        if (filters.hasOwnProperty(fname) && typeof filters[fname] !== 'function') {
+        if (hasOwn.call(filters, fname) && typeof filters[fname] !== 'function') {
           bail('Invalid filter "' + fname + '"');
         }
+        var unknown = (knownTests && !hasOwn.call(filters, fname)) ? unknownName('Invalid filter "' + fname + '"') : null;
         var fargs;
         // `fargs` must be reset each iteration — `var` is function-scoped
         // (a bare declaration does not reset it), so without this an
@@ -474,7 +506,7 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
         if (tok.type === _t.FILTER) {
           fargs = parseArgList(_t.PARENCLOSE);
         }
-        expr = ir.filterCallExpr(fname, expr, fargs);
+        expr = unknown || ir.filterCallExpr(fname, expr, fargs);
       } else {
         break;
       }
@@ -696,13 +728,28 @@ exports.parse = function (swig, source, opts, tags, filters) {
   filters = filters || {};
 
   // Where parseExpr is working, so that an expression error can name its line
-  // and file. A tag gets a handle on this module whose parseExpr works in the
-  // same scope and on this parse's filter catalog.
-  var scope = { line: 0, filename: opts.filename };
+  // and file; whether an unknown name waits until it is reached (`soft`); and
+  // the extensions that hold the tests (only an engine instance has catalogs to
+  // check a name against). A tag gets a handle on this module whose parseExpr
+  // works in the same scope and on this parse's filter catalog.
+  var scope = { line: 0, filename: opts.filename, soft: false, extensions: swig && swig.extensions };
   var exprParser = Object.create(exports);
   exprParser.parseExpr = function (tokens, _filters, posOut) {
     return exports.parseExpr(tokens, filters, posOut, scope);
   };
+  exprParser.knownFilter = function (name) {
+    return !scope.extensions || hasOwn.call(filters, name);
+  };
+
+  // Jinja2 reports an unknown name at compile time, except directly inside an
+  // if: in its condition, or in a branch with no other block tag around the
+  // name. There the error waits until the expression is reached. The arguments
+  // of a filter or macro tag belong to that tag's own frame.
+  function softFrame(tagName) {
+    var top = stack[stack.length - 1];
+    if (tagName === 'filter' || tagName === 'macro') { return false; }
+    return tagName === 'if' || tagName === 'elif' || !!(top && top.name === 'if');
+  }
 
   // The lexer does not know where it is working, so the place of its error is
   // named here. An error from a nested parse has its place already.
@@ -792,6 +839,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
    */
   function parseVariable(str, _line) {
     scope.line = _line;
+    scope.soft = softFrame();
     var lexed;
     try {
       lexed = lexer.read(utils.strip(str));
@@ -801,7 +849,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
     var sawSafe = false;
     utils.each(lexed, function (tok) {
       if (tok.type === _t.FILTER || tok.type === _t.FILTEREMPTY) {
-        if (filters.hasOwnProperty(tok.match) && filters[tok.match].safe === true) {
+        if (hasOwn.call(filters, tok.match) && filters[tok.match].safe === true) {
           sawSafe = true;
         }
       }
@@ -882,6 +930,7 @@ exports.parse = function (swig, source, opts, tags, filters) {
     };
 
     scope.line = _line;
+    scope.soft = softFrame(tagName);
     var ok;
     try {
       ok = tag.parse(tagArgs, _line, exprParser, _t, stack, opts, swig, token);

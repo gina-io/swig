@@ -110,6 +110,9 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
     if (_dangerousProps.indexOf(name) !== -1) {
       utils.throwError('Unsafe filter name "' + name + '" is not allowed (prototype-chain guard)', line, opts.filename);
     }
+    if (parser.knownFilter && !parser.knownFilter(name)) {
+      utils.throwError('Invalid filter "' + name + '"', line, opts.filename);
+    }
   }
 
   var chain = [];
