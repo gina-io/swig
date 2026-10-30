@@ -165,6 +165,12 @@ describe('swig-django filter inputs that are undefined or null', function () {
       expect(filters.add(0, 0)).to.equal(0);
     });
 
+    it('floatformat with an invalid argument gives an empty string', function () {
+      expect(filters.floatformat(undefined, 'abc')).to.equal('');
+      expect(filters.floatformat(null, 'abc')).to.equal('');
+      expect(filters.floatformat(1.5, 'abc')).to.equal('1.5');
+    });
+
     it('date gives an empty string for a value that is no date', function () {
       [undefined, null, '', 'nope', new Date(NaN)].forEach(function (input) {
         expect(filters.date(input, 'Y')).to.equal('');

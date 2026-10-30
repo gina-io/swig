@@ -170,6 +170,16 @@ FLAVORS.forEach(function (flavor) {
       });
     });
 
+    it('passes over a cached entry for a getTemplate call with cache: false', function () {
+      var loader = asyncLoader({ '/page.html': '[{{ x }}]' }),
+        s = new Ctor({ loader: loader });
+      return render(s, '/page.html', { x: 'a' }).then(function () {
+        return s.getTemplate('/page.html', { cache: false });
+      }).then(function () {
+        expect(loader.log).to.eql(['/page.html', '/page.html']);
+      });
+    });
+
     it('uses a custom cache, under the key of the async mode', function () {
       var entries = {},
         cache = { get: function (key) { return entries[key]; }, set: function (key, val) { entries[key] = val; } },
