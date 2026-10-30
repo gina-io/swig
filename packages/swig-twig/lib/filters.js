@@ -1,6 +1,7 @@
 var utils = require('@rhinostone/swig-core/lib/utils'),
   dateFormatter = require('@rhinostone/swig-core/lib/dateformatter'),
-  iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter;
+  iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter,
+  asText = require('@rhinostone/swig-core/lib/filters').asText;
 
 /**
  * Twig filter catalog.
@@ -29,6 +30,10 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
  * @return {*} The length of the input.
  */
 exports.length = function (input) {
+  if (input === undefined || input === null || input === '') {
+    return 0;
+  }
+
   if (typeof input === 'object' && !utils.isArray(input)) {
     var keys = utils.keys(input);
     return keys.length;
@@ -87,6 +92,10 @@ exports.upper = function (input) {
  * @return {*}
  */
 exports.first = function (input) {
+  if (input === undefined || input === null) {
+    return '';
+  }
+
   if (typeof input === 'object' && !utils.isArray(input)) {
     var keys = utils.keys(input);
     return input[keys[0]];
@@ -109,6 +118,10 @@ exports.first = function (input) {
  * @return {*}
  */
 exports.last = function (input) {
+  if (input === undefined || input === null) {
+    return '';
+  }
+
   if (typeof input === 'object' && !utils.isArray(input)) {
     var keys = utils.keys(input);
     return input[keys[keys.length - 1]];
@@ -647,7 +660,7 @@ exports.replace = function (input, from) {
       var key = keys[j];
       if (key.length === 0) { continue; }
       if (input.substring(i, i + key.length) === key) {
-        out += String(from[key]);
+        out += asText(from[key]);
         i += key.length;
         matched = true;
         break;
@@ -816,7 +829,9 @@ exports.merge = function (input, other) {
  * deferred — today this filter supports the same surface as
  * native swig's `date` filter: Date object or epoch-ms number input, a
  * format string, an optional numeric `offset` in minutes from GMT, and
- * an optional `abbr` timezone abbreviation (output-only).
+ * an optional `abbr` timezone abbreviation (output-only). As in Twig, a
+ * missing value, null, an empty string and "now" give the current date; a
+ * string that is no date gives an empty string.
  *
  * @example
  * {{ now|date('Y-m-d') }}
@@ -833,10 +848,14 @@ exports.merge = function (input, other) {
  */
 exports.date = function (input, format, offset, abbr) {
   var l = format.length,
-    date = new dateFormatter.DateZ(input),
+    date = new dateFormatter.DateZ((input === undefined || input === null || input === '' || input === 'now') ? new Date() : input),
     cur,
     i = 0,
     out = '';
+
+  if (isNaN(date.dateZ.getTime())) {
+    return '';
+  }
 
   if (offset) {
     date.setTimezoneOffset(offset, abbr);
