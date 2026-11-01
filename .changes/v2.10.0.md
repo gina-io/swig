@@ -1,4 +1,4 @@
-[2.10.0](https://github.com/gina-io/swig/tree/v2.10.0) / 2026-10-31
+[2.10.0](https://github.com/gina-io/swig/tree/v2.10.0) / 2026-11-01
 -------------------------------------------------------------------
 
 * **Added** swig-jinja2: the tests `is integer` and `is float`, and the guards `"name" is filter` and `"name" is test`, as in Jinja2. JavaScript has one number type, so `is integer` reads the value: 1.0 and 1e300 are integers here and floats in Python, and NaN and the infinities are floats, as in Python. `is filter` and `is test` take a string literal; another subject fails as an unknown test.
