@@ -15,6 +15,11 @@
  * non-VarRef subjects (literals, BinaryOp, FnCall) where the coercion is
  * not in play. See parser.js `parseExpression` IS/ISNOT branch.
  *
+ * The comparison tests (`eq`, `ne`, `lt`, `le`, `gt`, `ge` and their other
+ * names) are compiled as the operator each one names when called with one
+ * argument, while the instance's helper is still the one below; their
+ * helpers serve the other calls.
+ *
  * JS / Python impedance notes (documented divergences):
  *   - One number type in JS, so `is integer` reads the value, not its
  *     spelling: 1.0 and 1e300 are integers here, floats in Python.
@@ -22,6 +27,8 @@
  *     is `is mapping` (not `is sequence`). `is iterable` covers arrays,
  *     strings, and objects, matching the `{% for %}` iterate-by-key rule.
  */
+
+var pyEq = require('@rhinostone/swig-core/lib/utils').pyEq;
 
 /*!
  * Array detection without depending on the runtime's Array.isArray (kept
@@ -286,3 +293,107 @@ exports['integer'] = function (v) {
 exports['float'] = function (v) {
   return typeof v === 'number' && !Number.isInteger(v);
 };
+
+/**
+ * `a is eq b` — true when `a == b`, under Python's equality. While an
+ * instance's `_test_eq` is this helper, the parser compiles a call with one
+ * argument as the `==` operator, so this helper runs only for a call with
+ * another number of arguments.
+ *
+ * @example
+ * {% if page is eq 1 %}first{% endif %}
+ * // => "first" when page is 1, nothing when it is the string "1"
+ *
+ * @param  {*} v
+ * @param  {*} other
+ * @return {boolean}
+ */
+exports['eq'] = function (v, other) {
+  return pyEq(v, other);
+};
+
+/**
+ * `a is ne b` — true when `a != b`, under Python's equality. Compiled as the
+ * `!=` operator, as `eq` is compiled as `==`.
+ *
+ * @example
+ * {% if role is ne "admin" %}read only{% endif %}
+ *
+ * @param  {*} v
+ * @param  {*} other
+ * @return {boolean}
+ */
+exports['ne'] = function (v, other) {
+  return !pyEq(v, other);
+};
+
+/**
+ * `a is lt b` — true when `a < b`. Compiled as the `<` operator, as `eq` is
+ * compiled as `==`; where Jinja2 raises (a string against a number, a
+ * missing operand), the test gives what the operator gives.
+ *
+ * @example
+ * {% if count is lt 10 %}few{% endif %}
+ *
+ * @param  {*} v
+ * @param  {*} other
+ * @return {boolean}
+ */
+exports['lt'] = function (v, other) {
+  return v < other;
+};
+
+/**
+ * `a is le b` — true when `a <= b`. Compiled as the `<=` operator, as `lt`
+ * is compiled as `<`.
+ *
+ * @example
+ * {% if count is le 10 %}ten or fewer{% endif %}
+ *
+ * @param  {*} v
+ * @param  {*} other
+ * @return {boolean}
+ */
+exports['le'] = function (v, other) {
+  return v <= other;
+};
+
+/**
+ * `a is gt b` — true when `a > b`. Compiled as the `>` operator, as `lt` is
+ * compiled as `<`.
+ *
+ * @example
+ * {% if count is gt 10 %}many{% endif %}
+ *
+ * @param  {*} v
+ * @param  {*} other
+ * @return {boolean}
+ */
+exports['gt'] = function (v, other) {
+  return v > other;
+};
+
+/**
+ * `a is ge b` — true when `a >= b`. Compiled as the `>=` operator, as `lt`
+ * is compiled as `<`.
+ *
+ * @example
+ * {% if count is ge 10 %}ten or more{% endif %}
+ *
+ * @param  {*} v
+ * @param  {*} other
+ * @return {boolean}
+ */
+exports['ge'] = function (v, other) {
+  return v >= other;
+};
+
+// Jinja2's other names for the comparison tests. A symbol cannot follow `is`
+// in a template (`x is == 1` does not parse); it makes `"==" is test` true,
+// as in Jinja2.
+exports['equalto'] = exports['=='] = exports['eq'];
+exports['!='] = exports['ne'];
+exports['lessthan'] = exports['<'] = exports['lt'];
+exports['<='] = exports['le'];
+exports['greaterthan'] = exports['>'] = exports['gt'];
+exports['>='] = exports['ge'];

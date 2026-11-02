@@ -4,6 +4,7 @@ var ir = require('@rhinostone/swig-core/lib/ir'),
 
 var lexer = require('./lexer');
 var _t = require('./tokentypes');
+var _tests = require('./tests');
 
 // A catalog entry is read as an own property: a filter can be registered under
 // the name hasOwnProperty, and a name like toString is not a filter.
@@ -32,6 +33,13 @@ var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'd
  * @private
  */
 var _constants = ['true', 'false', 'none', 'True', 'False', 'None'];
+
+/**
+ * Jinja2's comparison tests and the operator each one names: with one
+ * argument, `a is <name> b` compiles as `a <op> b` (lowerTest).
+ * @private
+ */
+var _comparisonTests = { eq: '==', equalto: '==', ne: '!=', lt: '<', lessthan: '<', le: '<=', gt: '>', greaterthan: '>', ge: '>=' };
 
 /**
  * Build the literal for one of Jinja2's constant names.
@@ -388,9 +396,14 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
   // the defined/undefined signal those tests depend on. Other subjects
   // evaluate to a concrete value (no coercion) and use the generic helper
   // the engine registers. `sameas none` with a VarRef on either side reads
-  // like `none` (noneComparison).
+  // like `none` (noneComparison). A comparison test with one argument
+  // (`a is eq b`, `a is lt b` and the other names in _comparisonTests) is
+  // the operator it names, `==` and `!=` with Python's equality as the
+  // operators have, so the test and its operator always agree; it stays a
+  // call while the instance's `_test_<name>` is not the built-in helper, so a
+  // test registered under one of these names runs, as any registered test.
   function lowerTest(subject, negated) {
-    var test = parseTest(), testCall;
+    var test = parseTest(), testCall, op;
     // Jinja2's guards for an optional name: `"name" is filter`, `"name" is test`.
     if (knownTests && (test.name === 'filter' || test.name === 'test') && subject.type === 'Literal' && subject.kind === 'string') {
       testCall = ir.literal('bool', test.name === 'filter' ? hasOwn.call(filters, subject.value) : hasOwn.call(knownTests, '_test_' + subject.value));
@@ -404,6 +417,10 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
       testCall = ir.varRefExists(subject.path, subject.loc);
     } else if (test.args.length === 0 && subject.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
       testCall = ir.unaryOp('!', ir.varRefExists(subject.path, subject.loc));
+    } else if (test.args.length === 1 && hasOwn.call(_comparisonTests, test.name) &&
+        (!knownTests || knownTests['_test_' + test.name] === _tests[test.name])) {
+      op = _comparisonTests[test.name];
+      testCall = (op === '==' || op === '!=') ? equality(op, subject, test.args[0]) : ir.binaryOp(op, subject, test.args[0]);
     } else if (test.name === 'sameas' && test.args.length === 1) {
       testCall = noneComparison(subject, test.args[0]) ||
         helperCall(['_ext', '_test_sameas'], [subject].concat(test.args));
