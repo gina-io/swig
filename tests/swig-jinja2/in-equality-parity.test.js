@@ -4,6 +4,9 @@
  * reference renders for the same template and locals, on the sync and the
  * async render paths. VALUES rows are the left operand and columns the
  * right one ("$missing" leaves the name unset).
+ * Where Jinja2 keeps a missing value apart from None, the expectation is the
+ * output Jinja2 gives when a missing value equals None: swig-jinja2 reads
+ * both as None in a comparison, as `x is none` reads them.
  */
 var flavor = require('@rhinostone/swig-jinja2'),
   Engine = flavor.Jinja2,
@@ -44,7 +47,7 @@ var VALUES = [
 ];
 
 var IN_ROWS = [
-  "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+  "NYNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
   "NYNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
   "NNYNNYNNNNNNNNNNNNNNNNNNNNNNNNN",
   "NNNYYNNNNNNNNNNNNNNNNNNNNNNNNNN",
@@ -89,14 +92,14 @@ var IN_CASES = [
   ["notin-needle-none-str", "{% if a not in c %}Y{% else %}N{% endif %}", {"a": null, "c": "abc"}, "Y"],
   ["notin-hay-missing", "{% if a not in c %}Y{% else %}N{% endif %}", {"a": ""}, "Y"],
   ["notin-hay-none", "{% if a not in c %}Y{% else %}N{% endif %}", {"a": "", "c": null}, "Y"],
-  ["notin-none-list", "{% if a not in c %}Y{% else %}N{% endif %}", {"c": [null]}, "Y"],
+  ["notin-none-list", "{% if a not in c %}Y{% else %}N{% endif %}", {"c": [null]}, "N"],
   ["notin-bool-int", "{% if a not in c %}Y{% else %}N{% endif %}", {"a": true, "c": [1]}, "N"],
   ["dot-none", "{% if o.k in c %}Y{% else %}N{% endif %}", {"o": {"k": null}, "c": [null]}, "Y"],
-  ["dot-missing", "{% if o.x in c %}Y{% else %}N{% endif %}", {"o": {}, "c": [null]}, "N"],
+  ["dot-missing", "{% if o.x in c %}Y{% else %}N{% endif %}", {"o": {}, "c": [null]}, "Y"],
   ["dot-hay", "{% if a in o.k %}Y{% else %}N{% endif %}", {"a": 1, "o": {"k": [true]}}, "Y"],
-  ["or-needle", "{% if (a or b) in c %}Y{% else %}N{% endif %}", {"c": [null]}, "N"],
+  ["or-needle", "{% if (a or b) in c %}Y{% else %}N{% endif %}", {"c": [null]}, "Y"],
   ["or-needle-n", "{% if (a or b) in c %}Y{% else %}N{% endif %}", {"b": null, "c": [null]}, "Y"],
-  ["inline-needle", "{% if (a if t else b) in c %}Y{% else %}N{% endif %}", {"t": 1, "c": [null]}, "N"],
+  ["inline-needle", "{% if (a if t else b) in c %}Y{% else %}N{% endif %}", {"t": 1, "c": [null]}, "Y"],
   ["lit-list", "{% if a in [1, 2] %}Y{% else %}N{% endif %}", {"a": true}, "Y"],
   ["lit-list-s", "{% if a in [1, 2] %}Y{% else %}N{% endif %}", {"a": "1"}, "N"],
   ["nested", "{% if a in c %}Y{% else %}N{% endif %}", {"a": [1, 2], "c": [[1, 2]]}, "Y"],

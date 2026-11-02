@@ -1199,7 +1199,7 @@ function checkMatchExpr(match) {
  * The raw read of a dot-path, for an operand of Python's `==`, `!=` or `in`:
  * the `_ctx.<path>` walk, then the bare-closure walk, as checkMatchExpr, but
  * a null leaf stays null and a missing path gives undefined, not "", so the
- * comparison sees None (or Jinja2's Undefined). @private
+ * comparison sees None. @private
  */
 function rawMatchExpr(path) {
   var leaf = path.join('.'), head;
@@ -1311,10 +1311,10 @@ function emitBinaryOp(node, d) {
     raw = equality || (node.op === 'in' && node.membership && node.membership !== 'twig'),
     left = raw ? equalityOperand(node.left, d) : groupOperand(node.left, emitExpr(node.left, d)),
     right = raw ? equalityOperand(node.right, d) : groupOperand(node.right, emitExpr(node.right, d));
-  // Python's equality; "jinja2" keeps a missing value (Undefined) apart from
-  // None. Native swig and Twig keep JavaScript's loose operators.
+  // Python's equality, a missing value equal to None. Native swig and Twig
+  // keep JavaScript's loose operators.
   if (equality) {
-    return (node.op === '!=' ? '!' : '') + '_utils.pyEq(' + left + ', ' + right + (node.pyEq === 'jinja2' ? ', true' : '') + ')';
+    return (node.op === '!=' ? '!' : '') + '_utils.pyEq(' + left + ', ' + right + ')';
   }
   if (isArithmeticOp(node.op) || node.op === '~') {
     left = asOperand(node.left, left);

@@ -483,7 +483,7 @@
  * @property {IRExpr} left
  * @property {IRExpr} right
  * @property {string} [membership] Opt-in for `in`: "twig", "jinja2" or "django" emits `_utils.isIn(left, right, mode)`, that engine's membership test; without it, the JavaScript `in` operator (native swig).
- * @property {string} [pyEq] Opt-in for `==` and `!=`: "jinja2" or "django" emits `_utils.pyEq(left, right)`, Python's equality ("jinja2" keeps a missing value apart from None); without it, JavaScript's loose operators.
+ * @property {string} [pyEq] Opt-in for `==` and `!=`: "jinja2" or "django" emits `_utils.pyEq(left, right)`, Python's equality (a missing value equals None); without it, JavaScript's loose operators.
  * @property {boolean} [negate] With `membership`: the `not in` form, negated inside `_utils.isIn` (Django reads a test it cannot run as false either way).
  * @property {IRLoc} [loc]
  */

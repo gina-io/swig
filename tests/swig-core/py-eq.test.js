@@ -46,19 +46,16 @@ describe('swig-core utils.pyEq', function () {
     expect(utils.pyEq(big(5), '5')).to.be(false);
   });
 
-  it('equates null and undefined; with exact, each only with itself', function () {
+  it('equates null and undefined, both read as None', function () {
     expect(utils.pyEq(null, undefined)).to.be(true);
     expect(utils.pyEq(undefined, null)).to.be(true);
-    expect(utils.pyEq(null, undefined, true)).to.be(false);
-    expect(utils.pyEq(undefined, null, true)).to.be(false);
-    expect(utils.pyEq(undefined, undefined, true)).to.be(true);
-    expect(utils.pyEq(null, null, true)).to.be(true);
+    expect(utils.pyEq(undefined, undefined)).to.be(true);
+    expect(utils.pyEq(null, null)).to.be(true);
     expect(utils.pyEq(null, 0)).to.be(false);
     expect(utils.pyEq(0, null)).to.be(false);
     expect(utils.pyEq(undefined, '')).to.be(false);
     expect(utils.pyEq([null], [undefined])).to.be(true);
-    expect(utils.pyEq([null], [undefined], true)).to.be(false);
-    expect(utils.pyEq({ k: null }, { k: undefined }, true)).to.be(false);
+    expect(utils.pyEq({ k: null }, { k: undefined })).to.be(true);
   });
 
   it('compares lists and mappings item by item', function () {
@@ -128,7 +125,7 @@ describe('swig-core utils.pyEq', function () {
     expect(utils.isIn([1, 2], [[1, 2]], 'jinja2')).to.be(true);
     expect(utils.isIn({ k: 1 }, [{ k: true }], 'django')).to.be(true);
     expect(utils.isIn(undefined, [undefined], 'jinja2')).to.be(true);
-    expect(utils.isIn(undefined, [null], 'jinja2')).to.be(false);
+    expect(utils.isIn(undefined, [null], 'jinja2')).to.be(true);
     expect(utils.isIn([1], [[1]], 'twig')).to.be(false);
   });
 });

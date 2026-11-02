@@ -16,7 +16,7 @@ var CASES = [
   { name: "a None mapping value equals none", src: "{% if {\"k\": x} == {\"k\": none} %}Y{% else %}N{% endif %}", locals: {"x": null}, out: "Y", why: "Jinja2 3.1.6 renders \"Y\"" },
   { name: "an empty string is not in a list holding a missing element", src: "{% if \"\" in [x] %}Y{% else %}N{% endif %}", locals: {}, out: "N", why: "Jinja2 3.1.6 renders \"N\"" },
   { name: "not in, with None in the needle and in the list", src: "{% if x not in [y] %}Y{% else %}N{% endif %}", locals: {"x": null, "y": null}, out: "N", why: "Jinja2 3.1.6 renders \"N\"" },
-  { name: "a None list element against a missing one", src: "{% if [x] == [y] %}Y{% else %}N{% endif %}", locals: {"x": null}, out: "N", why: "Jinja2 3.1.6 renders \"N\"" },
+  { name: "a None list element against a missing one", src: "{% if [x] == [y] %}Y{% else %}N{% endif %}", locals: {"x": null}, out: "Y", why: "Jinja2 3.1.6 renders \"N\", and \"Y\" when a missing value equals None, as swig-jinja2 reads it" },
   { name: "!= with a missing list element against an empty string", src: "{% if [x] != [\"\"] %}Y{% else %}N{% endif %}", locals: {}, out: "Y", why: "Jinja2 3.1.6 renders \"Y\"" },
   { name: "a None element of a nested list", src: "{% if [[x]] == [[none]] %}Y{% else %}N{% endif %}", locals: {"x": null}, out: "Y", why: "Jinja2 3.1.6 renders \"Y\"" },
   { name: "a None value of a mapping inside a list", src: "{% if [{\"k\": x}] == [{\"k\": none}] %}Y{% else %}N{% endif %}", locals: {"x": null}, out: "Y", why: "Jinja2 3.1.6 renders \"Y\"" },

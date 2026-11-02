@@ -18,9 +18,9 @@ describe('swig-core utils.isIn', function () {
       expect(utils.isIn(true, [1], 'django')).to.be(true);
     });
 
-    it('treats null and a missing value as equal in Django, not in Jinja2', function () {
+    it('treats null and a missing value as equal in Jinja2 and Django', function () {
       expect(utils.isIn(undefined, [null], 'django')).to.be(true);
-      expect(utils.isIn(null, [undefined], 'jinja2')).to.be(false);
+      expect(utils.isIn(null, [undefined], 'jinja2')).to.be(true);
       expect(utils.isIn(null, [''], 'django')).to.be(false);
     });
 

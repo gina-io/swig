@@ -45,7 +45,7 @@ describe('Python equality: sites without an earlier test', function () {
   it('pyEq: an array never equals an array-like mapping (Python reads a list and a dict as unequal)', function () {
     expect(utils.pyEq([1], { 0: 1, length: 1 })).to.be(false);
     expect(utils.pyEq({ length: 0 }, [])).to.be(false);
-    expect(utils.pyEq({ 0: 1, length: 1 }, [1], true)).to.be(false);
+    expect(utils.pyEq({ 0: 1, length: 1 }, [1])).to.be(false);
   });
 
   CASES.forEach(function (c) {

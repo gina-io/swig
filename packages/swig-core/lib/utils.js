@@ -1149,16 +1149,15 @@ function isPlainObject(value) {
 }
 
 /*!
- * Python's `==` over JavaScript values, for pyEq and isIn. `exact` keeps
- * undefined (Jinja2's Undefined) apart from null (None). @private
+ * Python's `==` over JavaScript values, for pyEq and isIn. @private
  */
-function pyEqual(a, b, depth, exact) {
+function pyEqual(a, b, depth) {
   var i, keys;
   if (a === b) {
     return true;
   }
   if (a === null || a === undefined || b === null || b === undefined) {
-    return !exact && (a === null || a === undefined) && (b === null || b === undefined);
+    return (a === null || a === undefined) && (b === null || b === undefined);
   }
   if (typeof a === 'boolean') {
     a = a ? 1 : 0;
@@ -1177,7 +1176,7 @@ function pyEqual(a, b, depth, exact) {
       return false;
     }
     for (i = 0; i < a.length; i += 1) {
-      if (!pyEqual(a[i], b[i], depth + 1, exact)) {
+      if (!pyEqual(a[i], b[i], depth + 1)) {
         return false;
       }
     }
@@ -1194,7 +1193,7 @@ function pyEqual(a, b, depth, exact) {
     return false;
   }
   for (i = 0; i < keys.length; i += 1) {
-    if (!Object.prototype.hasOwnProperty.call(b, keys[i]) || !pyEqual(a[keys[i]], b[keys[i]], depth + 1, exact)) {
+    if (!Object.prototype.hasOwnProperty.call(b, keys[i]) || !pyEqual(a[keys[i]], b[keys[i]], depth + 1)) {
       return false;
     }
   }
@@ -1206,8 +1205,8 @@ function pyEqual(a, b, depth, exact) {
  * number or boolean (`True == 1`), and lists and mappings compare item by
  * item. A Date equals a Date of the same time; any other object (a Map, a
  * Set, a class instance, a function) only itself. null and undefined equal
- * each other only (both read as None); with `exact`, as in Jinja2,
- * undefined (Jinja2's Undefined) equals only undefined and null only null.
+ * each other only: both read as None, in swig-jinja2 too, as `x is none`
+ * reads them (Jinja2 itself keeps its Undefined apart from None).
  * Values nested deeper than 1000 levels read as not equal.
  *
  * @example
@@ -1215,27 +1214,25 @@ function pyEqual(a, b, depth, exact) {
  * _utils.pyEq('1', 1);            // => false
  * _utils.pyEq([1, {k: 2}], [1, {k: 2}]); // => true
  *
- * @param  {*}       a
- * @param  {*}       b
- * @param  {boolean} [exact]  Keep undefined apart from null.
+ * @param  {*} a
+ * @param  {*} b
  * @return {boolean}
  */
-exports.pyEq = function (a, b, exact) {
-  return pyEqual(a, b, 0, exact === true);
+exports.pyEq = function (a, b) {
+  return pyEqual(a, b, 0);
 };
 
 /*!
  * Item equality for `isIn`. Jinja2 and Django compare with Python's `==`
- * (pyEqual); `exact`, set for Jinja2, keeps a missing value apart from null,
- * where Django reads both as None. Twig compares two scalars with `==`, as
+ * (pyEqual), which reads a missing value and null alike, as None. Twig compares two scalars with `==`, as
  * swig-twig's `==` does, and anything else by identity. @private
  */
-function sameItem(a, b, twig, exact) {
+function sameItem(a, b, twig) {
   if (a === b) {
     return true;
   }
   if (!twig) {
-    return pyEqual(a, b, 0, exact);
+    return pyEqual(a, b, 0);
   }
   if ((a !== null && typeof a === 'object') || (b !== null && typeof b === 'object') ||
       typeof a === 'function' || typeof b === 'function') {
@@ -1251,7 +1248,7 @@ function sameItem(a, b, twig, exact) {
  * against a string, or a list or an object tested against a mapping's keys.
  * Twig runs every test. @private
  */
-function membership(needle, haystack, twig, exact) {
+function membership(needle, haystack, twig) {
   var keys, i;
   if (typeof haystack === 'string') {
     if (typeof needle === 'string' || (twig && typeof needle === 'number')) {
@@ -1264,7 +1261,7 @@ function membership(needle, haystack, twig, exact) {
   }
   if (exports.isArray(haystack)) {
     for (i = 0; i < haystack.length; i += 1) {
-      if (sameItem(needle, haystack[i], twig, exact)) {
+      if (sameItem(needle, haystack[i], twig)) {
         return true;
       }
     }
@@ -1292,8 +1289,7 @@ function membership(needle, haystack, twig, exact) {
  * follows its reference engine:
  *
  * - Jinja2 and Django (Python's `in`): a list holds an item equal under
- *   Python's `==` (see pyEq; a missing value equals only a missing value in
- *   Jinja2, and null in Django), a string a substring (the needle must be a
+ *   Python's `==` (see pyEq; a missing value equals null), a string a substring (the needle must be a
  *   string), a mapping a key (a number needle tests the key with the same
  *   digits).
  * - Twig: a list or a mapping holds an equal value, compared loosely; a
@@ -1311,7 +1307,7 @@ function membership(needle, haystack, twig, exact) {
  * @return {boolean}
  */
 exports.isIn = function (needle, haystack, mode, negate) {
-  var found = membership(needle, haystack, mode === 'twig', mode === 'jinja2');
+  var found = membership(needle, haystack, mode === 'twig');
   if (found === null) {
     return negate === true && mode !== 'django';
   }

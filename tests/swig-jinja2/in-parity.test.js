@@ -65,7 +65,8 @@ describe('@rhinostone/swig-jinja2 — membership parity with Jinja2', function (
       expect(render('{% if x in y %}Y{% else %}N{% endif %}', { y: [1] })).to.equal('N');
       expect(render('{% if x in y %}Y{% else %}N{% endif %}', { x: 1 })).to.equal('N');
       expect(render('{% if x in y %}Y{% else %}N{% endif %}', { x: 'a' })).to.equal('N');
-      expect(render('{% if x in y %}Y{% else %}N{% endif %}', { y: [null] })).to.equal('N');
+      // Jinja2 renders N, keeping a missing value apart from None; swig-jinja2 reads both as None
+      expect(render('{% if x in y %}Y{% else %}N{% endif %}', { y: [null] })).to.equal('Y');
     });
     it('in combines with other operators and filters', function () {
       expect(render('{% if x in y and z %}Y{% else %}N{% endif %}', { x: 1, y: [1], z: true })).to.equal('Y');
