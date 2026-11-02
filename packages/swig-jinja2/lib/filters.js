@@ -1,7 +1,8 @@
 var utils = require('@rhinostone/swig-core/lib/utils'),
   dateFormatter = require('@rhinostone/swig-core/lib/dateformatter'),
   iterateFilter = require('@rhinostone/swig-core/lib/filters').iterateFilter,
-  asText = require('@rhinostone/swig-core/lib/filters').asText;
+  asText = require('@rhinostone/swig-core/lib/filters').asText,
+  dangerousProps = require('@rhinostone/swig-core/lib/security').dangerousProps;
 
 /**
  * Jinja2 filter catalog.
@@ -1485,3 +1486,462 @@ exports.date = function (input, format, offset, abbr) {
   }
   return out;
 };
+
+/*!
+ * Python's whitespace as a pattern source: the 29 code points
+ * `str.isspace()` accepts, which `\s` matches in a Python str pattern and
+ * `str.split()` splits on. @private
+ */
+var PY_SPACE = '\\t\\n\\v\\f\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000',
+  // A split on it keeps the whitespace runs, as Python's re.split(r"(\s+)").
+  PY_SPACE_RUN = new RegExp('([' + PY_SPACE + ']+)');
+
+/*!
+ * Patterns for `urlize` and `filesizeformat`, read as Python's `re` module
+ * reads Jinja2's: `\w` is a letter, a number or `_`, `\d` a decimal digit,
+ * and the case-insensitive `[a-z]`, `i` and `s` also match the letters
+ * Python adds to them (U+0130, U+0131, U+017F and U+212A). Built in a
+ * try/catch because an engine without Unicode property escapes (ES2018)
+ * throws on them; it gets ASCII classes instead, where a digit has a class
+ * form (`0-9`) and an atom form (`[0-9]`), and non-ASCII digits are not
+ * read as numbers. @private
+ */
+var pyRe = (function () {
+  function build(unicode) {
+    var word = unicode ? '\\p{L}\\p{N}_' : 'A-Za-z0-9_',
+      digits = unicode ? '\\p{Nd}' : '0-9',
+      digit = unicode ? '\\p{Nd}' : '[0-9]',
+      flag = unicode ? 'u' : '',
+      notSpace = '[^' + PY_SPACE + ']',
+      letter = '[a-z\\u0130\\u0131\\u017f\\u212a]',
+      i = '[i\\u0130\\u0131]',
+      http = 'http[s\\u017f]?://';
+    return {
+      url: new RegExp('^(?:(?:' + http + '|www\\.)(?:[' + word + '%-]+\\.)*(?:' + letter + '{2,63}|xn--[' + word + '%]{2,59})' +
+        '|(?:[' + word + '%-]{2,63}\\.)+(?:com|net|' + i + 'nt|edu|gov|org|' + i + 'nfo|m' + i + 'l)' +
+        '|' + http + '(?:' + digit + '{1,3}(?:\\.' + digit + '{1,3}){3}|\\[(?:[' + digits + 'a-f]{0,4}:){2}(?:[' + digits + 'a-f]{0,4}:?){1,6}\\]))' +
+        '(?::' + digit + '{1,5})?(?:[/?#]' + notSpace + '*)?$', 'i' + flag),
+      email: new RegExp('^' + notSpace + '+@[' + word + '][' + word + '.-]*\\.[' + word + ']+$', flag),
+      scheme: new RegExp('^[' + word + '.+-]{2,}:/{0,2}$', flag),
+      decimal: unicode ? new RegExp('\\p{Nd}', 'u') : null,
+      nonAscii: unicode ? new RegExp('[^\\x00-\\x7f]', 'gu') : null
+    };
+  }
+  try {
+    return build(true);
+  } catch (e) {
+    return build(false);
+  }
+}());
+
+/**
+ * Convert the input to a string (Jinja2's `string`): undefined and null
+ * give the empty string, any other value its JavaScript text.
+ *
+ * @example
+ * {{ 12345|string|length }}
+ * // => 5
+ *
+ * @param  {*} input
+ * @return {string}
+ */
+exports.string = function (input) {
+  return asText(input);
+};
+
+/**
+ * The `[key, value]` pairs of a mapping (Jinja2's `items`), in the order of
+ * its keys. Any other value gives an empty list: Jinja2 gives one for an
+ * undefined value and raises for a value that is not a mapping.
+ *
+ * @example
+ * {% for k, v in {"a": 1, "b": 2}|items %}{{ k }}={{ v }};{% endfor %}
+ * // => a=1;b=2;
+ *
+ * @param  {*} input
+ * @return {Array}  List of `[key, value]` pairs.
+ */
+exports.items = function (input) {
+  if (!input || typeof input !== 'object' || utils.isArray(input)) {
+    return [];
+  }
+  return utils.map(utils.keys(input), function (k) {
+    return [k, input[k]];
+  });
+};
+
+/**
+ * Read an attribute of a value (Jinja2's `attr`) as `value.name` reads it:
+ * a key of a mapping or a property of a JavaScript value. Gives undefined
+ * for an undefined or null value, for a name that is not a string, and for
+ * `__proto__`, `constructor` and `prototype`: the name can come from data,
+ * so the filter applies, when it runs, the prototype-chain guard that
+ * `value.name` gets when the template compiles.
+ *
+ * @example
+ * {{ user|attr("name") }}
+ * // => Ada
+ *
+ * @param  {*}      input
+ * @param  {string} name  Attribute name.
+ * @return {*}
+ */
+exports.attr = function (input, name) {
+  if (input === undefined || input === null || typeof name !== 'string' || dangerousProps.indexOf(name) !== -1) {
+    return undefined;
+  }
+  return input[name];
+};
+
+/*!
+ * The whitespace Python's `float()` strips around a number: the ASCII
+ * whitespace of C's `isspace`, and Python's whitespace above U+007F. The
+ * separators U+001C to U+001F are whitespace to `str.isspace()`, but make
+ * `float()` raise. @private
+ */
+var FLOAT_SPACE = new RegExp('[\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]'),
+  PY_FLOAT = /^[+-]?(?:(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)(?:e[+-]?\d(?:_?\d)*)?|inf(?:inity)?|nan)$/i;
+
+/*!
+ * The ASCII digit for a non-ASCII decimal digit, which Python's `float()`
+ * reads as its value (Unicode encodes decimal digits in runs of ten, from 0
+ * to 9). Any other character is kept, and makes the number invalid.
+ * @private
+ */
+function decimalValue(ch) {
+  var cp = ch.codePointAt(0), zero = cp;
+  if (!pyRe.decimal.test(ch)) {
+    return ch;
+  }
+  while (pyRe.decimal.test(String.fromCodePoint(zero - 1))) {
+    zero -= 1;
+  }
+  return String((cp - zero) % 10);
+}
+
+/*!
+ * Read a value as Python's `float()` does: a number as it is, a boolean as
+ * 0 or 1, and a string of digits (single underscores allowed between them)
+ * with an optional sign, fraction and exponent, or inf, infinity or nan in
+ * any case, inside optional whitespace. Returns undefined where Python
+ * raises. @private
+ */
+function pyFloat(value) {
+  var start = 0, end, s;
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'boolean') {
+    return value ? 1 : 0;
+  }
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  if (pyRe.decimal) {
+    value = value.replace(pyRe.nonAscii, decimalValue);
+  }
+  // A pattern such as [\s]+$ takes quadratic time on a long run of
+  // whitespace inside the value, so the ends are trimmed with a loop.
+  end = value.length;
+  while (start < end && FLOAT_SPACE.test(value.charAt(start))) {
+    start += 1;
+  }
+  while (end > start && FLOAT_SPACE.test(value.charAt(end - 1))) {
+    end -= 1;
+  }
+  s = value.slice(start, end);
+  if (!PY_FLOAT.test(s)) {
+    return undefined;
+  }
+  s = s.replace(/_/g, '').toLowerCase();
+  if (s.indexOf('inf') !== -1) {
+    return (s.charAt(0) === '-') ? -Infinity : Infinity;
+  }
+  if (s.indexOf('nan') !== -1) {
+    return NaN;
+  }
+  return Number(s);
+}
+
+/* global BigInt */
+/*!
+ * Python's text of an integral number: every digit, where JavaScript writes
+ * 1e+21 and above in exponent form. An engine without BigInt keeps
+ * JavaScript's text. @private
+ */
+function intText(x) {
+  return (Math.abs(x) >= 1e21 && typeof BigInt === 'function') ? BigInt(x).toString() : String(x);
+}
+
+/*!
+ * Python's `'%.1f' % x` for the positive sizes `filesizeformat` divides
+ * out: a value exactly halfway between two tenths rounds to the even one,
+ * where `toFixed` rounds up (1.25 gives 1.2, 1.75 gives 1.8). @private
+ */
+function fixed1(x) {
+  var whole;
+  if (isNaN(x)) {
+    return 'nan';
+  }
+  if (x === Infinity) {
+    return 'inf';
+  }
+  if (x >= 1e21) {
+    return intText(x) + '.0';
+  }
+  if (Number.isInteger(x * 4) && (x * 4) % 2 !== 0) {
+    whole = Math.floor(x);
+    return String(whole) + ((x - whole === 0.25) ? '.2' : '.8');
+  }
+  return x.toFixed(1);
+}
+
+/*!
+ * filesizeformat's units: 1000 or 1024 to the powers 2 to 9, as doubles.
+ * Python compares a size with the exact integer, and the double 1e24 lies
+ * just below 10 ** 24, so a size equal to it is still in ZB (1e27 lies
+ * above 10 ** 27, where `<` already gives Python's answer). @private
+ */
+var SIZE_UNITS = (function () {
+  var binary = [], unit = 1024, i;
+  for (i = 0; i < 8; i += 1) {
+    unit *= 1024;
+    binary.push(unit);
+  }
+  return {
+    decimal: { sizes: [1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24, 1e27], names: ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'] },
+    binary: { sizes: binary, names: ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'] }
+  };
+}());
+
+/**
+ * Format a number of bytes as a human-readable file size (Jinja2's
+ * `filesizeformat`): `13 kB`, `4.1 MB`, `102 Bytes`. Decimal units by
+ * default; a truthy second argument gives binary units (KiB, MiB, ...).
+ * The input is read as Python's `float()` reads it: a number, a boolean, or
+ * a numeric string such as `"1_000"` or `" 12 "`. A value it cannot read
+ * is returned unchanged, where Jinja2 raises.
+ *
+ * @example
+ * {{ 1234567|filesizeformat }}
+ * // => 1.2 MB
+ *
+ * @example
+ * {{ 1536|filesizeformat(true) }}
+ * // => 1.5 KiB
+ *
+ * @param  {*}       input
+ * @param  {boolean} [binary=false]  Use binary (1024-based) units.
+ * @return {*}       The formatted size, or the input when it is not a number.
+ */
+exports.filesizeformat = function (input, binary) {
+  var bytes = pyFloat(input),
+    base = binary ? 1024 : 1000,
+    units = binary ? SIZE_UNITS.binary : SIZE_UNITS.decimal,
+    i,
+    unit;
+
+  if (bytes === undefined) {
+    return input;
+  }
+  if (bytes === 1) {
+    return '1 Byte';
+  }
+  if (bytes < base) {
+    // Python's int() raises on -inf.
+    return (bytes === -Infinity) ? input : intText(Math.trunc(bytes)) + ' Bytes';
+  }
+  for (i = 0; i < units.sizes.length; i += 1) {
+    unit = units.sizes[i];
+    if (bytes < unit || (!binary && i === 6 && bytes === unit)) {
+      return fixed1(base * bytes / unit) + ' ' + units.names[i];
+    }
+  }
+  return fixed1(base * bytes / unit) + ' ' + units.names[units.names.length - 1];
+};
+
+/*!
+ * Escape every `&`, `<`, `>`, `"` and `'`, with the bytes `escape` writes
+ * (`&quot;`, `&#39;`), so a later `escape` keeps the result as it is.
+ * Unlike `escape`, an `&` that starts an entity is escaped too. @private
+ */
+function escapeAll(s) {
+  return s.replace(/[&<>"']/g, function (ch) {
+    return (ch === '&') ? '&amp;' : escapeHtmlRest(ch);
+  });
+}
+
+/**
+ * HTML-escape the input even when it is already escaped (Jinja2's
+ * `forceescape`): every `&` becomes `&amp;`. The output is marked safe. A
+ * double quote is written `&quot;`, as `escape` writes it, where Jinja2
+ * writes `&#34;`.
+ *
+ * @example
+ * {{ "<b>&amp;</b>"|forceescape }}
+ * // => &lt;b&gt;&amp;amp;&lt;/b&gt;
+ *
+ * @param  {*} input
+ * @return {string}
+ */
+exports.forceescape = function (input) {
+  return escapeAll(asText(input));
+};
+exports.forceescape.safe = true;
+
+/*!
+ * urlize's patterns: the opening run a word may start with, and the pairs
+ * whose closing characters move back from the trailing run into a link
+ * that opens more of them than it closes. @private
+ */
+var URL_LEAD = /^(?:[(<]|&lt;)+/,
+  URL_PAIRS = [['(', ')'], ['<', '>'], ['&lt;', '&gt;']];
+
+/*!
+ * Where the trailing punctuation of a word starts: the longest run of `)`,
+ * `>`, `.`, `,`, a newline and `&gt;` at its end. The run splits one way
+ * only, so scanning it from the end finds the start Jinja2's
+ * `([)>.,\n]|&gt;)+$` finds, in linear time. @private
+ */
+function trailingStart(s) {
+  var j = s.length;
+  for (;;) {
+    if (j >= 4 && s.slice(j - 4, j) === '&gt;') {
+      j -= 4;
+    } else if (j >= 1 && ')>.,\n'.indexOf(s.charAt(j - 1)) !== -1) {
+      j -= 1;
+    } else {
+      return j;
+    }
+  }
+}
+
+/*!
+ * How many times `sub` occurs in `s`, without overlap (Python's
+ * `str.count`). @private
+ */
+function occurrences(s, sub) {
+  return s.split(sub).length - 1;
+}
+
+/*!
+ * The rel attribute urlize writes: the words of `rel`, `nofollow` when
+ * asked, and `noopener`, each once, sorted. @private
+ */
+function relValue(rel, nofollow) {
+  var parts = (typeof rel === 'string') ? rel.split(PY_SPACE_RUN) : [],
+    words = [],
+    i;
+  // The split keeps the whitespace runs at the odd indexes.
+  for (i = 0; i < parts.length; i += 2) {
+    if (parts[i] && words.indexOf(parts[i]) === -1) {
+      words.push(parts[i]);
+    }
+  }
+  if (nofollow && words.indexOf('nofollow') === -1) {
+    words.push('nofollow');
+  }
+  if (words.indexOf('noopener') === -1) {
+    words.push('noopener');
+  }
+  return words.sort().join(' ');
+}
+
+/*!
+ * A URL as urlize shows it: cut to `limit` characters (a Python slice, so a
+ * negative limit drops characters from the end) and followed by `...` when
+ * it is longer. A limit that is not an integer leaves it whole. @private
+ */
+function trimUrl(url, limit) {
+  var cps;
+  if (!Number.isInteger(limit)) {
+    return url;
+  }
+  cps = codePoints(url);
+  return (cps.length > limit) ? cps.slice(0, limit).join('') + '...' : url;
+}
+
+/**
+ * Turn the URLs and email addresses in a text into links (Jinja2's
+ * `urlize`), with Jinja2 3.1.6's rules: `http://`, `https://` and `www.`
+ * links, bare domains under com, net, int, edu, gov, org, info and mil,
+ * IPv4 and IPv6 hosts, `mailto:` and plain email addresses. A leading `(`
+ * and a trailing `.`, `,` or `)` stay outside the link, unless a `)`
+ * closes a `(` inside it. The text is HTML-escaped first (a double quote
+ * as `&quot;`, where Jinja2 writes `&#34;`) and the output is marked safe.
+ * Links get `rel="noopener"`.
+ *
+ * Arguments are positional: `urlize(trim_url_limit, nofollow, target, rel,
+ * extra_schemes)`; pass `none` for one to leave unset. An argument Jinja2
+ * rejects is ignored: a limit that is not an integer, an extra scheme that
+ * is not a scheme prefix.
+ *
+ * @example
+ * {{ "see www.example.com."|urlize }}
+ * // => see <a href="https://www.example.com" rel="noopener">www.example.com</a>.
+ *
+ * @example
+ * {{ "http://example.com/very/long/path"|urlize(18) }}
+ * // => <a href="http://example.com/very/long/path" rel="noopener">http://example.com...</a>
+ *
+ * @param  {*}       input
+ * @param  {number}  [trimUrlLimit]   Show a URL cut to this many characters, followed by `...`.
+ * @param  {boolean} [nofollow=false] Add `nofollow` to the rel attribute.
+ * @param  {string}  [target]         Value of a target attribute.
+ * @param  {string}  [rel]            Words added to the rel attribute.
+ * @param  {Array}   [extraSchemes]   Prefixes such as `"tel:"` or `"ftp://"` that also start a link.
+ * @return {string}
+ */
+exports.urlize = function (input, trimUrlLimit, nofollow, target, rel, extraSchemes) {
+  var relAttr = ' rel="' + escapeAll(relValue(rel, nofollow)) + '"',
+    targetAttr = target ? ' target="' + escapeAll(asText(target)) + '"' : '',
+    limit = (typeof trimUrlLimit === 'boolean') ? +trimUrlLimit : trimUrlLimit,
+    schemes = utils.isArray(extraSchemes) ? extraSchemes.filter(function (s) {
+      return typeof s === 'string' && pyRe.scheme.test(s);
+    }) : [],
+    words = escapeAll(asText(input)).split(PY_SPACE_RUN),
+    head, middle, tail, lead, end, pair, moves, at, i, p, n;
+
+  for (i = 0; i < words.length; i += 1) {
+    head = '';
+    middle = words[i];
+    lead = URL_LEAD.exec(middle);
+    if (lead) {
+      head = lead[0];
+      middle = middle.slice(head.length);
+    }
+    end = trailingStart(middle);
+    tail = middle.slice(end);
+    middle = middle.slice(0, end);
+    // A link that opens more than it closes takes back as many closing
+    // characters from the tail as it opens, with what lies before them.
+    for (p = 0; p < URL_PAIRS.length; p += 1) {
+      pair = URL_PAIRS[p];
+      if (occurrences(middle, pair[0]) > occurrences(middle, pair[1])) {
+        moves = Math.min(occurrences(middle, pair[0]), occurrences(tail, pair[1]));
+        for (n = 0, at = 0; n < moves; n += 1) {
+          at = tail.indexOf(pair[1], at) + pair[1].length;
+        }
+        middle += tail.slice(0, at);
+        tail = tail.slice(at);
+      }
+    }
+    if (pyRe.url.test(middle)) {
+      middle = '<a href="' + ((middle.indexOf('https://') === 0 || middle.indexOf('http://') === 0) ? '' : 'https://') + middle + '"' +
+        relAttr + targetAttr + '>' + trimUrl(middle, limit) + '</a>';
+    } else if (middle.indexOf('mailto:') === 0 && pyRe.email.test(middle.slice(7))) {
+      middle = '<a href="' + middle + '">' + middle.slice(7) + '</a>';
+    } else if (middle.indexOf('@') !== -1 && middle.indexOf('www.') !== 0 && middle.charAt(0) !== '@' && middle.indexOf(':') === -1 && pyRe.email.test(middle)) {
+      middle = '<a href="mailto:' + middle + '">' + middle + '</a>';
+    } else {
+      for (n = 0; n < schemes.length; n += 1) {
+        if (middle !== schemes[n] && middle.indexOf(schemes[n]) === 0) {
+          middle = '<a href="' + middle + '"' + relAttr + targetAttr + '>' + middle + '</a>';
+        }
+      }
+    }
+    words[i] = head + middle + tail;
+  }
+  return words.join('');
+};
+exports.urlize.safe = true;
