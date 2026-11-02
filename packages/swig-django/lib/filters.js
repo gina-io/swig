@@ -916,26 +916,81 @@ exports.phone2numeric = function (input) {
 };
 
 /*!
- * Parse a string as Python's `float()` does: surrounding whitespace, an
- * optional sign, then digits (single underscores allowed between them)
- * with an optional fraction and exponent, or inf / infinity / nan in any
- * case. Returns undefined where Python raises ValueError. @private
+ * Decimal digits outside ASCII, which Python's `float()` reads as their
+ * values: a regex for one such digit, and one for any character outside
+ * ASCII. Built in a try/catch because an engine without Unicode property
+ * escapes (ES2018) throws on them; it gets null, and does not read
+ * non-ASCII digits as numbers. @private
+ */
+var pyDigits = (function () {
+  try {
+    return { decimal: new RegExp('\\p{Nd}', 'u'), nonAscii: new RegExp('[^\\x00-\\x7f]', 'gu') };
+  } catch (e) {
+    return null;
+  }
+}());
+
+/*!
+ * The whitespace Python's `float()` strips around a number: the ASCII
+ * whitespace of C's `isspace`, and Python's whitespace above U+007F. The
+ * separators U+001C to U+001F are whitespace to `str.isspace()`, but make
+ * `float()` raise. @private
+ */
+var FLOAT_SPACE = new RegExp('[\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]'),
+  PY_FLOAT = /^[+-]?(?:(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)(?:e[+-]?\d(?:_?\d)*)?|inf(?:inity)?|nan)$/i;
+
+/*!
+ * The ASCII digit for a non-ASCII decimal digit, which Python's `float()`
+ * reads as its value (Unicode encodes decimal digits in runs of ten, from 0
+ * to 9). Any other character is kept, and makes the number invalid.
+ * @private
+ */
+function decimalValue(ch) {
+  var cp = ch.codePointAt(0), zero = cp;
+  if (!pyDigits.decimal.test(ch)) {
+    return ch;
+  }
+  while (pyDigits.decimal.test(String.fromCodePoint(zero - 1))) {
+    zero -= 1;
+  }
+  return String((cp - zero) % 10);
+}
+
+/*!
+ * Read a string as Python's `float()` does: digits (single underscores
+ * allowed between them) with an optional sign, fraction and exponent, or
+ * inf, infinity or nan in any case, inside optional whitespace. A decimal
+ * digit of any script reads as its value, and the whitespace is Python's,
+ * not what `\s` matches: U+0085 is whitespace there, U+FEFF is not.
+ * Returns undefined where Python raises ValueError. @private
  */
 function pyFloat(s) {
-  // A trailing \s+$ takes quadratic time on a long run of whitespace inside
-  // the value; utils.strip gives the same output in linear time.
-  // var t = s.replace(/^\s+|\s+$/g, '');
-  var t = utils.strip(s);
-  if (/^[+-]?(inf|infinity)$/i.test(t)) {
-    return (t.charAt(0) === '-') ? -Infinity : Infinity;
+  var start = 0, end, t;
+  if (pyDigits) {
+    s = s.replace(pyDigits.nonAscii, decimalValue);
   }
-  if (/^[+-]?nan$/i.test(t)) {
-    return NaN;
+  // A pattern such as \s+$ takes quadratic time on a long run of whitespace
+  // inside the value, so the ends are trimmed with a loop (this reader once
+  // trimmed with s.replace(/^\s+|\s+$/g, '')).
+  end = s.length;
+  while (start < end && FLOAT_SPACE.test(s.charAt(start))) {
+    start += 1;
   }
-  if (!/^[+-]?(\d(_?\d)*(\.(\d(_?\d)*)?)?|\.\d(_?\d)*)([eE][+-]?\d(_?\d)*)?$/.test(t)) {
+  while (end > start && FLOAT_SPACE.test(s.charAt(end - 1))) {
+    end -= 1;
+  }
+  t = s.slice(start, end);
+  if (!PY_FLOAT.test(t)) {
     return undefined;
   }
-  return parseFloat(t.replace(/_/g, ''));
+  t = t.replace(/_/g, '').toLowerCase();
+  if (t.indexOf('inf') !== -1) {
+    return (t.charAt(0) === '-') ? -Infinity : Infinity;
+  }
+  if (t.indexOf('nan') !== -1) {
+    return NaN;
+  }
+  return Number(t);
 }
 
 /**
