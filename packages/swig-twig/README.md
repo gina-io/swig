@@ -24,8 +24,8 @@ var out = swig.render('Hello, {{ name|upper }}!', {
 // => Hello, WORLD!
 ```
 
-Supported surface (as of 2.0.0)
--------------------------------
+Supported surface
+-----------------
 
 * **Tags** — `apply`, `block`, `extends`, `for`, `from`, `if`, `import`, `include`, `macro`, `set`, `verbatim`, `with`.
 * **Operators** — `..` range, `??` null-coalescing, `~` string concat, `is <test>` / `is not <test>`.

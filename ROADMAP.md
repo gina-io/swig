@@ -11,7 +11,6 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 | Status | Item |
 | --- | --- |
 | Planned | swig-jinja2 parity: the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
-| Planned | swig-jinja2 and swig-django: `==` and `!=` compare as Python does; today they are JavaScript's loose operators, so `1 == "1"` is true and `[1] == [1]` false. |
 
 ## Future (post-2.0)
 
@@ -26,7 +25,13 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Completed
 
-### v2.10.0 (October 2026)
+### v2.11.0 (November 2026)
+
+- swig-jinja2 and swig-django: `==` and `!=` compare as Python does, where they were JavaScript's loose operators, and `in` compares the items of a list with that equality. Recompile precompiled templates to pick this up. Native `@rhinostone/swig` and swig-twig do not change.
+- swig-jinja2 gains Jinja2's comparison tests (`eq`, `equalto`, `ne`, `lt`, `lessthan`, `le`, `gt`, `greaterthan`, `ge`), and its tests that take one argument fail when reached with none or with two, as in Jinja2.
+- All five packages released in lockstep at `2.11.0`.
+
+### v2.10.0 (November 2026)
 
 - A filter or test name the instance does not hold now fails as in each reference engine: a compile error wherever it stands in swig-twig and swig-django; in swig-jinja2 a compile error too, except directly inside an `if` or an inline-if, where the same error is thrown when the expression is reached. Register custom filters and tests before the compile that uses them. Native `@rhinostone/swig` does not change.
 - swig-jinja2 gains the tests `is integer` and `is float` and the guards `"name" is filter` and `"name" is test`.

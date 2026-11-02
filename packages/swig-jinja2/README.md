@@ -24,14 +24,15 @@ var out = swig.render('Hello, {{ name|upper }}!', {
 // => Hello, WORLD!
 ```
 
-Supported surface (as of 2.5.0)
--------------------------------
+Supported surface
+-----------------
 
 A near-subset of Python Jinja2 — everything below was cross-checked against Jinja2 3.x.
 
 * **Tags** — `set`, `if` / `elif` / `else`, `for` (with `else` and loop filters, `{% for x in xs if x > 1 %}`), `block`, `extends`, `include`, `macro`, `import`, `from`, `raw`, `filter`, `with`, `autoescape`.
 * **Operators** — `**` power, `//` floor-division, `~` string concat, inline-if (`a if c else b`), Python slicing (`seq[start:stop:step]`), `is <test>` / `is not <test>`, plus `{{- … -}}` / `{%- … -%}` whitespace control.
-* **Built-in `is` tests** — `defined`, `undefined`, `none`, `even`, `odd`, `divisibleby`, `iterable`, `mapping`, `sequence`, `string`, `number`, `integer`, `float`, `boolean`, `true`, `false`, `callable`, `lower`, `upper`, `sameas`, and the guards `"name" is filter` and `"name" is test` on a string literal.
+* **Equality** — `==`, `!=` and `in` compare as Python does: a string never equals a number, and lists and mappings compare item by item. A missing value equals None (Jinja2 tells the two apart).
+* **Built-in `is` tests** — `defined`, `undefined`, `none`, `even`, `odd`, `divisibleby`, `iterable`, `mapping`, `sequence`, `string`, `number`, `integer`, `float`, `boolean`, `true`, `false`, `callable`, `lower`, `upper`, `sameas`, the comparison tests `eq` / `equalto`, `ne`, `lt` / `lessthan`, `le`, `gt` / `greaterthan` and `ge`, and the guards `"name" is filter` and `"name" is test` on a string literal. A test that takes one argument fails when reached with none or with two: write a signed number in parentheses (`x is gt(-1)`).
 * **Unknown names** — a filter or test name the instance does not hold is a compile error, as in Jinja2, except directly inside an `if` or an inline-if, where the same error is thrown when the expression is reached. Register custom filters and tests before the compile that uses them.
 * **Constants** — `true`, `false` and `none`, each also capitalised.
 * **Filters** — 39 built-ins (`upper`, `lower`, `capitalize`, `title`, `trim`, `truncate`, `replace`, `striptags`, `format`, `wordcount`, `wordwrap`, `indent`, `center`, `urlencode`, `escape` / `e`, `safe`, `first`, `last`, `join`, `reverse`, `sort`, `length` / `count`, `list`, `unique`, `batch`, `slice`, `dictsort`, `groupby`, `min`, `max`, `sum`, `random`, `abs`, `round`, `int`, `float`, `default` / `d`, `tojson`, `date`). See `lib/filters.js` for the full list.
