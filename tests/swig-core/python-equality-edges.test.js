@@ -16,6 +16,7 @@ var ENGINES = {
 
 var CASES = [
   { name: "a JavaScript global read through a dotted path compares as the output reads it", fl: "jinja2", src: "{{ Math.PI }}|{% if Math.PI == x %}Y{% else %}N{% endif %}", locals: {"x": 3.141592653589793}, out: "3.141592653589793|Y", why: "no reference: Jinja2 has no JavaScript globals; the raw read falls back to the closure as the output read does" },
+  { name: "a dotted read whose head is a locals key without the leaf compares as the output reads it", fl: "jinja2", src: "{{ Math.PI }}|{% if Math.PI == x %}Y{% else %}N{% endif %}", locals: {"Math": {}, "x": 3.141592653589793}, out: "3.141592653589793|Y", why: "no reference: Jinja2 reads Math.PI as undefined there; both reads fall back to the JavaScript global, a documented difference" },
   { name: "the else branch of an inline-if reads its own value", fl: "jinja2", src: "{% if (a if c else x) == none %}Y{% else %}N{% endif %}", locals: {"a": 1, "c": false, "x": null}, out: "Y", why: "Jinja2 3.1.6 renders \"Y\"" },
   { name: "the right operand of and reads its own value", fl: "jinja2", src: "{% if (1 and x) == none %}Y{% else %}N{% endif %}", locals: {"x": null}, out: "Y", why: "Jinja2 3.1.6 renders \"Y\"" },
   { name: "the left operand of and reads its own value", fl: "jinja2", src: "{% if (x and 1) == none %}Y{% else %}N{% endif %}", locals: {"x": null}, out: "Y", why: "Jinja2 3.1.6 renders \"Y\"" },
