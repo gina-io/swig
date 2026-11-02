@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-django: `pluralize` reads a string count as Django does, with Python''s `float()`. A decimal digit of any script reads as its value (a count of U+0661, the Arabic-Indic one, gives the singular suffix, where 2.11.0 gave the empty string); U+0085 before or after the number is whitespace (2.11.0 gave the empty string), and U+FEFF is not (a count with a U+FEFF before or after the number gives the empty string, where 2.11.0 read the number). On an engine without Unicode property escapes, decimal digits outside ASCII are still not read.'
-time: 2026-11-02T19:35:00.000000+00:00
-custom:
-  Issue: ""

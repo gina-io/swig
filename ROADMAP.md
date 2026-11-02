@@ -8,9 +8,7 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 
 ## Next
 
-| Status | Item |
-| --- | --- |
-| Planned | swig-jinja2 parity: the builtin filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`. |
+Nothing is scheduled for the next release yet.
 
 ## Future (post-2.0)
 
@@ -24,6 +22,12 @@ For bug reports and feature requests, file an issue at [gina-io/swig](https://gi
 ---
 
 ## Completed
+
+### v2.12.0 (November 2026)
+
+- swig-jinja2 gains Jinja2's filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`, which 2.11.0 rejected as unknown filters.
+- swig-django: `pluralize` reads a string count as Django does, with Python's `float()`.
+- All five packages released in lockstep at `2.12.0`.
 
 ### v2.11.0 (November 2026)
 
