@@ -1280,9 +1280,10 @@ function membershipMode(flag) {
 /*!
  * An operand of a Jinja2 or Django comparison (`==`, `!=`, `in`): a variable reads its
  * own value (rawMatchExpr), and so does each branch of a conditional or of
- * `and` / `or`, so the comparison sees None where a variable is null or
- * missing. Any other operand emits as usual; it sits in a call's argument
- * list, so it needs no grouping. @private
+ * `and` / `or`, and each element of a list literal or value of a mapping
+ * literal, so the comparison sees None where a variable is null or missing.
+ * Any other operand emits as usual; it sits in a call's argument list, so it
+ * needs no grouping. @private
  */
 function equalityOperand(node, d) {
   if (node.type === 'VarRef') {
@@ -1293,6 +1294,12 @@ function equalityOperand(node, d) {
   }
   if (node.type === 'BinaryOp' && (node.op === '&&' || node.op === '||')) {
     return '(' + equalityOperand(node.left, d) + node.op + equalityOperand(node.right, d) + ')';
+  }
+  if (node.type === 'ArrayLiteral') {
+    return '[' + node.elements.map(function (el) { return equalityOperand(el, d); }).join(', ') + ']';
+  }
+  if (node.type === 'ObjectLiteral') {
+    return '{' + node.properties.map(function (p) { return emitExpr(p.key, d) + ':' + equalityOperand(p.value, d); }).join(', ') + '}';
   }
   return emitExpr(node, d);
 }
