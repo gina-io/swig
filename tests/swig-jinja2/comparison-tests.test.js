@@ -145,16 +145,16 @@ describe('@rhinostone/swig-jinja2 — comparison tests', function () {
       });
     });
 
-    it('calls the helper for another number of arguments', function () {
+    it('fails when reached with another number of arguments', function () {
       var inst = new Jinja2();
-      expect(parse('a is eq').type).to.equal('FnCall');
-      expect(parse('a is eq(b, c)').callee.path).to.eql(['_ext', '_test_eq']);
-      expect(body(inst, '{{ a is eq() }}')).to.contain('_ext._test_eq');
-      expect(body(inst, '{{ a is lt(b, c) }}')).to.contain('_ext._test_lt');
-      // Jinja2 raises a TypeError for these calls; the helper compares the
-      // subject with the first argument, or with undefined.
-      expect(inst.render(ifs('1 is eq()'))).to.equal('N');
-      expect(inst.render(ifs('1 is eq(1, 2)'))).to.equal('Y');
+      expect(parse('a is eq').callee.path).to.eql(['_utils', 'invalidName']);
+      expect(parse('a is eq(b, c)').callee.path).to.eql(['_utils', 'invalidName']);
+      expect(body(inst, '{{ a is eq() }}')).to.not.contain('_ext._test_eq');
+      expect(body(inst, '{{ a is lt(b, c) }}')).to.not.contain('_ext._test_lt');
+      // Jinja2 raises a TypeError for these calls when they run.
+      expect(function () { inst.render(ifs('1 is eq()')); }).to.throwError(/Test "eq" takes one argument, found none/);
+      expect(function () { inst.render(ifs('1 is eq(1, 2)')); }).to.throwError(/Test "eq" takes one argument, found 2/);
+      expect(inst.render('{% if false %}{{ 1 is eq() }}{% endif %}ok')).to.equal('ok');
     });
 
     it('lowers on the module\'s default instance too', function () {

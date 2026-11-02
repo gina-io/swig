@@ -42,6 +42,19 @@ var _constants = ['true', 'false', 'none', 'True', 'False', 'None'];
 var _comparisonTests = { eq: '==', equalto: '==', ne: '!=', lt: '<', lessthan: '<', le: '<=', gt: '>', greaterthan: '>', ge: '>=' };
 
 /**
+ * Whether a built-in test takes exactly one argument, as in Jinja2, which
+ * raises a TypeError for another number: the comparison tests, divisibleby
+ * and sameas.
+ *
+ * @param  {string}  name  Test name.
+ * @return {boolean}
+ * @private
+ */
+function takesOneArgument(name) {
+  return hasOwn.call(_comparisonTests, name) || name === 'divisibleby' || name === 'sameas';
+}
+
+/**
  * Build the literal for one of Jinja2's constant names.
  *
  * @param  {string} name  One of `_constants`.
@@ -402,6 +415,23 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
   // operators have, so the test and its operator always agree; it stays a
   // call while the instance's `_test_<name>` is not the built-in helper, so a
   // test registered under one of these names runs, as any registered test.
+  // A built-in test that takes one argument (takesOneArgument), called with
+  // another number, fails when the expression is reached, as Jinja2's
+  // TypeError does: the bare argument takes no sign, so `x is gt -1` is
+  // `(x is gt) - 1`, a test with no argument, whose value would otherwise
+  // pick a branch whatever x is.
+  function builtInTest(name) {
+    return !knownTests || knownTests['_test_' + name] === _tests[name];
+  }
+
+  function arityError(test) {
+    var n = test.args.length;
+    return helperCall(['_utils', 'invalidName'], [ir.literal('string', 'Test "' + test.name +
+      '" takes one argument, found ' + (n || 'none') +
+      (n ? '' : ' (write a negative number in parentheses: x is ' + test.name + '(-1))') +
+      (_scope ? ' on line ' + _scope.line + (_scope.filename ? ' in file ' + _scope.filename : '') : '') + '.')]);
+  }
+
   function lowerTest(subject, negated) {
     var test = parseTest(), testCall, op;
     // Jinja2's guards for an optional name: `"name" is filter`, `"name" is test`.
@@ -417,8 +447,9 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
       testCall = ir.varRefExists(subject.path, subject.loc);
     } else if (test.args.length === 0 && subject.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
       testCall = ir.unaryOp('!', ir.varRefExists(subject.path, subject.loc));
-    } else if (test.args.length === 1 && hasOwn.call(_comparisonTests, test.name) &&
-        (!knownTests || knownTests['_test_' + test.name] === _tests[test.name])) {
+    } else if (test.args.length !== 1 && takesOneArgument(test.name) && builtInTest(test.name)) {
+      testCall = arityError(test);
+    } else if (test.args.length === 1 && hasOwn.call(_comparisonTests, test.name) && builtInTest(test.name)) {
       op = _comparisonTests[test.name];
       testCall = (op === '==' || op === '!=') ? equality(op, subject, test.args[0]) : ir.binaryOp(op, subject, test.args[0]);
     } else if (test.name === 'sameas' && test.args.length === 1) {

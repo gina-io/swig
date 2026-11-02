@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-jinja2: `divisibleby` and `sameas` with no argument or with two fail when the expression is reached, as in Jinja2, instead of giving a value. A signed number after the name is not the argument, so `x is divisibleby -3` reads as `(x is divisibleby) - 3`, a test with no argument, and in 2.10.0 `{% if x is divisibleby -3 %}` and `{% if x is sameas -1 %}` took their branch whatever x was; write `x is divisibleby(-3)`. A test registered under one of these names with `setExtension(''_test_<name>'', fn)` still receives any number of arguments.'
+time: 2026-11-02T13:52:00.000000+00:00
+custom:
+  Issue: ""
