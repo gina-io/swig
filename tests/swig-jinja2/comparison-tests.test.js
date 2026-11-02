@@ -68,6 +68,12 @@ describe('@rhinostone/swig-jinja2 — comparison tests', function () {
       expect(tests.ge(1, 2)).to.be(false);
     });
 
+    it('lt and gt are false for two equal values', function () {
+      expect(tests.lt(2, 2)).to.be(false);
+      expect(tests.lt('a', 'a')).to.be(false);
+      expect(tests.gt('a', 'a')).to.be(false);
+    });
+
     it('the other names are the same helpers', function () {
       NAMES.concat(['==', '!=', '<', '<=', '>', '>=']).forEach(function (name) {
         expect(tests[name]).to.be.a('function');
@@ -112,6 +118,16 @@ describe('@rhinostone/swig-jinja2 — comparison tests', function () {
           expect(node.op).to.equal(OPS[name]);
           expect(node.pyEq).to.be(OPS[name] === '==' || OPS[name] === '!=' ? 'jinja2' : undefined);
         });
+      });
+    });
+
+    it('reads a name as a comparison test only from the names it provides', function () {
+      // toString, valueOf and hasOwnProperty are on every object; with no
+      // instance at parse they stay test calls, as any other unknown name.
+      ['toString', 'valueOf', 'hasOwnProperty'].forEach(function (name) {
+        var node = parse('a is ' + name + ' 1');
+        expect(node.type).to.equal('FnCall');
+        expect(node.callee.path).to.eql(['_ext', '_test_' + name]);
       });
     });
 
