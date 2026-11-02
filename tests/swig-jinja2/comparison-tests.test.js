@@ -161,6 +161,18 @@ describe('@rhinostone/swig-jinja2 — comparison tests', function () {
       expect(flavor.render(ifs('2 is gt 1'))).to.equal('Y');
       expect(flavor.render(ifs('1 is eq "1"'))).to.equal('N');
     });
+
+    it('lowers on the module\'s default instance, where a missing value equals none', function () {
+      // Lowered, a missing x equals None, as == reads it. Through a helper
+      // equivalent to the built-in one the same template renders N, so this
+      // case tells the two paths apart, where the cases above do not.
+      var inst = new Jinja2(),
+        builtIn = inst.extensions._test_eq;
+      inst.setExtension('_test_eq', function () { return builtIn.apply(this, arguments); });
+      expect(inst.render(ifs('x is eq none'))).to.equal('N');
+      expect(new Jinja2().render(ifs('x is eq none'))).to.equal('Y');
+      expect(flavor.render(ifs('x is eq none'))).to.equal('Y');
+    });
   });
 
   describe('a test registered under one of the names', function () {
