@@ -1278,7 +1278,7 @@ function membershipMode(flag) {
 }
 
 /*!
- * An operand of a Jinja2 or Django comparison (`in`): a variable reads its
+ * An operand of a Jinja2 or Django comparison (`==`, `!=`, `in`): a variable reads its
  * own value (rawMatchExpr), and so does each branch of a conditional or of
  * `and` / `or`, so the comparison sees None where a variable is null or
  * missing. Any other operand emits as usual; it sits in a call's argument
@@ -1298,10 +1298,17 @@ function equalityOperand(node, d) {
 }
 
 function emitBinaryOp(node, d) {
-  // A Jinja2 or Django `in` reads its operands raw (equalityOperand).
-  var raw = node.op === 'in' && node.membership && node.membership !== 'twig',
+  // A Jinja2 or Django `==` or `!=` (flagged `pyEq`) or `in` reads its
+  // operands raw (equalityOperand).
+  var equality = node.pyEq && (node.op === '==' || node.op === '!='),
+    raw = equality || (node.op === 'in' && node.membership && node.membership !== 'twig'),
     left = raw ? equalityOperand(node.left, d) : groupOperand(node.left, emitExpr(node.left, d)),
     right = raw ? equalityOperand(node.right, d) : groupOperand(node.right, emitExpr(node.right, d));
+  // Python's equality; "jinja2" keeps a missing value (Undefined) apart from
+  // None. Native swig and Twig keep JavaScript's loose operators.
+  if (equality) {
+    return (node.op === '!=' ? '!' : '') + '_utils.pyEq(' + left + ', ' + right + (node.pyEq === 'jinja2' ? ', true' : '') + ')';
+  }
   if (isArithmeticOp(node.op) || node.op === '~') {
     left = asOperand(node.left, left);
     right = asOperand(node.right, right);

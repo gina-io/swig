@@ -26,6 +26,23 @@ function escapeRegExp(str) {
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
 /**
+ * Build the IR of `left == right` or `left != right`, flagged so swig-core
+ * emits Python's equality (`_utils.pyEq`) instead of JavaScript's loose
+ * operators.
+ *
+ * @param  {string} op     `==` or `!=`.
+ * @param  {object} left   Left operand IR.
+ * @param  {object} right  Right operand IR.
+ * @return {object}        IRBinaryOp.
+ * @private
+ */
+function equality(op, left, right) {
+  var node = ir.binaryOp(op, left, right);
+  node.pyEq = 'django';
+  return node;
+}
+
+/**
  * Build the IR of `left in right`, or of `left not in right` when `negate`
  * is set: a BinaryOp `in` flagged with this flavor's name, so swig-core
  * emits Django's membership test (`_utils.isIn`) instead of the JavaScript
@@ -533,7 +550,11 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
         continue;
       }
       var right = parseExpression(info.prec + 1);
-      left = (info.op === 'in' || info.op === 'not in') ? membership(left, right, info.op === 'not in') : ir.binaryOp(info.op, left, right);
+      if (info.op === 'in' || info.op === 'not in') {
+        left = membership(left, right, info.op === 'not in');
+      } else {
+        left = (info.op === '==' || info.op === '!=') ? equality(info.op, left, right) : ir.binaryOp(info.op, left, right);
+      }
     }
     return left;
   }

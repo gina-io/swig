@@ -122,7 +122,7 @@ describe('@rhinostone/swig-django — parser (expression grammar)', function () 
 
   it('lowers a comparison to BinaryOp', function () {
     expect(parse('a == b')).to.eql({
-      type: 'BinaryOp', op: '==',
+      type: 'BinaryOp', op: '==', pyEq: 'django',
       left: { type: 'VarRef', path: ['a'], resolve: true }, right: { type: 'VarRef', path: ['b'], resolve: true }
     });
   });

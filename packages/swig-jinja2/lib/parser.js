@@ -49,18 +49,17 @@ function constantLiteral(name) {
 }
 
 /**
- * Read `x == none` / `x != none` (a VarRef on either side) like `x is none`
- * / `x is not none`: emitVarRef turns a missing or null value into "", so
- * a plain comparison with null would never hold for a None value.
+ * Read `x is sameas none` (a VarRef on either side) like `x is none`:
+ * emitVarRef turns a missing or null value into "", so an identity test
+ * with null would never hold for a None value.
  *
- * @param  {string} op     `==` or `!=`.
- * @param  {object} left   Left operand IR.
- * @param  {object} right  Right operand IR.
- * @return {object|null}   IRVarRefExists (negated for `==`), or null when
- *                         neither side is a VarRef compared with none.
+ * @param  {object} left   Subject IR.
+ * @param  {object} right  The test's argument IR.
+ * @return {object|null}   Negated IRVarRefExists, or null when neither side
+ *                         is a VarRef compared with none.
  * @private
  */
-function noneComparison(op, left, right) {
+function noneComparison(left, right) {
   var ref = null, exists;
   if (left.type === 'VarRef' && right.type === 'Literal' && right.kind === 'null') {
     ref = left;
@@ -71,7 +70,7 @@ function noneComparison(op, left, right) {
     return null;
   }
   exists = ir.varRefExists(ref.path, ref.loc);
-  return op === '==' ? ir.unaryOp('!', exists) : exists;
+  return ir.unaryOp('!', exists);
 }
 
 /**
@@ -92,6 +91,23 @@ exports.guardConstantName = function (name, tagName, line, filename) {
     utils.throwError('Cannot assign to the constant "' + name + '" in "' + tagName + '" tag', line, filename);
   }
 };
+
+/**
+ * Build the IR of `left == right` or `left != right`, flagged so swig-core
+ * emits Python's equality (`_utils.pyEq`) instead of JavaScript's loose
+ * operators.
+ *
+ * @param  {string} op     `==` or `!=`.
+ * @param  {object} left   Left operand IR.
+ * @param  {object} right  Right operand IR.
+ * @return {object}        IRBinaryOp.
+ * @private
+ */
+function equality(op, left, right) {
+  var node = ir.binaryOp(op, left, right);
+  node.pyEq = 'jinja2';
+  return node;
+}
 
 /**
  * Build the IR of `left in right`, or of `left not in right` when `negate`
@@ -389,7 +405,7 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
     } else if (test.args.length === 0 && subject.type === 'VarRef' && (test.name === 'none' || test.name === 'undefined')) {
       testCall = ir.unaryOp('!', ir.varRefExists(subject.path, subject.loc));
     } else if (test.name === 'sameas' && test.args.length === 1) {
-      testCall = noneComparison('==', subject, test.args[0]) ||
+      testCall = noneComparison(subject, test.args[0]) ||
         helperCall(['_ext', '_test_sameas'], [subject].concat(test.args));
     } else {
       testCall = helperCall(['_ext', '_test_' + test.name], [subject].concat(test.args));
@@ -633,16 +649,14 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
       } else if (info.op === 'in' || info.op === 'not in') {
         left = membership(left, right, info.op === 'not in');
       } else {
-        // `x == none` / `x != none` on a VarRef reads like `x is [not]
-        // none` (noneComparison).
         if (info.op === '~' || info.op === '+') {
           // An operand none of ~ or + reads as "", as a variable holding
           // None does, so it never adds the text "null".
           left = left.type === 'Literal' && left.kind === 'null' ? ir.literal('string', '') : left;
           right = right.type === 'Literal' && right.kind === 'null' ? ir.literal('string', '') : right;
         }
-        left = ((info.op === '==' || info.op === '!=') && noneComparison(info.op, left, right)) ||
-          ir.binaryOp(info.op, left, right);
+        // `==` and `!=` compare as Python does (equality).
+        left = (info.op === '==' || info.op === '!=') ? equality(info.op, left, right) : ir.binaryOp(info.op, left, right);
       }
     }
     // Inline conditional `<then> if <cond> else <else>` — binds looser than
