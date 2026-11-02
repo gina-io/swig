@@ -11,16 +11,16 @@ var utils = require('@rhinostone/swig-core/lib/utils'),
 describe('swig-core utils.isIn', function () {
 
   describe('Jinja2 and Django', function () {
-    it('tests a list item with ===', function () {
+    it('tests a list item with Python\'s equality', function () {
       expect(utils.isIn(3, [1, 2, 3], 'jinja2')).to.be(true);
       expect(utils.isIn(0, [1, 2, 3], 'jinja2')).to.be(false);
       expect(utils.isIn('1', [1], 'django')).to.be(false);
-      expect(utils.isIn(true, [1], 'django')).to.be(false);
+      expect(utils.isIn(true, [1], 'django')).to.be(true);
     });
 
-    it('treats null and a missing value as equal', function () {
+    it('treats null and a missing value as equal in Django, not in Jinja2', function () {
       expect(utils.isIn(undefined, [null], 'django')).to.be(true);
-      expect(utils.isIn(null, [undefined], 'jinja2')).to.be(true);
+      expect(utils.isIn(null, [undefined], 'jinja2')).to.be(false);
       expect(utils.isIn(null, [''], 'django')).to.be(false);
     });
 

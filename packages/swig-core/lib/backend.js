@@ -1105,9 +1105,11 @@ function emitLiteral(node, d) {
 /*!
  * Emit a dot-path variable reference. Byte-identical to
  * TokenParser.prototype.checkMatch — any divergence breaks the
- * Commit 3+ migration gates. @private
+ * Commit 3+ migration gates. With `raw` (an operand of Python's `==`, `!=`
+ * or `in`), a static dot-path reads its own value through rawMatchExpr
+ * instead. @private
  */
-function emitVarRef(node, d) {
+function emitVarRef(node, d, raw) {
   if (!utils.isArray(node.path) || node.path.length === 0) {
     d.throwError('emitVarRef: path must be a non-empty array');
   }
@@ -1125,7 +1127,7 @@ function emitVarRef(node, d) {
   if (node.resolve) {
     return '_utils.resolve(_ctx, ' + JSON.stringify(node.path) + (node.missingAsEmpty ? ', ""' : '') + ')';
   }
-  return checkMatchExpr(node.path);
+  return raw ? rawMatchExpr(node.path) : checkMatchExpr(node.path);
 }
 
 /*!
@@ -1194,6 +1196,22 @@ function checkMatchExpr(match) {
 }
 
 /*!
+ * The raw read of a dot-path, for an operand of Python's `==`, `!=` or `in`:
+ * the `_ctx.<path>` walk, then the bare-closure walk, as checkMatchExpr, but
+ * a null leaf stays null and a missing path gives undefined, not "", so the
+ * comparison sees None (or Jinja2's Undefined). @private
+ */
+function rawMatchExpr(path) {
+  var leaf = path.join('.'), head;
+  if (path.length === 1) {
+    return '(typeof _ctx.' + leaf + ' !== "undefined" ? _ctx.' + leaf + ' : (typeof ' + leaf + ' !== "undefined" ? ' + leaf + ' : undefined))';
+  }
+  head = path.slice(0, -1);
+  return '((' + checkDotExpr(head, '_ctx.') + ' && _ctx.' + leaf + ' !== undefined) ? _ctx.' + leaf
+    + ' : ((' + checkDotExpr(head, '') + ' && ' + leaf + ' !== undefined) ? ' + leaf + ' : undefined))';
+}
+
+/*!
  * Emit a dynamic bracket access. When the key is a string literal, guard
  * it against prototype-chain pollution — mirrors the STRING-in-
  * BRACKETOPEN check in TokenParser. The read goes through `_utils.access`,
@@ -1259,9 +1277,31 @@ function membershipMode(flag) {
   return (flag === 'twig' || flag === 'django') ? flag : 'jinja2';
 }
 
+/*!
+ * An operand of a Jinja2 or Django comparison (`in`): a variable reads its
+ * own value (rawMatchExpr), and so does each branch of a conditional or of
+ * `and` / `or`, so the comparison sees None where a variable is null or
+ * missing. Any other operand emits as usual; it sits in a call's argument
+ * list, so it needs no grouping. @private
+ */
+function equalityOperand(node, d) {
+  if (node.type === 'VarRef') {
+    return emitVarRef(node, d, true);
+  }
+  if (node.type === 'Conditional') {
+    return '(' + emitExpr(node.test, d) + ' ? ' + equalityOperand(node.then, d) + ' : ' + equalityOperand(node['else'], d) + ')';
+  }
+  if (node.type === 'BinaryOp' && (node.op === '&&' || node.op === '||')) {
+    return '(' + equalityOperand(node.left, d) + node.op + equalityOperand(node.right, d) + ')';
+  }
+  return emitExpr(node, d);
+}
+
 function emitBinaryOp(node, d) {
-  var left = groupOperand(node.left, emitExpr(node.left, d)),
-    right = groupOperand(node.right, emitExpr(node.right, d));
+  // A Jinja2 or Django `in` reads its operands raw (equalityOperand).
+  var raw = node.op === 'in' && node.membership && node.membership !== 'twig',
+    left = raw ? equalityOperand(node.left, d) : groupOperand(node.left, emitExpr(node.left, d)),
+    right = raw ? equalityOperand(node.right, d) : groupOperand(node.right, emitExpr(node.right, d));
   if (isArithmeticOp(node.op) || node.op === '~') {
     left = asOperand(node.left, left);
     right = asOperand(node.right, right);

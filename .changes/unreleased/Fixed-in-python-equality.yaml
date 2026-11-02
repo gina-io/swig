@@ -1,0 +1,5 @@
+kind: fixed
+body: 'swig-jinja2 and swig-django: `in` compares the items of a list with Python''s equality, as Jinja2 and Django do: `True in [1]`, `1 in [True]` and `0 in [False]` are true, lists and mappings compare item by item (`[1, 2] in [[1, 2]]`, `[] in [[]]`, `{"k": 1} in [{"k": true}]`), and a date equals a date of the same time; until 2.10.0 an item matched only the identical value. In swig-jinja2 the operands also read their own value: `None in [None]` is true, `None in [""]` and a missing `x in [""]` are false, and a missing or None value tested against a string (`x in "abc"`), or a string tested against a missing or None container (`"" in x`), is false; until 2.10.0 a missing or None operand read as an empty string. `not in` is the negated test. The operand reads are in the compiled code: recompile precompiled templates to pick them up.'
+time: 2026-11-02T10:40:00.000000+00:00
+custom:
+  Issue: ""

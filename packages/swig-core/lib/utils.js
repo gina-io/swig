@@ -1131,17 +1131,111 @@ exports.resolve = function (obj, path, missing) {
 };
 
 /*!
- * Item equality for `isIn`. Jinja2 and Django compare with `===` and treat
- * null and a missing value as equal (Django reads both as None). Twig
- * compares two scalars with `==`, as swig-twig's `==` does, and anything
- * else by identity. @private
+ * Deep comparisons stop at this depth: nested deeper, two values read as not
+ * equal, so two different cycles end. Python compares nested lists to about
+ * 5000 levels and raises past 10000 (Django's if tag reads that as false).
+ * @private
  */
-function sameItem(a, b, twig) {
+var maxEqualDepth = 1000;
+
+/*!
+ * True for an object made by a literal, JSON.parse or Object.create(null),
+ * in this realm or another: its prototype is null, or a prototype whose own
+ * prototype is null. @private
+ */
+function isPlainObject(value) {
+  var proto = Object.getPrototypeOf(value);
+  return proto === null || Object.getPrototypeOf(proto) === null;
+}
+
+/*!
+ * Python's `==` over JavaScript values, for pyEq and isIn. `exact` keeps
+ * undefined (Jinja2's Undefined) apart from null (None). @private
+ */
+function pyEqual(a, b, depth, exact) {
+  var i, keys;
+  if (a === b) {
+    return true;
+  }
+  if (a === null || a === undefined || b === null || b === undefined) {
+    return !exact && (a === null || a === undefined) && (b === null || b === undefined);
+  }
+  if (typeof a === 'boolean') {
+    a = a ? 1 : 0;
+  }
+  if (typeof b === 'boolean') {
+    b = b ? 1 : 0;
+  }
+  if (typeof a === 'number' || typeof a === 'bigint') {
+    return (typeof b === 'number' || typeof b === 'bigint') && a == b;
+  }
+  if (typeof a !== 'object' || typeof b !== 'object' || depth >= maxEqualDepth) {
+    return false;
+  }
+  if (exports.isArray(a) || exports.isArray(b)) {
+    if (!exports.isArray(a) || !exports.isArray(b) || a.length !== b.length) {
+      return false;
+    }
+    for (i = 0; i < a.length; i += 1) {
+      if (!pyEqual(a[i], b[i], depth + 1, exact)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (Object.prototype.toString.call(a) === '[object Date]') {
+    return Object.prototype.toString.call(b) === '[object Date]' && a.getTime() === b.getTime();
+  }
+  if (!isPlainObject(a) || !isPlainObject(b)) {
+    return false;
+  }
+  keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) {
+    return false;
+  }
+  for (i = 0; i < keys.length; i += 1) {
+    if (!Object.prototype.hasOwnProperty.call(b, keys[i]) || !pyEqual(a[keys[i]], b[keys[i]], depth + 1, exact)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Python's equality: a string equals only an equal string, a number an equal
+ * number or boolean (`True == 1`), and lists and mappings compare item by
+ * item. A Date equals a Date of the same time; any other object (a Map, a
+ * Set, a class instance, a function) only itself. null and undefined equal
+ * each other only (both read as None); with `exact`, as in Jinja2,
+ * undefined (Jinja2's Undefined) equals only undefined and null only null.
+ * Values nested deeper than 1000 levels read as not equal.
+ *
+ * @example
+ * _utils.pyEq(1, true);           // => true
+ * _utils.pyEq('1', 1);            // => false
+ * _utils.pyEq([1, {k: 2}], [1, {k: 2}]); // => true
+ *
+ * @param  {*}       a
+ * @param  {*}       b
+ * @param  {boolean} [exact]  Keep undefined apart from null.
+ * @return {boolean}
+ */
+exports.pyEq = function (a, b, exact) {
+  return pyEqual(a, b, 0, exact === true);
+};
+
+/*!
+ * Item equality for `isIn`. Jinja2 and Django compare with Python's `==`
+ * (pyEqual); `exact`, set for Jinja2, keeps a missing value apart from null,
+ * where Django reads both as None. Twig compares two scalars with `==`, as
+ * swig-twig's `==` does, and anything else by identity. @private
+ */
+function sameItem(a, b, twig, exact) {
   if (a === b) {
     return true;
   }
   if (!twig) {
-    return (a === null || a === undefined) && (b === null || b === undefined);
+    return pyEqual(a, b, 0, exact);
   }
   if ((a !== null && typeof a === 'object') || (b !== null && typeof b === 'object') ||
       typeof a === 'function' || typeof b === 'function') {
@@ -1157,7 +1251,7 @@ function sameItem(a, b, twig) {
  * against a string, or a list or an object tested against a mapping's keys.
  * Twig runs every test. @private
  */
-function membership(needle, haystack, twig) {
+function membership(needle, haystack, twig, exact) {
   var keys, i;
   if (typeof haystack === 'string') {
     if (typeof needle === 'string' || (twig && typeof needle === 'number')) {
@@ -1170,7 +1264,7 @@ function membership(needle, haystack, twig) {
   }
   if (exports.isArray(haystack)) {
     for (i = 0; i < haystack.length; i += 1) {
-      if (sameItem(needle, haystack[i], twig)) {
+      if (sameItem(needle, haystack[i], twig, exact)) {
         return true;
       }
     }
@@ -1197,9 +1291,11 @@ function membership(needle, haystack, twig) {
  * swig keeps the JavaScript `in` operator, which tests keys. Each flavor
  * follows its reference engine:
  *
- * - Jinja2 and Django (Python's `in`): a list holds an equal item, a string
- *   a substring (the needle must be a string), a mapping a key (a number
- *   needle tests the key with the same digits).
+ * - Jinja2 and Django (Python's `in`): a list holds an item equal under
+ *   Python's `==` (see pyEq; a missing value equals only a missing value in
+ *   Jinja2, and null in Django), a string a substring (the needle must be a
+ *   string), a mapping a key (a number needle tests the key with the same
+ *   digits).
  * - Twig: a list or a mapping holds an equal value, compared loosely; a
  *   string holds a string or number needle as a substring.
  *
@@ -1215,7 +1311,7 @@ function membership(needle, haystack, twig) {
  * @return {boolean}
  */
 exports.isIn = function (needle, haystack, mode, negate) {
-  var found = membership(needle, haystack, mode === 'twig');
+  var found = membership(needle, haystack, mode === 'twig', mode === 'jinja2');
   if (found === null) {
     return negate === true && mode !== 'django';
   }
