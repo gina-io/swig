@@ -329,12 +329,15 @@ function codePoints(s) {
 
 /*!
  * Resolve a possibly-dotted attribute path against an object. Returns
- * undefined if any segment is missing. @private
+ * undefined if any segment is missing, or names the prototype chain: the
+ * path can come from the data (`groupby(k)`, `sum(k)`), and such a segment
+ * reached a constructor or Object.prototype. @private
  */
 function resolveAttr(obj, path) {
   var segs = String(path).split('.'), cur = obj, i;
   for (i = 0; i < segs.length; i += 1) {
     if (cur === null || cur === undefined) { return undefined; }
+    if (dangerousProps.indexOf(segs[i]) !== -1) { return undefined; }
     cur = cur[segs[i]];
   }
   return cur;

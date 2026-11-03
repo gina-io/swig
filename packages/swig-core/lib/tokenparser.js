@@ -36,6 +36,14 @@ var _dangerousProps = require('./security').dangerousProps;
 var _reserved = ['break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof', 'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with'];
 
 /*!
+ * Token types after which JavaScript reads `[` as a member access although
+ * the legacy walk takes its array-literal branch: a string, number or
+ * boolean literal, `.name`, `f()`, an empty-argument filter and `}`.
+ * @private
+ */
+var _memberAfter = [_t.STRING, _t.NUMBER, _t.BOOL, _t.DOTKEY, _t.FUNCTIONEMPTY, _t.FILTEREMPTY, _t.CURLYCLOSE];
+
+/*!
  * The e filter's argument list for a string escape value: none for the
  * tag's bare `true` and for an empty option (no escaping), the unquoted
  * strategy for a quoted literal, and null for any other shape. @private
@@ -65,6 +73,9 @@ function TokenParser(tokens, filters, autoescape, line, filename) {
   this.out = [];
   this.state = [];
   this.filterApplyIdx = [];
+  // The opening fragment of each bracket the walk opens, so its `]` closes
+  // what the `[` opened.
+  this.bracketOpen = [];
   this._parsers = {};
   this.line = line;
   this.filename = filename;
@@ -146,7 +157,15 @@ TokenParser.prototype = {
       prevToken = self.prevToken,
       prevTokenType = prevToken ? prevToken.type : null,
       lastState = (self.state.length) ? self.state[self.state.length - 1] : null,
+      // Whether the walk emitted anything for the previous token: one that a
+      // custom tag's own handler consumes without emitting leaves `out` as it
+      // was, so a `[` after it opens an array literal, not a member read.
+      prevEmitted = self.tokenStart !== undefined && self.out.length !== self.tokenStart,
       temp;
+
+    if (token.type !== _t.WHITESPACE) {
+      self.tokenStart = self.out.length;
+    }
 
     if (fn && typeof fn === 'function') {
       if (!fn.call(this, token)) {
@@ -299,16 +318,32 @@ TokenParser.prototype = {
       break;
 
     case _t.BRACKETOPEN:
+      // A key the template computes inside a bracket that JavaScript reads
+      // as a member access (the fragments a custom tag receives) can come
+      // from the data and name the prototype chain, which the STRING guard
+      // above cannot see, so it goes through _utils.memberKey and then
+      // reads as missing. JavaScript reads `[` that way after a name, `]` or
+      // `)`, and also after a literal, `.name`, `f()`, an empty-argument
+      // filter or `}`, where the walk keeps an array's state, so its comma
+      // rules and filter indexes do not change and the double parenthesis
+      // keeps JavaScript's reading of a comma in a subscript (`x[a, b]`
+      // reads `x[b]`). A token that a custom tag's own handler consumed
+      // without emitting anything leaves nothing before the `[` in the
+      // fragments, so that bracket goes out as before. Was, in both branches:
+      // self.out.push('[');
       if (!prevToken ||
           (prevTokenType !== _t.VAR &&
             prevTokenType !== _t.BRACKETCLOSE &&
             prevTokenType !== _t.PARENCLOSE)) {
         self.state.push(_t.ARRAYOPEN);
         self.filterApplyIdx.push(self.out.length);
+        temp = (prevEmitted && _memberAfter.indexOf(prevTokenType) !== -1) ? '[_utils.memberKey((' : '[';
       } else {
         self.state.push(token.type);
+        temp = prevEmitted ? '[_utils.memberKey(' : '[';
       }
-      self.out.push('[');
+      self.bracketOpen.push(temp);
+      self.out.push(temp);
       break;
 
     case _t.BRACKETCLOSE:
@@ -316,7 +351,16 @@ TokenParser.prototype = {
       if (temp !== _t.BRACKETOPEN && temp !== _t.ARRAYOPEN) {
         utils.throwError('Unexpected closing square bracket', self.line, self.filename);
       }
-      self.out.push(']');
+      temp = self.bracketOpen.pop();
+      if (temp && temp !== '[') {
+        // An empty member bracket stays an error, as `foo[]` was.
+        if (self.out[self.out.length - 1] === temp) {
+          utils.throwError('Unexpected closing square bracket', self.line, self.filename);
+        }
+        self.out.push(temp === '[_utils.memberKey(' ? ')]' : '))]');
+      } else {
+        self.out.push(']');
+      }
       self.filterApplyIdx.pop();
       break;
 

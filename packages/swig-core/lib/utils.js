@@ -1005,23 +1005,62 @@ exports.slice = function (obj, start, stop, step) {
   return isString ? result.join('') : result;
 };
 
+/*!
+ * What guardKey() returns for a key that names the prototype chain: a
+ * symbol no object holds, so a read with it finds nothing. @private
+ */
+var GUARDED_KEY = Symbol('guardedKey');
+
+/*!
+ * The property key a read with `k` uses, or GUARDED_KEY when that key is
+ * `__proto__`, `constructor` or `prototype` (security.dangerousProps). A key
+ * computed from the data can name the prototype chain, which the parse-time
+ * guards cannot see, so the runtime readers check it here. The key is
+ * converted as JavaScript converts a property key (a symbol stays a symbol,
+ * anything else becomes a string), so a key such as the array ["__proto__"],
+ * which reads the same property, is refused too, and the caller reads with
+ * the converted key, so the value is converted once. A number is returned
+ * as it is: it cannot be one of those names.
+ * @private
+ */
+function guardKey(k) {
+  var key;
+  if (typeof k === 'number') {
+    return k;
+  }
+  key = (typeof k === 'symbol') ? k : String(k);
+  return (security.dangerousProps.indexOf(key) !== -1) ? GUARDED_KEY : key;
+}
+
 /**
  * Read `o[k]` for a template subscript or member access: undefined when
  * `o` is null or undefined, so `arr[0].x` over an empty list does not
- * throw. The backend emits it for every Access node.
+ * throw. The backend emits it for every Access node. A key that names the
+ * prototype chain (`__proto__`, `constructor` or `prototype`, compared as
+ * JavaScript converts a property key, so `["__proto__"]` counts too) reads
+ * as missing, whether or not `o` holds an own property of that name: the
+ * parse-time guards refuse those names written in the template, and this
+ * covers a key that comes from the data.
  *
  * @param  {*} o
  * @param  {*} k
- * @return {*} `o[k]`, or undefined when `o` is null / undefined.
+ * @return {*} `o[k]`, or undefined when `o` is null / undefined or `k`
+ *   names the prototype chain.
  */
 exports.access = function (o, k) {
-  return (o === null || o === undefined) ? undefined : o[k];
+  var key;
+  if (o === null || o === undefined) {
+    return undefined;
+  }
+  key = guardKey(k);
+  return (key === GUARDED_KEY) ? undefined : o[key];
 };
 
 /**
  * Call `o[k]` with `o` as the receiver, for a template call on a subscript
  * or member (`arr[0].fn()`, `"ab".toUpperCase()`): "" when `o` is null or
- * undefined or `o[k]` is not a function.
+ * undefined, `o[k]` is not a function, or `k` names the prototype chain
+ * (as in {@link access}), so a key from the data cannot reach a constructor.
  *
  * @param  {*}     o
  * @param  {*}     k
@@ -1029,9 +1068,45 @@ exports.access = function (o, k) {
  * @return {*} The call's result, or "".
  */
 exports.callAccess = function (o, k, args) {
-  var f = (o === null || o === undefined) ? undefined : o[k];
+  var key, f;
+  if (o === null || o === undefined) {
+    return '';
+  }
+  key = guardKey(k);
+  f = (key === GUARDED_KEY) ? undefined : o[key];
   return (typeof f === 'function') ? f.apply(o, args) : '';
 };
+
+/**
+ * Check a key computed at run time in the target of a native `{% set %}`
+ * (`{% set obj[k].x = v %}`): the key a write uses, converted as in
+ * {@link access}, or the guard's error when it names the prototype chain,
+ * which a template could otherwise use to write to Object.prototype. The
+ * set tag wraps each bracket key of its target in this call.
+ *
+ * @param  {*}      k
+ * @param  {number} line Line of the set tag, for the error.
+ * @return {*} The key to write with.
+ * @throws {Error} When the key is `__proto__`, `constructor` or `prototype`.
+ */
+exports.assignKey = function (k, line) {
+  var key = (typeof k === 'number' || typeof k === 'symbol') ? k : String(k);
+  if (typeof key === 'string' && security.dangerousProps.indexOf(key) !== -1) {
+    throw new Error('Unsafe assignment to "' + key + '" via bracket notation is not allowed (prototype-chain guard) on line ' + line + '.');
+  }
+  return key;
+};
+
+/**
+ * Convert a key computed at run time in a bracket member of the fragments a
+ * custom tag (`setTag`) receives (`foo[k]`): the key, converted as in
+ * {@link access}, or a symbol no object holds when it names the prototype
+ * chain, so the member reads as missing.
+ *
+ * @param  {*} k
+ * @return {*} The key to read with.
+ */
+exports.memberKey = guardKey;
 
 /**
  * Coerce a value for string output: `null` and `undefined` become the
