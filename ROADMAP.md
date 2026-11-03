@@ -23,6 +23,11 @@ Nothing is scheduled for the next release yet.
 
 ## Completed
 
+### v2.12.1 (November 2026)
+
+- Security: a key from the template data that names `__proto__`, `constructor` or `prototype` now reads as missing in a subscript, in a call on one, in the bracket fragments a tag registered with `setTag` receives and in the attribute argument of swig-jinja2's `groupby` and `sum`, and a native `{% set %}` target given such a key throws when the template runs. Recompile precompiled templates with 2.12.1 to pick this up. See the [security advisories](https://github.com/gina-io/swig/security/advisories).
+- All five packages released in lockstep at `2.12.1`.
+
 ### v2.12.0 (November 2026)
 
 - swig-jinja2 gains Jinja2's filters `attr`, `filesizeformat`, `forceescape`, `items`, `string` and `urlize`, which 2.11.0 rejected as unknown filters.
