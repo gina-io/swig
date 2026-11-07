@@ -1,0 +1,5 @@
+kind: fixed
+body: 'A key from the data that an object gets only from Object.prototype reads as missing in a subscript, in a call on a subscript and in the swig-jinja2 attribute reader of groupby, sum and attr: with foo {}, `{{ foo[k] }}` printed the source of the function for k = __defineGetter__ (native) or __lookupGetter__ (swig-jinja2), and now renders as a key foo does not hold. Own keys, the members of a class and the methods of strings, numbers and arrays still read, a native set target still writes such a key as an own key, and the bracket fragments a custom tag receives read the four Object.prototype accessor helpers (__defineGetter__, __defineSetter__, __lookupGetter__, __lookupSetter__) as missing.'
+time: 2026-11-07T20:07:39.993889+00:00
+custom:
+  Issue: ""

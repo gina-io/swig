@@ -337,7 +337,7 @@ function resolveAttr(obj, path) {
   var segs = String(path).split('.'), cur = obj, i;
   for (i = 0; i < segs.length; i += 1) {
     if (cur === null || cur === undefined) { return undefined; }
-    if (dangerousProps.indexOf(segs[i]) !== -1) { return undefined; }
+    if (dangerousProps.indexOf(segs[i]) !== -1 || utils.protoMember(cur, segs[i])) { return undefined; }
     cur = cur[segs[i]];
   }
   return cur;
@@ -1590,7 +1590,7 @@ exports.items = function (input) {
  * @return {*}
  */
 exports.attr = function (input, name) {
-  if (input === undefined || input === null || typeof name !== 'string' || dangerousProps.indexOf(name) !== -1) {
+  if (input === undefined || input === null || typeof name !== 'string' || dangerousProps.indexOf(name) !== -1 || utils.protoMember(input, name)) {
     return undefined;
   }
   return input[name];

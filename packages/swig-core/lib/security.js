@@ -20,3 +20,13 @@
  * @type {string[]}
  */
 exports.dangerousProps = ['__proto__', 'constructor', 'prototype'];
+
+/**
+ * The names a custom tag's bracket fragments (`_utils.memberKey`) read as
+ * missing when a key from the data names them: the prototype-chain names
+ * and the four Object.prototype accessor helpers. A subscript reads any
+ * member an object gets only from Object.prototype as missing
+ * (`_utils.access`).
+ * @type {string[]}
+ */
+exports.guardedDataKeys = exports.dangerousProps.concat(['__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__']);

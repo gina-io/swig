@@ -1079,6 +1079,31 @@ function guardKey(k) {
 }
 
 /**
+ * Whether `obj` gets `key` only from Object.prototype: no object on its
+ * prototype chain before Object.prototype holds `key` as an own property.
+ * A key from the data that names such a member (toString, hasOwnProperty,
+ * __defineGetter__ and the like) then reads as missing, while own keys,
+ * the members of a class and the methods of strings, numbers and arrays
+ * still read.
+ * @param  {*} obj
+ * @param  {*} key
+ * @return {boolean}
+ */
+function protoMember(obj, key) {
+  var o;
+  if (typeof key !== 'string' || !hasOwn.call(Object.prototype, key)) {
+    return false;
+  }
+  for (o = obj; o !== null && o !== undefined && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
+    if (hasOwn.call(o, key)) {
+      return false;
+    }
+  }
+  return true;
+}
+exports.protoMember = protoMember;
+
+/**
  * Read `o[k]` for a template subscript or member access: undefined when
  * `o` is null or undefined, so `arr[0].x` over an empty list does not
  * throw. The backend emits it for every Access node. A key that names the
@@ -1086,7 +1111,9 @@ function guardKey(k) {
  * JavaScript converts a property key, so `["__proto__"]` counts too) reads
  * as missing, whether or not `o` holds an own property of that name: the
  * parse-time guards refuse those names written in the template, and this
- * covers a key that comes from the data.
+ * covers a key that comes from the data. A key that `o` gets only from
+ * Object.prototype (toString, __defineGetter__ and the like) reads as
+ * missing too.
  *
  * @param  {*} o
  * @param  {*} k
@@ -1099,7 +1126,7 @@ exports.access = function (o, k) {
     return undefined;
   }
   key = guardKey(k);
-  return (key === GUARDED_KEY) ? undefined : o[key];
+  return (key === GUARDED_KEY || protoMember(o, key)) ? undefined : o[key];
 };
 
 /**
@@ -1119,7 +1146,7 @@ exports.callAccess = function (o, k, args) {
     return '';
   }
   key = guardKey(k);
-  f = (key === GUARDED_KEY) ? undefined : o[key];
+  f = (key === GUARDED_KEY || protoMember(o, key)) ? undefined : o[key];
   return (typeof f === 'function') ? f.apply(o, args) : '';
 };
 
@@ -1152,7 +1179,12 @@ exports.assignKey = function (k, line) {
  * @param  {*} k
  * @return {*} The key to read with.
  */
-exports.memberKey = guardKey;
+exports.memberKey = function (k) {
+  // The member's object is not known here, so the four Object.prototype
+  // accessor helpers are refused by name, with the prototype-chain names.
+  var key = guardKey(k);
+  return (typeof key === 'string' && security.guardedDataKeys.indexOf(key) !== -1) ? GUARDED_KEY : key;
+};
 
 /**
  * Coerce a value for string output: `null` and `undefined` become the

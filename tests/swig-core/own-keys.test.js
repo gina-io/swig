@@ -246,6 +246,56 @@ describe('Native `in` leaves out what an object gets from Object.prototype', fun
   });
 });
 
+describe('A key from the data that an object gets only from Object.prototype reads as missing', function () {
+  function Klass() { this.own = 1; }
+  Klass.prototype.method = function () { return 'M'; };
+  var j2 = function (src, locals) { return new jinja2.Jinja2({ cache: false }).render(src, { locals: locals }); };
+
+  ['__defineGetter__', '__lookupGetter__', 'toString', 'hasOwnProperty', 'valueOf'].forEach(function (k) {
+    it('native and swig-jinja2 subscripts read ' + k + ' as missing', function (done) {
+      expect(j2('[{{ foo[k] }}]', { foo: {}, k: k })).to.equal('[]');
+      both('native', { '/t.html': '[{{ foo[k] }}][{{ foo[k]("a") }}]' }, function () { return { foo: {}, k: k }; }, '[][]', done);
+    });
+  });
+
+  it('a key a template looks up in a mapping', function () {
+    var out = swig.render('{% for k in keys %}{% if seen[k] %}D{% else %}n{% endif %}{% endfor %}', { locals: { keys: ['a', 'toString', 'b'], seen: { a: 1 } } });
+    expect(out).to.equal('Dnn');
+  });
+
+  it('own keys, class members and the methods of strings and arrays still read', function (done) {
+    var src = '[{{ o[t] }}][{{ inst[m]() }}][{{ inst[w] }}][{{ s[u]() }}][{{ arr[j]("-") }}][{{ n[f](1) }}]';
+    both('native', { '/t.html': src }, function () { return { o: { toString: 'T' }, t: 'toString', inst: new Klass(), m: 'method', w: 'own', s: 'ab', u: 'toUpperCase', arr: ['x', 'y'], j: 'join', n: 2, f: 'toFixed' }; }, '[T][M][1][AB][x-y][2.0]', done);
+  });
+
+  it('a native set target still writes such a key as an own key', function () {
+    expect(swig.render('{% set o = {} %}{% set o[k] = 1 %}[{{ o[k] }}]', { locals: { k: '__defineGetter__' } })).to.equal('[1]');
+  });
+
+  it('swig-jinja2 attr and groupby read such an attribute as missing', function () {
+    expect(j2('[{{ o|attr(k) }}]', { o: {}, k: 'toString' })).to.equal('[]');
+    expect(j2('[{{ o|attr(k) }}]', { o: { toString: 'T' }, k: 'toString' })).to.equal('[T]');
+    expect(j2('{% for g in items|groupby(k) %}[{{ g.grouper }}:{{ g.list|length }}]{% endfor %}', { items: [{ a: 1 }, { a: 2 }], k: 'toString' })).to.equal('[:2]');
+  });
+
+  it('protoMember and memberKey', function () {
+    expect(utils.protoMember({}, 'toString')).to.be(true);
+    expect(utils.protoMember(Object.create(null), 'toString')).to.be(true);
+    expect(utils.protoMember('abc', 'hasOwnProperty')).to.be(true);
+    expect(utils.protoMember({ toString: 1 }, 'toString')).to.be(false);
+    expect(utils.protoMember('abc', 'toString')).to.be(false);
+    expect(utils.protoMember(['x'], 'toString')).to.be(false);
+    expect(utils.protoMember(new Klass(), 'method')).to.be(false);
+    expect(utils.protoMember({}, 'a')).to.be(false);
+    expect(utils.protoMember({}, 0)).to.be(false);
+    ['__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__', '__proto__', ['__lookupSetter__']].forEach(function (k) {
+      expect(typeof utils.memberKey(k)).to.be('symbol');
+    });
+    expect(utils.memberKey('a')).to.be('a');
+    expect(utils.memberKey('toString')).to.be('toString');
+  });
+});
+
 describe('_utils own-key helpers', function () {
   it('each, eachAsync and map visit an own key hasOwnProperty and objects with no prototype', function () {
     var seen = [], mapped;
