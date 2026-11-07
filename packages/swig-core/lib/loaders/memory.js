@@ -55,7 +55,7 @@ module.exports = function (mapping, basepath) {
 
     paths = [pathname, pathname.replace(/^(\/|\\)/, '')];
 
-    src = mapping[paths[0]] || mapping[paths[1]];
+    src = (utils.hasKey(paths[0], mapping) ? mapping[paths[0]] : undefined) || (utils.hasKey(paths[1], mapping) ? mapping[paths[1]] : undefined);
     if (!src) {
       utils.throwError('Unable to find template "' + pathname + '".');
     }

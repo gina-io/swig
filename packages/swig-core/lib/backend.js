@@ -607,7 +607,7 @@ exports.compile = function (template, parents, options, blockName) {
           '    var __fseq = _utils.isArray(__l) || typeof __l === "string", __fout = __fseq ? [] : {}, __fval = ' + ctx + forVal + ', __fkey = ' + ctx + forKey + ';\n' +
           '    _utils.each(__l, function (__value, __key) {\n' +
           bindLoopItem(node, ctx + forVal, ctx + forKey, '      ', '__value', '__key', '__fseq') +
-          '      if (' + exports.emitExpr(node.test) + ') { if (__fseq) { __fout.push(__value); } else { __fout[__key] = __value; } }\n' +
+          '      if (' + exports.emitExpr(node.test) + ') { if (__fseq) { __fout.push(__value); } else { _utils.setOwn(__fout, __key, __value); } }\n' +
           '    });\n' +
           '    ' + ctx + forVal + ' = __fval;\n' +
           '    ' + ctx + forKey + ' = __fkey;\n' +

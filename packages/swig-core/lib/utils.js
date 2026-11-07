@@ -1,4 +1,5 @@
 var security = require('./security');
+var hasOwn = Object.prototype.hasOwnProperty;
 
 var isArray;
 
@@ -141,7 +142,7 @@ exports.each = function (obj, fn) {
     }
   } else {
     for (i in obj) {
-      if (obj.hasOwnProperty(i)) {
+      if (hasOwn.call(obj, i)) {
         if (fn(obj[i], i, obj) === false) {
           break;
         }
@@ -173,7 +174,7 @@ exports.eachAsync = async function (obj, fn) {
     }
   } else {
     for (i in obj) {
-      if (obj.hasOwnProperty(i)) {
+      if (hasOwn.call(obj, i)) {
         if ((await fn(obj[i], i, obj)) === false) {
           break;
         }
@@ -239,13 +240,58 @@ exports.map = function (obj, fn) {
     }
   } else {
     for (i in obj) {
-      if (obj.hasOwnProperty(i)) {
-        result[i] = fn(obj[i], i);
+      if (hasOwn.call(obj, i)) {
+        setOwn(result, i, fn(obj[i], i));
       }
     }
   }
   return result;
 };
+
+/**
+ * Assign a value to an own property of an object. A key "__proto__" is
+ * defined instead of assigned, since an assignment would replace the
+ * object's prototype; every other key is assigned.
+ * @param  {object} obj
+ * @param  {string} key
+ * @param  {*}      val
+ * @return {undefined}
+ */
+function setOwn(obj, key, val) {
+  if (key === '__proto__') {
+    Object.defineProperty(obj, key, { value: val, writable: true, enumerable: true, configurable: true });
+  } else {
+    obj[key] = val;
+  }
+}
+exports.setOwn = setOwn;
+
+/**
+ * Whether an object holds a key, as `key in obj` answers, except that a
+ * key the object gets only from Object.prototype (toString, constructor,
+ * hasOwnProperty, __proto__ and the like) is not one of its keys; a key
+ * from a class prototype or from Array.prototype still is. A value that
+ * is not an object throws, as `in` does.
+ * @param  {*}      key
+ * @param  {object} obj
+ * @return {boolean}
+ */
+function hasKey(key, obj) {
+  var o;
+  if (!(key in obj)) {
+    return false;
+  }
+  if (!(key in Object.prototype)) {
+    return true;
+  }
+  for (o = obj; o !== null && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
+    if (hasOwn.call(o, key)) {
+      return true;
+    }
+  }
+  return false;
+}
+exports.hasKey = hasKey;
 
 /**
  * Copy all of the properties in the source objects over to the destination object, and return the destination object. It's in-order, so the last source will override properties of the same name in previous arguments.
@@ -264,8 +310,8 @@ exports.extend = function () {
   for (i; i < l; i += 1) {
     obj = objs[i] || {};
     for (key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        target[key] = obj[key];
+      if (hasOwn.call(obj, key)) {
+        setOwn(target, key, obj[key]);
       }
     }
   }

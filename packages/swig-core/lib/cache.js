@@ -69,7 +69,11 @@ exports.cacheSet = function (key, options, val, engineCache, memoryStore) {
   }
 
   if (engineCache === 'memory') {
-    memoryStore[key] = val;
+    if (key === '__proto__') {
+      Object.defineProperty(memoryStore, key, { value: val, writable: true, enumerable: true, configurable: true });
+    } else {
+      memoryStore[key] = val;
+    }
     return;
   }
 

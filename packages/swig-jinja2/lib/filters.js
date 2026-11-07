@@ -533,10 +533,10 @@ exports.groupby = function (input, attribute) {
   if (!utils.isArray(input)) {
     return input;
   }
-  var groups = {}, order = [];
+  var groups = Object.create(null), order = [];
   utils.each(input, function (item) {
     var key = resolveAttr(item, attribute);
-    if (!groups.hasOwnProperty(key)) {
+    if (!Object.prototype.hasOwnProperty.call(groups, key)) {
       groups[key] = [];
       order.push(key);
     }

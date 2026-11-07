@@ -40,7 +40,7 @@ exports.iterateFilter = function iterateFilter(input) {
 
   if (typeof input === 'object') {
     utils.each(input, function (value, key) {
-      out[key] = self.apply(null, arguments);
+      utils.setOwn(out, key, self.apply(null, arguments));
     });
     return out;
   }

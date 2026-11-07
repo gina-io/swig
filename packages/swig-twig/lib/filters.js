@@ -796,7 +796,7 @@ exports.merge = function (input, other) {
     }
   } else if (input && typeof input === 'object') {
     for (k in input) {
-      if (input.hasOwnProperty(k)) { out[k] = input[k]; }
+      if (Object.prototype.hasOwnProperty.call(input, k)) { utils.setOwn(out, k, input[k]); }
     }
   } else {
     return input;
@@ -807,7 +807,7 @@ exports.merge = function (input, other) {
     }
   } else if (typeof other === 'object') {
     for (k in other) {
-      if (other.hasOwnProperty(k)) { out[k] = other[k]; }
+      if (Object.prototype.hasOwnProperty.call(other, k)) { utils.setOwn(out, k, other[k]); }
     }
   } else {
     return input;
