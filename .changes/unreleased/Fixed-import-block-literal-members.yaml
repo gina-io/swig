@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Names every object gets from Object.prototype no longer reach a template through an import, a block name or an object literal. On the async render path, swig-twig and swig-jinja2 `{% from "m.html" import toString as t %}` bound the toString function of Object.prototype (`[{{ t }}]` printed its source) and now binds nothing, as a name the template does not export; the same for valueOf and hasOwnProperty. A native block named __proto__ fails to compile with « Unsafe block name "__proto__" is not allowed (prototype-chain guard) », where a child''s override of it was lost (the parent''s content rendered); blocks named constructor, prototype or toString still work. In native, swig-twig and swig-jinja2 an object literal key "__proto__" is now an own key: `{% set o = {"__proto__": {"a": "P"}, "b": 1} %}` made {"a": "P"} the prototype of o, so `{{ o.a }}` printed P and the json filters left the key out; now `{{ o.a }}` renders nothing and the key is kept, as Jinja2 reads it.'
+time: 2026-11-07T20:31:38.462114+00:00
+custom:
+  Issue: ""

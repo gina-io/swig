@@ -294,6 +294,20 @@ function hasKey(key, obj) {
 exports.hasKey = hasKey;
 
 /**
+ * The value an object holds under one of its own keys, or undefined: a
+ * name the object gets only from its prototype chain (toString, valueOf,
+ * hasOwnProperty and the like) reads as missing, as a name the object
+ * does not hold at all does.
+ * @param  {object} obj
+ * @param  {string} key
+ * @return {*}
+ */
+function ownValue(obj, key) {
+  return (obj !== null && obj !== undefined && hasOwn.call(obj, key)) ? obj[key] : undefined;
+}
+exports.ownValue = ownValue;
+
+/**
  * Copy all of the properties in the source objects over to the destination object, and return the destination object. It's in-order, so the last source will override properties of the same name in previous arguments.
  * @param {...object} arguments
  * @return {object}

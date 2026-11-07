@@ -349,3 +349,115 @@ describe('_utils own-key helpers', function () {
     expect(function () { utils.hasKey('a', 'abc'); }).to.throwException(/Cannot use 'in' operator/);
   });
 });
+
+/*!
+ * An async {% from %} binds only what the imported template exports, a
+ * native block cannot be named __proto__, and an object literal key
+ * "__proto__" is an own key: each name below is one an object gets from
+ * Object.prototype, and each control rendered before the fix.
+ */
+function bothError(flavor, files, pattern, done) {
+  var syncErr;
+  try {
+    engine(flavor, files).renderFile('/t.html', {});
+  } catch (e) {
+    syncErr = e;
+  }
+  try {
+    expect(syncErr).to.be.an(Error);
+    expect(syncErr.message).to.match(pattern);
+  } catch (e) {
+    return done(e);
+  }
+  engine(flavor, files, true).renderFile('/t.html', {}, function (err) {
+    try {
+      expect(err).to.be.an(Error);
+      expect(err.message).to.match(pattern);
+      done();
+    } catch (e) {
+      done(e);
+    }
+  });
+}
+
+function async(flavor, files, expected, done) {
+  engine(flavor, files, true).renderFile('/t.html', {}, function (err, out) {
+    if (err) { return done(err); }
+    try {
+      expect(out).to.equal(expected);
+      done();
+    } catch (e) {
+      done(e);
+    }
+  });
+}
+
+describe('An import, a block name or an object literal key named like an Object.prototype member', function () {
+  var MACROS = '{% macro hi() %}H{% endmacro %}',
+    BLOCK_ERR = /^Unsafe block name "__proto__" is not allowed \(prototype-chain guard\) on line 1\./;
+
+  ['twig', 'jinja2'].forEach(function (flavor) {
+    ['toString', 'valueOf', 'hasOwnProperty'].forEach(function (name) {
+      it(flavor + ': an async {% from %} of ' + name + ' binds nothing, as a name the template does not export', function (done) {
+        async(flavor, { '/m.html': MACROS, '/t.html': '{% from "m.html" import ' + name + ' as t %}[{{ t }}]' }, '[]', done);
+      });
+    });
+    it(flavor + ': an async {% from %} still binds an exported macro, control', function (done) {
+      async(flavor, { '/m.html': MACROS, '/t.html': '{% from "m.html" import hi as t %}[{{ t() }}]' }, '[H]', done);
+    });
+    it(flavor + ': an async {% from %} of a name the template does not export, control', function (done) {
+      async(flavor, { '/m.html': MACROS, '/t.html': '{% from "m.html" import nosuch as t %}[{{ t }}]' }, '[]', done);
+    });
+  });
+
+  it('native: a block named __proto__ is refused', function (done) {
+    bothError('native', { '/t.html': '<{% block __proto__ %}R{% endblock %}>' }, BLOCK_ERR, done);
+  });
+  it('native: a child block named __proto__ is refused', function (done) {
+    bothError('native', {
+      '/b.html': '<{% block a %}A{% endblock %}>',
+      '/t.html': '{% extends "b.html" %}{% block __proto__ %}C{% endblock %}'
+    }, BLOCK_ERR, done);
+  });
+  it('native: a block name whose tokens join to __proto__ is refused', function (done) {
+    bothError('native', { '/t.html': '<{% block __pro to__ %}R{% endblock %}>' }, BLOCK_ERR, done);
+  });
+  ['constructor', 'prototype', 'toString', '__proto__x', 'x__proto__'].forEach(function (name) {
+    it('native: a child still overrides a block named ' + name, function (done) {
+      both('native', {
+        '/b.html': '<{% block ' + name + ' %}P{% endblock %}>',
+        '/t.html': '{% extends "b.html" %}{% block ' + name + ' %}C{% endblock %}'
+      }, function () { return {}; }, '<C>', done);
+    });
+  });
+
+  var LIT = '{% set o = {"__proto__": {"a": "P"}, "b": 1} %}[{{ o.a }}]',
+    json = { native: '|json', twig: '|json_encode|raw', jinja2: '|tojson' };
+  ['native', 'twig', 'jinja2'].forEach(function (flavor) {
+    it(flavor + ': an object literal key "__proto__" is an own key', function (done) {
+      both(flavor, { '/t.html': LIT + '[{{ o' + json[flavor] + ' }}]' }, function () { return {}; },
+        '[][{"__proto__":{"a":"P"},"b":1}]', done);
+    });
+    it(flavor + ': an object literal key named otherwise, control', function (done) {
+      both(flavor, { '/t.html': '{% set o = {"x": {"a": "P"}, "b": 1} %}[{{ o.x.a }}][{{ o' + json[flavor] + ' }}]' },
+        function () { return {}; }, '[P][{"x":{"a":"P"},"b":1}]', done);
+    });
+  });
+  it('native: an object literal key "__proto__" beside a string and a number key', function (done) {
+    both('native', { '/t.html': '{% set o = {"__proto__": 1, "a": 2, 3: 4} %}[{{ o|json }}][{{ o.a }}]' },
+      function () { return {}; }, '[{"3":4,"__proto__":1,"a":2}][2]', done);
+  });
+
+  it('_utils.ownValue reads own keys only', function () {
+    var np = Object.create(null);
+    np.k = 'v';
+    expect(utils.ownValue({ a: 1 }, 'a')).to.be(1);
+    expect(utils.ownValue({}, 'toString')).to.be(undefined);
+    expect(utils.ownValue({}, 'hasOwnProperty')).to.be(undefined);
+    expect(utils.ownValue({ toString: 'own' }, 'toString')).to.be('own');
+    expect(utils.ownValue(J('{"__proto__":{"x":1}}'), '__proto__')).to.eql({ x: 1 });
+    expect(utils.ownValue(np, 'k')).to.be('v');
+    expect(utils.ownValue(null, 'a')).to.be(undefined);
+    expect(utils.ownValue(undefined, 'a')).to.be(undefined);
+  });
+});

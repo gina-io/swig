@@ -100,9 +100,9 @@ var shapes = [
     // jinja2: <M>
     {"id": "P2", "title": "a top-level macro of a child, called in the root", "files": {"/base.html": "<{{ m() }}>", "/t.html": "{% extends \"base.html\" %}{% macro m() %}M{% endmacro %}"}, "sync": "<M>", "async": "<M>"},
     // jinja2: <R>
-    {"id": "n1", "title": "a root block named __proto__", "files": {"/t.html": "<{% block __proto__ %}R{% endblock %}>"}, "sync": "<R>", "async": "<R>"},
+    {"id": "n1", "title": "a root block named __proto__ is refused", "files": {"/t.html": "<{% block __proto__ %}R{% endblock %}>"}, "sync": {"error": "Unsafe block name \"__proto__\" is not allowed (prototype-chain guard)"}, "async": {"error": "Unsafe block name \"__proto__\" is not allowed (prototype-chain guard)"}},
     // jinja2: <XP>
-    {"id": "n2", "title": "a child block named __proto__ does not override", "files": {"/base.html": "<{% block __proto__ %}P{% endblock %}>", "/t.html": "{% extends \"base.html\" %}{% block __proto__ %}X{% parent %}{% endblock %}"}, "sync": "<P>", "async": "<P>"},
+    {"id": "n2", "title": "a child block named __proto__ is refused", "files": {"/base.html": "<{% block __proto__ %}P{% endblock %}>", "/t.html": "{% extends \"base.html\" %}{% block __proto__ %}X{% parent %}{% endblock %}"}, "sync": {"error": "Unsafe block name \"__proto__\" is not allowed (prototype-chain guard)"}, "async": {"error": "Unsafe block name \"__proto__\" is not allowed (prototype-chain guard)"}},
     {"id": "n3", "title": "a root block named constructor under a child", "files": {"/base.html": "<{% block constructor %}P{% endblock %}>", "/t.html": "{% extends \"base.html\" %}"}, "sync": "<P>", "async": "<P>"},
     {"id": "n4", "title": "a child overrides a block named constructor", "files": {"/base.html": "<{% block constructor %}P{% endblock %}>", "/t.html": "{% extends \"base.html\" %}{% block constructor %}X{% parent %}{% endblock %}"}, "sync": "<XP>", "async": "<XP>"},
     {"id": "n5", "title": "a child overrides a nested block named toString", "files": {"/base.html": "<{% block a %}{% block toString %}P{% endblock %}{% endblock %}>", "/t.html": "{% extends \"base.html\" %}{% block toString %}X{% parent %}{% endblock %}"}, "sync": "<XP>", "async": "<XP>"},

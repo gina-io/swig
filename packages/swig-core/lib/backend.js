@@ -842,7 +842,9 @@ exports.compile = function (template, parents, options, blockName) {
       var fromdBindings = '';
       utils.each(fromdImports, function (entry) {
         var bindName = entry.alias || entry.name;
-        fromdBindings += '  _ctx.' + bindName + ' = _imp["' + entry.name + '"];\n';
+        // An own export only: `_imp["toString"]` would bind the function
+        // every object gets from Object.prototype.
+        fromdBindings += '  _ctx.' + bindName + ' = _utils.ownValue(_imp, "' + entry.name + '");\n';
       });
       out += 'await (async function () {\n' +
         '  var _imp = await _utils.importIsolated(_ctx, async function () { return (await (await _swig.getTemplate(' + fromdPathJS + ', ' + fromdOpts + '))(_ctx)).exports; });\n' +
@@ -1375,7 +1377,13 @@ function emitArrayLiteral(node, d) {
 function emitObjectLiteral(node, d) {
   var props = [];
   utils.each(node.properties, function (p) {
-    props.push(emitExpr(p.key, d) + ':' + emitExpr(p.value, d));
+    var key = emitExpr(p.key, d);
+    // A literal key "__proto__" would set the object's prototype; a
+    // computed key makes it an own property, as Jinja2 and Twig read it.
+    if (p.key.type === 'Literal' && p.key.value === '__proto__') {
+      key = '[' + key + ']';
+    }
+    props.push(key + ':' + emitExpr(p.value, d));
   });
   return '{' + props.join(', ') + '}';
 }

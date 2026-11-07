@@ -349,7 +349,7 @@ describe('Phase 2 frontend wiring — Import/From tags (codegenMode: "async")', 
       expect(result.tpl.constructor.name).to.be('AsyncFunction');
       expect(body).to.contain('_swig.getTemplate');
       expect(body).to.contain('"macros.twig"');
-      expect(body).to.contain('_ctx.field = _imp["field"]');
+      expect(body).to.contain('_ctx.field = _utils.ownValue(_imp, "field")');
       expect(body).to.not.contain('_swig.compileFile');
     });
 
@@ -362,7 +362,7 @@ describe('Phase 2 frontend wiring — Import/From tags (codegenMode: "async")', 
       var body = result.tpl.toString();
 
       expect(body).to.contain('_swig.getTemplate');
-      expect(body).to.contain('_ctx.widget = _imp["field"]');
+      expect(body).to.contain('_ctx.widget = _utils.ownValue(_imp, "field")');
     });
 
     it('emits per-entry bindings for multiple imports', function () {
@@ -373,8 +373,8 @@ describe('Phase 2 frontend wiring — Import/From tags (codegenMode: "async")', 
       });
       var body = result.tpl.toString();
 
-      expect(body).to.contain('_ctx.input = _imp["input"]');
-      expect(body).to.contain('_ctx.box = _imp["textarea"]');
+      expect(body).to.contain('_ctx.input = _utils.ownValue(_imp, "input")');
+      expect(body).to.contain('_ctx.box = _utils.ownValue(_imp, "textarea")');
     });
 
     it('rejects __proto__ as an alias in async mode (CVE-2023-25345)', function () {

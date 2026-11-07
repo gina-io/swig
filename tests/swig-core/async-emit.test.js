@@ -409,8 +409,8 @@ describe('swig-core/lib/backend — async emit (codegenMode: "async")', function
       expect(body).to.contain('await (async function () {');
       expect(body).to.contain('_swig.getTemplate');
       expect(body).to.contain('_imp = ');
-      expect(body).to.contain('_ctx.a = _imp["a"];');
-      expect(body).to.contain('_ctx.c = _imp["b"];');
+      expect(body).to.contain('_ctx.a = _utils.ownValue(_imp, "a");');
+      expect(body).to.contain('_ctx.c = _utils.ownValue(_imp, "b");');
     });
 
     it('rejects dangerousProps in either name or alias', function () {
