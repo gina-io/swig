@@ -251,40 +251,60 @@ exports.map = function (obj, fn) {
 /**
  * Assign a value to an own property of an object. A key "__proto__" is
  * defined instead of assigned, since an assignment would replace the
- * object's prototype; every other key is assigned.
+ * object's prototype; every other key is assigned. The key is converted
+ * once, as JavaScript converts a property key (a symbol stays a symbol,
+ * anything else becomes a string), and the write uses the converted key,
+ * so a key such as the array ["__proto__"], which names the same
+ * property, is defined too.
  * @param  {object} obj
- * @param  {string} key
+ * @param  {*}      key
  * @param  {*}      val
  * @return {undefined}
  */
 function setOwn(obj, key, val) {
-  if (key === '__proto__') {
-    Object.defineProperty(obj, key, { value: val, writable: true, enumerable: true, configurable: true });
+  var k = (typeof key === 'symbol') ? key : String(key);
+  if (k === '__proto__') {
+    Object.defineProperty(obj, k, { value: val, writable: true, enumerable: true, configurable: true });
   } else {
-    obj[key] = val;
+    obj[k] = val;
   }
 }
 exports.setOwn = setOwn;
+
+/*!
+ * The most objects a prototype walk (hasKey, protoMember) looks at. A Proxy
+ * whose getPrototypeOf trap returns the proxy itself, or a new proxy on
+ * each call, gives a chain with no end; when the first MAX_PROTO_WALK
+ * objects of a chain do not hold the key, the walk stops and the key reads
+ * as missing, as a member the object gets only from Object.prototype does.
+ * @private
+ */
+var MAX_PROTO_WALK = 1000;
 
 /**
  * Whether an object holds a key, as `key in obj` answers, except that a
  * key the object gets only from Object.prototype (toString, constructor,
  * hasOwnProperty, __proto__ and the like) is not one of its keys; a key
  * from a class prototype or from Array.prototype still is. A value that
- * is not an object throws, as `in` does.
+ * is not an object throws, as `in` does. For such a key the walk looks at
+ * the first 1000 objects of the prototype chain at most, and past them the
+ * key is not one of the object's keys.
  * @param  {*}      key
  * @param  {object} obj
  * @return {boolean}
  */
 function hasKey(key, obj) {
-  var o;
+  var o, n;
   if (!(key in obj)) {
     return false;
   }
   if (!(key in Object.prototype)) {
     return true;
   }
-  for (o = obj; o !== null && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
+  for (o = obj, n = 0; o !== null && o !== Object.prototype; o = Object.getPrototypeOf(o), n += 1) {
+    if (n === MAX_PROTO_WALK) {
+      return false;
+    }
     if (hasOwn.call(o, key)) {
       return true;
     }
@@ -1098,17 +1118,21 @@ function guardKey(k) {
  * A key from the data that names such a member (toString, hasOwnProperty,
  * __defineGetter__ and the like) then reads as missing, while own keys,
  * the members of a class and the methods of strings, numbers and arrays
- * still read.
+ * still read. The walk looks at the first 1000 objects of the chain at
+ * most; past them the key reads as missing too.
  * @param  {*} obj
  * @param  {*} key
  * @return {boolean}
  */
 function protoMember(obj, key) {
-  var o;
+  var o, n;
   if (typeof key !== 'string' || !hasOwn.call(Object.prototype, key)) {
     return false;
   }
-  for (o = obj; o !== null && o !== undefined && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
+  for (o = obj, n = 0; o !== null && o !== undefined && o !== Object.prototype; o = Object.getPrototypeOf(o), n += 1) {
+    if (n === MAX_PROTO_WALK) {
+      return true;
+    }
     if (hasOwn.call(o, key)) {
       return false;
     }

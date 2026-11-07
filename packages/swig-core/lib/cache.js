@@ -64,15 +64,20 @@ exports.cacheGet = function (key, options, engineCache, memoryStore) {
  * @return {undefined}
  */
 exports.cacheSet = function (key, options, val, engineCache, memoryStore) {
+  var k;
   if (exports.shouldCache(options, engineCache)) {
     return;
   }
 
   if (engineCache === 'memory') {
-    if (key === '__proto__') {
-      Object.defineProperty(memoryStore, key, { value: val, writable: true, enumerable: true, configurable: true });
+    // The key is converted once, as JavaScript converts a property key, so a
+    // key such as the array ["__proto__"] is defined as an own key too
+    // instead of replacing the store's prototype.
+    k = (typeof key === 'symbol') ? key : String(key);
+    if (k === '__proto__') {
+      Object.defineProperty(memoryStore, k, { value: val, writable: true, enumerable: true, configurable: true });
     } else {
-      memoryStore[key] = val;
+      memoryStore[k] = val;
     }
     return;
   }
