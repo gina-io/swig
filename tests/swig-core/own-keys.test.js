@@ -156,6 +156,17 @@ describe('A map keyed by template data reads own entries only', function () {
     expect(r('[{"k":"x"},{"k":"a"}]')).to.equal('{"x":[{}],"a":[{}]}');
   });
 
+  it('native groupBy skips an item that does not hold the key as its own', function () {
+    // As in v2.12.1: an item without the key, an item that has it only
+    // through its prototype and an item that is not an object are left out.
+    var r = function (items) { return swig.render('{{ items|groupBy("k")|json }}', { locals: { items: items } }); },
+      inherited = Object.create({ k: 'x' });
+    inherited.v = 9;
+    expect(r(J('[{"k":"a","v":1},{"v":2},{"k":"b","v":3}]'))).to.equal('{"a":[{"v":1}],"b":[{"v":3}]}');
+    expect(r([inherited, { k: 'a', v: 1 }])).to.equal('{"a":[{"v":1}]}');
+    expect(r([5, { k: 'a', v: 1 }])).to.equal('{"a":[{"v":1}]}');
+  });
+
   it('swig-jinja2 groupby groups values named hasOwnProperty or __proto__', function () {
     var src = '{% for g in items|groupby("k") %}[{{ g.grouper }}:{{ g.list|length }}]{% endfor %}',
       r = function (items) { return new jinja2.Jinja2({ cache: false }).render(src, { locals: { items: J(items) } }); };
