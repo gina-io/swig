@@ -225,6 +225,27 @@ describe('A copy keeps an own key "__proto__" as an own key', function () {
   });
 });
 
+describe('Native `in` leaves out what an object gets from Object.prototype', function () {
+  var IN = '{% if k in obj %}Y{% else %}N{% endif %}';
+  function Klass() { this.own = 1; }
+  Klass.prototype.method = function () {};
+
+  ['constructor', 'toString', '__proto__', 'hasOwnProperty'].forEach(function (k) {
+    it('reads ' + k + ' as no key of a plain object', function (done) {
+      both('native', { '/t.html': IN }, function () { return { k: k, obj: { b: 1 } }; }, 'N', done);
+    });
+  });
+
+  it('still finds own keys, class members and array indexes', function (done) {
+    var src = '[{{ "b" in obj }}][{{ "zz" in obj }}][{{ "method" in inst }}][{{ "own" in inst }}][{{ 0 in arr }}][{{ 2 in arr }}][{{ "toString" in tos }}]';
+    both('native', { '/t.html': src }, function () { return { obj: { b: 1 }, inst: new Klass(), arr: ['x'], tos: { toString: 1 } }; }, '[true][false][true][true][true][false][true]', done);
+  });
+
+  it('still throws on a string, as `in` does', function () {
+    expect(function () { swig.render('{% if "a" in s %}Y{% endif %}', { locals: { s: 'abc' } }); }).to.throwException(/Cannot use 'in' operator/);
+  });
+});
+
 describe('_utils own-key helpers', function () {
   it('each, eachAsync and map visit an own key hasOwnProperty and objects with no prototype', function () {
     var seen = [], mapped;

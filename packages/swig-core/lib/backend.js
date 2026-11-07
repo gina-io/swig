@@ -1331,7 +1331,9 @@ function emitBinaryOp(node, d) {
     if (node.membership) {
       return '_utils.isIn(' + left + ', ' + right + ', "' + membershipMode(node.membership) + '"' + (node.negate ? ', true' : '') + ')';
     }
-    return left + ' in ' + right;
+    // A native key test: own keys and inherited ones, except what every
+    // object gets from Object.prototype (constructor, toString, ...).
+    return '_utils.hasKey(' + left + ', ' + right + ')';
   }
   // Twig/Jinja2 `~` is explicit string-concat: both sides coerce to
   // string before `+` runs. A bare `<left>~<right>` emission would be

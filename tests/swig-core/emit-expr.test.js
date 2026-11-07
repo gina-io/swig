@@ -207,9 +207,9 @@ describe('swig-core/lib/backend — emitExpr', function () {
       expect(backend.emitExpr(ir.binaryOp('<=', ir.literal('number', 1), ir.literal('number', 2)))).to.be('1<=2');
     });
 
-    it('emits `in` with surrounding spaces so the keyword detokenises', function () {
+    it('emits native `in` through _utils.hasKey, the left operand first', function () {
       var js = backend.emitExpr(ir.binaryOp('in', ir.literal('string', 'a'), ir.varRef(['items'])));
-      expect(js).to.match(/^"a" in \(/);
+      expect(js).to.match(/^_utils\.hasKey\("a", \(/);
     });
 
     it('routes `??` with a VarRef LHS through IRVarRefExists to preserve the defined/undefined signal', function () {
