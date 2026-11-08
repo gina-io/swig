@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Native `in`, a key test, no longer finds the members every object gets from Object.prototype: with obj {b: 1}, `{% if k in obj %}` was true for k = constructor, toString, __proto__ or hasOwnProperty, and is now false. Own keys, keys inherited from another prototype (the methods of a class) and array indexes still count, and a string on the right still throws.'
-time: 2026-11-07T20:05:19.802068+00:00
-custom:
-  Issue: ""

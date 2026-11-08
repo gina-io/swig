@@ -17,11 +17,20 @@ Nothing is scheduled for the next release yet.
 | Planned | Async parse path for the remaining dynamic targets — runtime-resolved `{% import %}` / `{% from %}` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic `{% extends %}` shipped in 2.5.2 (native + Twig + Jinja2) and dynamic `{% include %}` paths already resolve (the include path has always been an expression). Dynamic `import` / `from` are on hold pending consumer demand. |
 | Planned | Modern browser-test harness. The legacy phantomjs runner was removed; a replacement (e.g. Playwright or JSDOM) has not yet landed. In the interim, CI builds the four browser bundles and renders a template set through each in a Node vm context, comparing the output with the Node library. (The `mocha` → `node:test` runner migration, the `expect.js` → in-repo assertion-shim swap, and the `blanket` → `node:test` built-in coverage migration have all shipped.) |
 | On demand | Ahead-of-time browser support for the Twig, Jinja2, and Django frontends, in two parts that ship together. Runtime-only bundles: the shared runtime factory already supports them, and each flavor needs its own bundle entry and build target, since filter catalogs are per-flavor. A flavor-aware compile step: `swig compile --register` compiles with the native parser only, so flavor templates are precompiled programmatically until it lands. The native `dist/swig.runtime.min.js` shipped in 2.8.0; the flavor pieces land when a consumer needs them. |
+| On demand | Remaining edges around `Object.prototype` names and custom tags: a template variable named like an `Object.prototype` member, such as `{{ toString }}`, still reads that member in native swig, swig-twig and swig-jinja2; in the fragments a custom tag receives, a filter after a bracket after a string or number literal (`"abc"[j]|upper`) fails to compile; the sync `{% from %}` of a name the imported file does not export throws in swig-twig and swig-jinja2, where the async render path binds nothing; and native `groupBy` throws on a list holding `null` or `undefined`. |
 | On demand | Macros on the async render path whose body holds an `{% include %}`, `{% import %}`, `{% from %}` or `{% block %}`. Since 2.9.4, calling such a macro there throws a clear error, and a template that only defines it renders. |
 
 ---
 
 ## Completed
+
+### v2.12.2 (November 2026)
+
+- A key from the template data that an object gets only from `Object.prototype`, such as `__defineGetter__` or `hasOwnProperty`, now reads as missing in a subscript, in a call on one and in swig-jinja2's attribute reader of `groupby`, `sum` and `attr`, and native `in` no longer finds those members.
+- A key in the data, a template name or a block name that is also the name of an `Object.prototype` member is read as an own key: loops, macro calls and includes no longer fail on a key named `hasOwnProperty`, the grouping filters group such values, copies of an object keep a `"__proto__"` key as an own key, and the memory loader no longer serves an inherited member as template source.
+- Names every object gets from `Object.prototype` no longer reach a template through an async `{% from %}` in swig-twig and swig-jinja2, a native block named `__proto__` fails to compile, and an object-literal key `"__proto__"` is an own key.
+- Recompile precompiled templates with 2.12.2: code compiled by an earlier release keeps its old answer for native `in` and for an object-literal key `"__proto__"`, and a template compiled by 2.12.2 needs the 2.12.2 runtime.
+- All five packages released in lockstep at `2.12.2`.
 
 ### v2.12.1 (November 2026)
 
