@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Templates compiled by 2.12.1 or earlier keep their old answer for native `in` and for an object literal key "__proto__" until they are recompiled with 2.12.2: those checks are in the code the compiler emits, as is the new code of a swig-jinja2 loop filter and of an async {% from %}. A subscript, or a call on one, compiled by 2.9.10 or later calls a runtime helper and follows the 2.12.2 rule at once. A template compiled by 2.12.2 needs the 2.12.2 runtime: run by 2.12.1, native `in` throws « _utils.hasKey is not a function » and a swig-jinja2 loop filter « _utils.setOwn is not a function ». Recompile precompiled templates (swig compile output, registerBundle bundles, stored precompile() results) with 2.12.2.'
+time: 2026-11-08T03:10:42.687670+00:00
+custom:
+  Issue: ""
