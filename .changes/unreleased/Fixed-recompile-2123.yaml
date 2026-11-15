@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Templates compiled by 2.12.2 or earlier keep their old output for the native autoescape and comment fixes until they are recompiled with 2.12.3: the compiler decides the end of a nested `{% autoescape %}` region, a tag with no argument or with another string, an `autoescape` option set to undefined, and text that ends with the comment close or starts with an unclosed comment open. So such a body still restores the template default at the end of a nested region, still turns escaping off for a tag with no argument or an undefined option, and still drops that text. The `groupBy` fix is in the runtime and reaches them at once; a template with a second else, or with a numeric subscript in a for loop, did not compile on 2.12.2. Recompile precompiled templates (swig compile output, registerBundle bundles, stored precompile() results) with 2.12.3.'
+time: 2026-11-15T12:59:05.148599+00:00
+custom:
+  Issue: ""
