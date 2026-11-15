@@ -1,5 +1,5 @@
 kind: fixed
-body: 'Native swig refuses a second `{% else %}`, or an `{% elseif %}` or `{% elif %}` after the else branch, in one `{% if %}` with "Multiple "else" branches in "if" tag on line N.", as Jinja2 and Django do; such a template compiled to invalid JavaScript and failed with a raw "Unexpected token ''else''".'
+body: 'Native swig refuses, as Jinja2 and Django do, a second `{% else %}`, or an `{% elseif %}` or `{% elif %}` after the else branch, in one `{% if %}`, with "Multiple "else" branches in "if" tag on line N."; such a template compiled to invalid JavaScript and failed with a raw "Unexpected token ''else''". The refusal happens at compile, so it also fails a template that holds such a tag in a part that never renders: the top level of an extending template outside its blocks, a block the parent template does not define, or the top level of an imported file. There the sync render path rendered the template; the async render path rendered it in the first case and failed with the raw error in the other two.'
 time: 2026-11-15T11:11:34.870916+00:00
 custom:
   Issue: ""

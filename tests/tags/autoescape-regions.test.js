@@ -120,4 +120,14 @@ describe('Tag: autoescape arguments and regions', function () {
       expect(new Swig().render('{{ v }}', { locals: { v: '<i>' }, autoescape: false })).to.equal('<i>');
     });
   });
+
+  describe('other autoescape option values', function () {
+    it('reads undefined in the instance options as true', function () {
+      expect(new Swig({ autoescape: undefined }).render('{{ v }}', { locals: { v: '<i>' } })).to.equal('&lt;i&gt;');
+    });
+
+    it('reads a per-call null as no escaping', function () {
+      expect(new Swig().render('{{ v }}', { locals: { v: '<i>' }, autoescape: null })).to.equal('<i>');
+    });
+  });
 });

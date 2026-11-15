@@ -1,5 +1,5 @@
 kind: fixed
-body: 'In native swig a per-call `autoescape` option set to undefined reads as true, as swig-twig and swig-jinja2 read it: `render("{{ v }}", { locals: { v: "<i>" }, autoescape: undefined })` renders `&lt;i&gt;`, where it rendered `<i>`, whatever the instance''s own default.'
+body: 'In native swig a per-call `autoescape` option set to undefined reads as true, as swig-twig and swig-jinja2 read it: `render("{{ v }}", { locals: { v: "<i>" }, autoescape: undefined })` renders `&lt;i&gt;`, where it rendered `<i>`, whatever the instance''s own default. The same value in the instance options reads as true too: an instance made with `new swig.Swig({ autoescape: undefined })`, and the default instance after `swig.setDefaults({ autoescape: undefined })`, escape `{{ v }}`, where they rendered `<i>`.'
 time: 2026-11-15T11:08:56.029428+00:00
 custom:
   Issue: ""

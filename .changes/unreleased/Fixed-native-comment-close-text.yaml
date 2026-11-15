@@ -1,5 +1,5 @@
 kind: fixed
-body: 'Native swig keeps text that is not a whole comment as text, as swig-twig, swig-jinja2 and swig-django do. Text that ends with the comment close rendered nothing: `a #}`, `#}` and `{# c #}#}` rendered an empty string, and `x {# c #} y #}` rendered `x `. An unclosed comment open such as `{# unclosed` rendered nothing too, and so did text that ends with a custom comment close (`x -->` with `cmtControls: [''<!--'', ''-->'']`). An error raised after such text named a line too low, since the line breaks of that text were not counted.'
+body: 'Native swig keeps text that is not a whole comment as text, as swig-twig, swig-jinja2 and swig-django do. Text that ends with the comment close rendered nothing: `a #}`, `#}` and `{# c #}#}` rendered an empty string, and `x {# c #} y #}` rendered `x `. An unclosed comment open such as `{# unclosed` rendered nothing too, and so did text that ends with a custom comment close (`x -->` with `cmtControls: [''<!--'', ''-->'']`). An error raised after such text named a line too low, since the line breaks of that text were not counted. A whitespace control before such text now applies to that text, as in swig-twig: `{{ v -}} x #}{# c #} y` renders `Vx #} y` for v = "V", where it rendered `Vy` (the text was dropped and the control stripped the next text).'
 time: 2026-11-15T11:24:18.409835+00:00
 custom:
   Issue: ""
