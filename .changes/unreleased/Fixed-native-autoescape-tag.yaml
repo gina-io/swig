@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Native swig''s `{% autoescape %}` tag fails at compile when it has no argument, with "Expected true, false, "html" or "js" in autoescape tag on line N.", where it turned escaping off; a string other than "html" or "js", in either quote style, fails with the tag''s "Unexpected token" error, where it gave HTML escaping. The end of a nested region now restores the enclosing region instead of the template default: with autoescape off, `{% autoescape true %}{% autoescape false %}{{ v }}{% endautoescape %}{{ v }}{% endautoescape %}` renders `<i>&lt;i&gt;` for v = "<i>", where it rendered `<i><i>`.'
+time: 2026-11-15T11:08:55.999637+00:00
+custom:
+  Issue: ""

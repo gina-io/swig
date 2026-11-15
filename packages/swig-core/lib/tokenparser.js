@@ -1024,11 +1024,10 @@ TokenParser.prototype = {
       if (expr.type !== 'VarRef' || filterCalls.length > (escape ? 1 : 0)) { nodeOut.coerce = true; }
       return nodeOut;
     } catch (e) {
-      // A top-level ternary cannot be expressed by the legacy parseToken
-      // path (no QMARK handling), so legacyFallback would only throw a
-      // worse error ("Unexpected colon") or emit garbage. Re-throw
-      // parseExpr's own error — including the CVE-2023-25345 guard
-      // message — instead of masking it.
+      // The legacy parseToken walk handles a ternary only as flat
+      // fragments it does not check, so for a top-level ternary re-throw
+      // parseExpr's own error, the prototype-chain guard message included,
+      // instead of masking it with legacyFallback.
       if (hasTopTernary) { throw e; }
       return legacyFallback();
     }
