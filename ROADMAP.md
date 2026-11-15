@@ -17,12 +17,22 @@ Nothing is scheduled for the next release yet.
 | Planned | Async parse path for the remaining dynamic targets — runtime-resolved `{% import %}` / `{% from %}` paths on the async-codegen branch. Static-target async dispatch shipped in 2.2.0; dynamic `{% extends %}` shipped in 2.5.2 (native + Twig + Jinja2) and dynamic `{% include %}` paths already resolve (the include path has always been an expression). Dynamic `import` / `from` are on hold pending consumer demand. |
 | Planned | Modern browser-test harness. The legacy phantomjs runner was removed; a replacement (e.g. Playwright or JSDOM) has not yet landed. In the interim, CI builds the four browser bundles and renders a template set through each in a Node vm context, comparing the output with the Node library. (The `mocha` → `node:test` runner migration, the `expect.js` → in-repo assertion-shim swap, and the `blanket` → `node:test` built-in coverage migration have all shipped.) |
 | On demand | Ahead-of-time browser support for the Twig, Jinja2, and Django frontends, in two parts that ship together. Runtime-only bundles: the shared runtime factory already supports them, and each flavor needs its own bundle entry and build target, since filter catalogs are per-flavor. A flavor-aware compile step: `swig compile --register` compiles with the native parser only, so flavor templates are precompiled programmatically until it lands. The native `dist/swig.runtime.min.js` shipped in 2.8.0; the flavor pieces land when a consumer needs them. |
-| On demand | Remaining edges around `Object.prototype` names and custom tags: a template variable named like an `Object.prototype` member, such as `{{ toString }}`, still reads that member in native swig, swig-twig and swig-jinja2; in the fragments a custom tag receives, a filter after a bracket after a string or number literal (`"abc"[j]|upper`) fails to compile; the sync `{% from %}` of a name the imported file does not export throws in swig-twig and swig-jinja2, where the async render path binds nothing; and native `groupBy` throws on a list holding `null` or `undefined`. |
+| On demand | Remaining edges around `Object.prototype` names and custom tags: a template variable named like an `Object.prototype` member, such as `{{ toString }}`, still reads that member in native swig, swig-twig and swig-jinja2; in the fragments a custom tag receives, a filter after a bracket after a string or number literal (`"abc"[j]|upper`) fails to compile; and the sync `{% from %}` of a name the imported file does not export throws in swig-twig and swig-jinja2, where the async render path binds nothing. |
+| On demand | Remaining native parser edges: `{#}`, where the comment open and close overlap, is read as a comment in all four flavors when it stands alone or directly between two tags (beside text it stays text), where Django renders it as text; a native `{% for %}` over a numeric subscript in parentheses, such as `arr[(0)]`, still fails to compile; and the `{% autoescape %}` tag takes only `"html"` or `"js"` as a string, while the `autoescape` option passes any string to the `e` filter. |
 | On demand | Macros on the async render path whose body holds an `{% include %}`, `{% import %}`, `{% from %}` or `{% block %}`. Since 2.9.4, calling such a macro there throws a clear error, and a template that only defines it renders. |
 
 ---
 
 ## Completed
+
+### v2.12.3 (November 2026)
+
+- Native swig's `{% autoescape %}` tag fails at compile with no argument or with a string other than `"html"` or `"js"`, where it turned escaping off or gave HTML escaping, and the end of a nested region restores the enclosing region instead of the template default.
+- In native swig an `autoescape` option set to undefined reads as true, per call and in the instance options, where it turned escaping off.
+- Native swig keeps text that is not a whole comment, such as text that ends with `#}` or an unclosed `{#`, where it rendered nothing.
+- Native swig refuses a second `{% else %}`, or an `{% elseif %}` after the else branch, with a clear compile error; a native `{% for %}` loops over a numeric subscript such as `arr[0]`; and native `groupBy` leaves out a null or undefined item instead of failing.
+- Recompile precompiled templates with 2.12.3: a template compiled by 2.12.2 keeps its old output for the native autoescape and comment fixes.
+- All five packages released in lockstep at `2.12.3`.
 
 ### v2.12.2 (November 2026)
 

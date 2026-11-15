@@ -1,5 +1,0 @@
-kind: fixed
-body: 'Native `groupBy` leaves out a null or undefined item of the list, as it leaves out an item that does not hold the key, where `{{ items|groupBy("k") }}` over a list such as `[null, {"k": "a"}]` failed with the TypeError "Cannot convert undefined or null to object".'
-time: 2026-11-15T11:44:23.230490+00:00
-custom:
-  Issue: ""
