@@ -1,0 +1,5 @@
+kind: fixed
+body: 'A native `{% for %}` loops over a numeric subscript such as `{% for x in arr[0] %}` or `{% for x in m[0][1] %}`, which failed to compile with "Unexpected number "0" on line N." while a string subscript such as `obj["k"]` already worked.'
+time: 2026-11-15T11:13:00.357771+00:00
+custom:
+  Issue: ""
