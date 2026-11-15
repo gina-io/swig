@@ -86,15 +86,8 @@ flavors.forEach(function (f) {
     });
 
     it('text with no tag renders unchanged, apart from line endings', function () {
-      var inst = new f.Ctor({ cache: false }),
-        input = plainText;
-      if (f.name === 'swig') {
-        // Native swig drops a text chunk that ends with the comment close
-        // #} (inherited from the original project); the other flavors keep
-        // it. Such text is left out here until that is fixed.
-        input = plainText.filter(function (s) { return !/#\}$/.test(s); });
-      }
-      check(fc.property(input, function (s) {
+      var inst = new f.Ctor({ cache: false });
+      check(fc.property(plainText, function (s) {
         return eol(inst.render(s)) === eol(s);
       }));
     });
