@@ -326,9 +326,9 @@ function refsInJS(js) {
  */
 // It also strips the bind and unbind lines of a renamed macro parameter
 // (emitMacroFn) and the variable-read tests that read the context without
-// handing it on ("<name>" in Object(_ctx), _utils.protoMember(_ctx, ...):
-// varread.js).
-var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);|_ctx\["[^"\n]*"\] = \(__a\d+ === undefined \? null : __a\d+\);|delete _ctx\["[^"\n]*"\];|!\("[^"\n]*" in Object\(_ctx\)\)|_utils\.protoMember\(_ctx, "[^"\n]*"\)/g;
+// handing it on ((typeof _ctx !== "object" || _ctx === null || !("<name>" in
+// _ctx)), _utils.protoMember(_ctx, ...): varread.js).
+var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);|_ctx\["[^"\n]*"\] = \(__a\d+ === undefined \? null : __a\d+\);|delete _ctx\["[^"\n]*"\];|\(typeof _ctx !== "object" \|\| _ctx === null \|\| !\("[^"\n]*" in _ctx\)\)|_utils\.protoMember\(_ctx, "[^"\n]*"\)/g;
 
 /*!
  * True when a macro function's JS uses the context object itself (`_ctx`,

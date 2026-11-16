@@ -34,8 +34,9 @@ var INTERNAL = ('_swig _ctx _filters _utils _fn _ext _output _exports _blocks _p
 
 /*!
  * The standard globals of the backend's NOT_CLOSURE list: read through the
- * fallback only when the context has no such key ("<name>" in Object(_ctx); an own
- * key holding undefined, such as a loop item, does not fall back).
+ * fallback only when the context has no such key (noKey: typeof _ctx !== "object"
+ * || _ctx === null || !("<name>" in _ctx); an own key holding undefined, such as
+ * a loop item, does not fall back).
  * @private
  */
 var GLOBALS = ('undefined NaN Infinity globalThis Object Function Array String Number Boolean Symbol BigInt Math JSON ' +
@@ -84,7 +85,7 @@ function closureClass(head) {
  * @private
  */
 function noKey(name) {
-  return '!("' + name + '" in Object(_ctx))';
+  return '(typeof _ctx !== "object" || _ctx === null || !("' + name + '" in _ctx))';
 }
 
 /*!
