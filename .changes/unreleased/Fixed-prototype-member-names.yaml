@@ -1,0 +1,5 @@
+kind: fixed
+body: 'A name an object gets only from Object.prototype reads as missing, bare or dotted, in all four flavors and on both render paths: `{{ toString }}`, `{{ valueOf }}`, `{{ hasOwnProperty }}`, `{{ isPrototypeOf }}`, `{{ toLocaleString }}`, `{{ __lookupGetter__ }}` and `{{ obj.toString }}` render an empty string, where native swig, swig-twig and swig-jinja2 printed the function''s source and swig-django called it (`[object Object]`, `false`, or an empty string for `__lookupGetter__`), and `{% if toString %}` no longer takes its branch. swig-django also reads as missing a function added to Object.prototype and a function a Proxy returns for such a name, instead of calling it. A key of that name the object holds itself, and a method of the object''s own class, read as before.'
+time: 2026-11-16T10:52:05.701412+00:00
+custom:
+  Issue: ""

@@ -1,0 +1,5 @@
+kind: fixed
+body: 'Templates compiled by 2.12.3 or earlier keep their old reads for these fixes until they are recompiled with 2.12.4: in native swig, swig-twig and swig-jinja2 the compiler decides each read these entries change, and in swig-django it decides `{{ __k }}` in a one-name loop and `Math is None` on a key that holds null. swig-django''s reading of a function an object gets from Object.prototype as missing (`{{ toString }}`, `{{ o.toString }}`, `{% if toString %}`) is decided by its runtime and reaches such templates at once. A template compiled by 2.12.4 keeps its new reads on the 2.12.3 runtime, except in swig-django, whose 2.12.3 runtime still calls those functions. Recompile precompiled templates (swig compile output, registerBundle bundles, stored precompile() results) with 2.12.4.'
+time: 2026-11-16T10:52:05.750627+00:00
+custom:
+  Issue: ""
