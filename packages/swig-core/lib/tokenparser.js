@@ -249,7 +249,10 @@ TokenParser.prototype = {
       self.state.push(token.type);
       if (self.filterApplyIdx.length) {
         self.out.splice(self.filterApplyIdx[self.filterApplyIdx.length - 1], 0, '(');
-        if (prevToken && prevTokenType === _t.VAR) {
+        // A dotted name before the parenthesis is a method call on its
+        // receiver path; a one-segment name (`f (1)`: VAR, WHITESPACE,
+        // PARENOPEN) has no receiver and takes the plain call below.
+        if (prevToken && prevTokenType === _t.VAR && prevToken.match.indexOf('.') !== -1) {
           temp = prevToken.match.split('.').slice(0, -1);
           self.out.push(' || _fn).call(' + self.checkMatch(temp));
           self.state.push(_t.METHODOPEN);
