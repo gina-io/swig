@@ -1,6 +1,7 @@
 var utils = require('./utils'),
   _security = require('./security'),
-  ir = require('./ir');
+  ir = require('./ir'),
+  varread = require('./varread');
 
 /**
  * JS-codegen backend shared across @rhinostone/swig-family frontends.
@@ -224,11 +225,19 @@ function emitMacroFn(node, options) {
   var macroParams = node.params || [],
     macroSigJS,
     macroIndexOfJS,
+    macroBindJS = '',
+    macroUnbindJS = '',
     macroDefaultsJS = '';
   if (macroParams.length && typeof macroParams[0] === 'object' && macroParams[0] !== null && typeof macroParams[0].name === 'string') {
-    var macroNames = [];
-    utils.each(macroParams, function (p) {
+    var macroNames = [], macroIds = [];
+    utils.each(macroParams, function (p, i) {
+      var id = closureSafe(p.name) ? p.name : '__a' + i;
       macroNames.push(p.name);
+      macroIds.push(id);
+      if (id !== p.name) {
+        macroBindJS += '  _ctx[' + JSON.stringify(p.name) + '] = (' + id + ' === undefined ? null : ' + id + ');\n';
+        macroUnbindJS += '  delete _ctx[' + JSON.stringify(p.name) + '];\n';
+      }
       // Parameter defaults — `{% macro foo(a, b='x') %}` carries an
       // IRExpr on `p.default`. Emit `if (b === undefined) { b = <expr>; }`
       // at the top of the macro body, before the _ctx shadow-delete, so a
@@ -237,10 +246,10 @@ function emitMacroFn(node, options) {
       // arrive as `undefined`, so the guard applies the default while
       // leaving an explicit falsy value (`0`, `false`, `''`) alone.
       if (p['default']) {
-        macroDefaultsJS += '  if (' + p.name + ' === undefined) { ' + p.name + ' = ' + exports.emitExpr(p['default']) + '; }\n';
+        macroDefaultsJS += '  if (' + id + ' === undefined) { ' + id + ' = ' + exports.emitExpr(p['default']) + '; }\n';
       }
     });
-    macroSigJS = macroNames.join(', ');
+    macroSigJS = macroIds.join(', ');
     var macroJsonNames = [];
     utils.each(macroNames, function (n) { macroJsonNames.push(JSON.stringify(n)); });
     macroIndexOfJS = macroJsonNames.join(',');
@@ -255,7 +264,9 @@ function emitMacroFn(node, options) {
     '  _utils.each(_ctx, function (v, k) {\n' +
     '    if ([' + macroIndexOfJS + '].indexOf(k) !== -1) { delete _ctx[k]; }\n' +
     '  });\n' +
+    macroBindJS +
     macroBodyJS + '\n' +
+    macroUnbindJS +
     ' _ctx = _utils.extend(_ctx, __ctx);\n' +
     '  return _output;\n' +
     '}';
@@ -309,7 +320,10 @@ function refsInJS(js) {
  * copy put back. A macro defined in a macro carries its own.
  * @private
  */
-var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);/g;
+// It also strips the bind and unbind lines of a renamed macro parameter
+// (emitMacroFn) and the variable-read tests that read the context without
+// handing it on ("<name>" in _ctx, _utils.protoMember(_ctx, ...): varread.js).
+var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);|_ctx\["[^"\n]*"\] = \(__a\d+ === undefined \? null : __a\d+\);|delete _ctx\["[^"\n]*"\];|!\("[^"\n]*" in _ctx\)|_utils\.protoMember\(_ctx, "[^"\n]*"\)/g;
 
 /*!
  * True when a macro function's JS uses the context object itself (`_ctx`,
@@ -364,10 +378,22 @@ function bindLoopItem(node, target, keyTarget, indent, value, key, seq) {
   }
   if (node.mapKeys) {
     return indent + target + ' = ' + seq + ' ? ' + value + ' : ' + key + ';\n' +
-      indent + keyTarget + ' = ' + key + ';\n';
+      (keyTarget ? indent + keyTarget + ' = ' + key + ';\n' : '');
   }
   return indent + target + ' = ' + value + ';\n' +
-    indent + keyTarget + ' = ' + key + ';\n';
+    (keyTarget ? indent + keyTarget + ' = ' + key + ';\n' : '');
+}
+
+/*!
+ * The restore of a loop name of the global class (Math, JSON, document ...;
+ * varread.globalName), which a read takes from the JavaScript global only
+ * while the context has no such key: delete a key the context did not have,
+ * instead of leaving an own key holding undefined; otherwise put the saved
+ * value back.
+ * @private
+ */
+function restoreLoopName(indent, target, absent, saved) {
+  return indent + 'if (' + absent + ') { delete ' + target + '; } else { ' + target + ' = ' + saved + '; }\n';
 }
 
 exports.compile = function (template, parents, options, blockName) {
@@ -581,14 +607,30 @@ exports.compile = function (template, parents, options, blockName) {
       // In async codegen mode a body that awaits (an include in the loop) runs
       // in an async callback that eachAsync awaits item after item, so the
       // counters and the output keep their order; other loops keep each.
+      // A one-name loop passes the key name '__k', which is no template
+      // name: bind no _ctx.__k, so a context name __k (a macro) keeps its
+      // value inside the loop; loop.key reads the callback parameter. A
+      // loop name that is not closureSafe (_utils, Math, a reserved word)
+      // is no callback parameter, so it hides no name emitted code reads;
+      // the body reads it from the context.
+      var forKeyBound = forKey !== '__k',
+        forKeyTarget = forKeyBound ? ctx + forKey : null,
+        forRename = !closureSafe(forVal) || (forKeyBound && !closureSafe(forKey)),
+        forValId = forRename ? '__value' : forVal,
+        forKeyId = forRename ? '__key' : forKey;
+      // A loop name of the global class keeps a flag, taken where the name is
+      // saved, telling whether the context had no such key; the restore then
+      // deletes the key (restoreLoopName). Other names restore as before.
+      var forValAbsent = varread.globalName(forVal),
+        forKeyAbsent = forKeyBound && varread.globalName(forKey);
       var forEach = holdsAwait(forBodyJS, options) ? 'await _utils.eachAsync(__l, async function (' : '_utils.each(__l, function (',
-        forEachHead = '  ' + forEach + forVal + ', ' + forKey + ') {\n',
-        forBindJS = bindLoopItem(node, ctx + forVal, ctx + forKey, '    ', forVal, forKey) +
-          '    ' + ctxloop + '.key = ' + forKey + ';\n';
+        forEachHead = '  ' + forEach + forValId + ', ' + forKeyId + ') {\n',
+        forBindJS = bindLoopItem(node, ctx + forVal, forKeyTarget, '    ', forValId, forKeyId) +
+          '    ' + ctxloop + '.key = ' + forKeyId + ';\n';
       if (node.mapKeys || node.unpack) {
         forEachHead = '  var __seq = _utils.isArray(__l) || typeof __l === "string";\n' +
           '  ' + forEach + '__value, __key) {\n';
-        forBindJS = bindLoopItem(node, ctx + forVal, ctx + forKey, '    ', '__value', '__key', '__seq') +
+        forBindJS = bindLoopItem(node, ctx + forVal, forKeyTarget, '    ', '__value', '__key', '__seq') +
           '    ' + ctxloop + '.key = __key;\n';
       }
       // Opt-in loop filter (`test`, set by the Jinja2 frontend for
@@ -604,20 +646,22 @@ exports.compile = function (template, parents, options, blockName) {
       if (node.test) {
         forHead = '  var __l = ' + forIterable + ';\n' +
           '  if (__l) {\n' +
-          '    var __fseq = _utils.isArray(__l) || typeof __l === "string", __fout = __fseq ? [] : {}, __fval = ' + ctx + forVal + ', __fkey = ' + ctx + forKey + ';\n' +
+          '    var __fseq = _utils.isArray(__l) || typeof __l === "string", __fout = __fseq ? [] : {}, __fval = ' + ctx + forVal + (forKeyBound ? ', __fkey = ' + ctx + forKey : '') +
+          (forValAbsent ? ', __fvabsent = !("' + forVal + '" in _ctx)' : '') + (forKeyAbsent ? ', __fkabsent = !("' + forKey + '" in _ctx)' : '') + ';\n' +
           '    _utils.each(__l, function (__value, __key) {\n' +
-          bindLoopItem(node, ctx + forVal, ctx + forKey, '      ', '__value', '__key', '__fseq') +
+          bindLoopItem(node, ctx + forVal, forKeyTarget, '      ', '__value', '__key', '__fseq') +
           '      if (' + exports.emitExpr(node.test) + ') { if (__fseq) { __fout.push(__value); } else { _utils.setOwn(__fout, __key, __value); } }\n' +
           '    });\n' +
-          '    ' + ctx + forVal + ' = __fval;\n' +
-          '    ' + ctx + forKey + ' = __fkey;\n' +
+          (forValAbsent ? restoreLoopName('    ', ctx + forVal, '__fvabsent', '__fval') : '    ' + ctx + forVal + ' = __fval;\n') +
+          (forKeyBound ? (forKeyAbsent ? restoreLoopName('    ', ctx + forKey, '__fkabsent', '__fkey') : '    ' + ctx + forKey + ' = __fkey;\n') : '') +
           '    __l = __fout;\n' +
           '  }\n' +
           '  var __len = ' + forLength + ';\n';
       }
       out += exports.iife('', forHead +
         forEmptyCheck +
-        '    var ' + ctxloopcache + ' = { ' + loopName + ': ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + ', ' + forKey + ': ' + ctx + forKey + ' };\n' +
+        '    var ' + ctxloopcache + ' = { ' + loopName + ': ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + (forKeyBound ? ', ' + forKey + ': ' + ctx + forKey : '') + ' }' +
+        (forValAbsent ? ', __vabsent = !("' + forVal + '" in _ctx)' : '') + (forKeyAbsent ? ', __kabsent = !("' + forKey + '" in _ctx)' : '') + ';\n' +
         '    ' + ctxloop + ' = { first: false, ' + fIndex + ': 1, ' + fIndex0 + ': 0, ' + fRevindex + ': __len, ' + fRevindex0 + ': __len - 1, length: __len, last: false' + parentloopJS + ' };\n' +
         forEachHead +
         forBindJS +
@@ -627,8 +671,8 @@ exports.compile = function (template, parents, options, blockName) {
         '    ' + ctxloop + '.' + fIndex + ' += 1; ' + ctxloop + '.' + fIndex0 + ' += 1; ' + ctxloop + '.' + fRevindex + ' -= 1; ' + ctxloop + '.' + fRevindex0 + ' -= 1;\n' +
         '  });\n' +
         '  ' + ctxloop + ' = ' + ctxloopcache + '.' + loopName + ';\n' +
-        '  ' + ctx + forVal + ' = ' + ctxloopcache + '.' + forVal + ';\n' +
-        '  ' + ctx + forKey + ' = ' + ctxloopcache + '.' + forKey + ';\n' +
+        (forValAbsent ? restoreLoopName('  ', ctx + forVal, '__vabsent', ctxloopcache + '.' + forVal) : '  ' + ctx + forVal + ' = ' + ctxloopcache + '.' + forVal + ';\n') +
+        (forKeyBound ? (forKeyAbsent ? restoreLoopName('  ', ctx + forKey, '__kabsent', ctxloopcache + '.' + forKey) : '  ' + ctx + forKey + ' = ' + ctxloopcache + '.' + forKey + ';\n') : '') +
         '  ' + ctxloopcache + ' = undefined;\n', '', options) + ';\n';
       return;
     }
@@ -1135,8 +1179,8 @@ function emitVarRef(node, d, raw) {
 /*!
  * Emit an existence-only check for a dot-path variable. Result is a JS
  * boolean expression — truthy when every segment of `node.path` resolves
- * defined and non-null in either `_ctx` or the surrounding closure
- * scope, falsy otherwise. Distinct from {@link emitVarRef}, which
+ * defined and non-null in `_ctx`, or in the surrounding closure scope
+ * when the head's class allows that fallback (varread.js), falsy otherwise. Distinct from {@link emitVarRef}, which
  * coerces a missing or null result to `""` and so loses the
  * defined/undefined signal that Twig's `is defined` test and `??`
  * undefined-fallback need to preserve. @private
@@ -1148,69 +1192,32 @@ function emitVarRefExists(node, d) {
   utils.each(node.path, function (segment) {
     checkDangerousSegment(segment, d, node);
   });
-  return '(' + checkDotExpr(node.path, '_ctx.') + ' || ' + checkDotExpr(node.path, '') + ')';
+  return varread.existsExpr(node.path);
 }
 
 /*!
- * Build a `(typeof <head> !== "undefined" && <head> !== null && ...)`
- * expression that is truthy when every segment of `path` is defined and
- * non-null under the given lookup prefix (`'_ctx.'` for the dotted-ctx
- * walk, `''` for the bare-closure walk).
- *
- * Hoisted out of {@link checkMatchExpr}'s inline `checkDot` closure so
- * {@link emitVarRefExists} can reuse the same shape for Twig's
- * `is defined` / `is null` tests and `??` undefined-fallback. The output
- * MUST stay byte-identical to the pre-extraction inline form, since
- * {@link checkMatchExpr}'s downstream concatenation is what every
- * compiled VarRef body relies on. @private
- */
-function checkDotExpr(path, ctxPrefix) {
-  var c = ctxPrefix + path[0],
-    build = '';
-
-  build = '(typeof ' + c + ' !== "undefined" && ' + c + ' !== null';
-  utils.each(path, function (v, i) {
-    if (i === 0) {
-      return;
-    }
-    build += ' && ' + c + '.' + v + ' !== undefined && ' + c + '.' + v + ' !== null';
-    c += '.' + v;
-  });
-  build += ')';
-
-  return build;
-}
-
-/*!
- * Build the dot-path emit. `(checkDot_ctx ? _ctx.<path> : (checkDot_closure
- * ? <path> : ""))` — checks the `_ctx.<path>` walk first, falls back to a
- * bare-closure walk (covers macro params, host-globals like `Math`), and
- * coerces a missing path to `""` for safe interpolation. Kept as a local
+ * Build the dot-path read: the `_ctx.<path>` walk first, then, when the
+ * head's class allows it (varread.js), the bare-closure walk (macro
+ * parameters, host globals like `Math`), and `""` for a missing path, for
+ * safe interpolation. Kept as a local
  * private helper rather than imported from tokenparser.js because (a) it
  * is a pure function of its argument and (b) the backend must not acquire
  * a runtime dependency on the TokenParser module (which is a specific
  * frontend concern, not a shared-backend one). @private
  */
 function checkMatchExpr(match) {
-  var leaf = match.join('.');
-  return '(' + checkDotExpr(match, '_ctx.') + ' ? _ctx.' + leaf
-    + ' : (' + checkDotExpr(match, '') + ' ? ' + leaf + ' : ""))';
+  return varread.matchExpr(match);
 }
 
 /*!
  * The raw read of a dot-path, for an operand of Python's `==`, `!=` or `in`:
- * the `_ctx.<path>` walk, then the bare-closure walk, as checkMatchExpr, but
+ * the `_ctx.<path>` walk, then the bare-closure walk when the head's class
+ * allows it, as checkMatchExpr, but
  * a null leaf stays null and a missing path gives undefined, not "", so the
  * comparison sees None. @private
  */
 function rawMatchExpr(path) {
-  var leaf = path.join('.'), head;
-  if (path.length === 1) {
-    return '(typeof _ctx.' + leaf + ' !== "undefined" ? _ctx.' + leaf + ' : (typeof ' + leaf + ' !== "undefined" ? ' + leaf + ' : undefined))';
-  }
-  head = path.slice(0, -1);
-  return '((' + checkDotExpr(head, '_ctx.') + ' && _ctx.' + leaf + ' !== undefined) ? _ctx.' + leaf
-    + ' : ((' + checkDotExpr(head, '') + ' && ' + leaf + ' !== undefined) ? ' + leaf + ' : undefined))';
+  return varread.rawExpr(path);
 }
 
 /*!
@@ -1427,9 +1434,7 @@ function emitFnCall(node, d) {
 
     if (callee.path.length === 1) {
       name = callee.path[0];
-      return '((typeof _ctx.' + name + ' !== "undefined") ? _ctx.' + name +
-        ' : ((typeof ' + name + ' !== "undefined") ? ' + name +
-        ' : _fn))(' + argsJS + ')';
+      return varread.callHead(name) + '(' + argsJS + ')';
     }
 
     receiver = callee.path.slice(0, -1);

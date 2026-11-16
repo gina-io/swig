@@ -1265,6 +1265,12 @@ function resolveSeg(obj, seg) {
   }
   val = obj[seg];
   if (typeof val === 'function') {
+    // A member the value gets only from Object.prototype reads as missing. Every such member
+    // is a function except __proto__, which dangerousProps refuses above, so only a function
+    // value needs the walk.
+    if (protoMember(obj, seg)) {
+      return undefined;
+    }
     if (val.alters_data === true) {
       return undefined;
     }

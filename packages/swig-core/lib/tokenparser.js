@@ -1,6 +1,7 @@
 var utils = require('./utils'),
   _t = require('./tokentypes'),
-  ir = require('./ir');
+  ir = require('./ir'),
+  varread = require('./varread');
 
 /**
  * Expression-level codegen shared across @rhinostone/swig-family
@@ -234,9 +235,7 @@ TokenParser.prototype = {
 
     case _t.FUNCTION:
     case _t.FUNCTIONEMPTY:
-      self.out.push('((typeof _ctx.' + match + ' !== "undefined") ? _ctx.' + match +
-        ' : ((typeof ' + match + ' !== "undefined") ? ' + match +
-        ' : _fn))(');
+      self.out.push(varread.callHead(match) + '(');
       self.escape = false;
       if (token.type === _t.FUNCTIONEMPTY) {
         self.out[self.out.length - 1] = self.out[self.out.length - 1] + ')';
@@ -1034,34 +1033,13 @@ TokenParser.prototype = {
   },
 
   /**
-   * Return contextual dot-check string for a match
+   * Return the read of a dot-path match: the same read the backend emits for
+   * a variable (varread.matchExpr).
    * @param  {string} match       Shortcut for token.match
    * @private
    */
   checkMatch: function (match) {
-    var temp = match[0],
-      leaf = match.join('.');
-
-    function checkDot(ctx) {
-      var c = ctx + temp,
-        m = match,
-        build = '';
-
-      build = '(typeof ' + c + ' !== "undefined" && ' + c + ' !== null';
-      utils.each(m, function (v, i) {
-        if (i === 0) {
-          return;
-        }
-        build += ' && ' + c + '.' + v + ' !== undefined && ' + c + '.' + v + ' !== null';
-        c += '.' + v;
-      });
-      build += ')';
-
-      return build;
-    }
-
-    return '(' + checkDot('_ctx.') + ' ? _ctx.' + leaf
-      + ' : (' + checkDot('') + ' ? ' + leaf + ' : ""))';
+    return varread.matchExpr(match);
   }
 };
 
