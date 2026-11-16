@@ -322,8 +322,9 @@ function refsInJS(js) {
  */
 // It also strips the bind and unbind lines of a renamed macro parameter
 // (emitMacroFn) and the variable-read tests that read the context without
-// handing it on ("<name>" in _ctx, _utils.protoMember(_ctx, ...): varread.js).
-var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);|_ctx\["[^"\n]*"\] = \(__a\d+ === undefined \? null : __a\d+\);|delete _ctx\["[^"\n]*"\];|!\("[^"\n]*" in _ctx\)|_utils\.protoMember\(_ctx, "[^"\n]*"\)/g;
+// handing it on ("<name>" in Object(_ctx), _utils.protoMember(_ctx, ...):
+// varread.js).
+var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);|_ctx\["[^"\n]*"\] = \(__a\d+ === undefined \? null : __a\d+\);|delete _ctx\["[^"\n]*"\];|!\("[^"\n]*" in Object\(_ctx\)\)|_utils\.protoMember\(_ctx, "[^"\n]*"\)/g;
 
 /*!
  * True when a macro function's JS uses the context object itself (`_ctx`,
@@ -386,7 +387,7 @@ function bindLoopItem(node, target, keyTarget, indent, value, key, seq) {
 
 /*!
  * The restore of a loop name of the global class (Math, JSON, document ...;
- * varread.globalName), which a read takes from the JavaScript global only
+ * varread.absentTest), which a read takes from the JavaScript global only
  * while the context has no such key: delete a key the context did not have,
  * instead of leaving an own key holding undefined; otherwise put the saved
  * value back.
@@ -619,10 +620,12 @@ exports.compile = function (template, parents, options, blockName) {
         forValId = forRename ? '__value' : forVal,
         forKeyId = forRename ? '__key' : forKey;
       // A loop name of the global class keeps a flag, taken where the name is
-      // saved, telling whether the context had no such key; the restore then
-      // deletes the key (restoreLoopName). Other names restore as before.
-      var forValAbsent = varread.globalName(forVal),
-        forKeyAbsent = forKeyBound && varread.globalName(forKey);
+      // saved, telling whether the context had no such key (varread.absentTest,
+      // which reads a context that is not an object as holding none); the
+      // restore then deletes the key (restoreLoopName). Other names restore as
+      // before.
+      var forValAbsent = varread.absentTest(forVal),
+        forKeyAbsent = forKeyBound ? varread.absentTest(forKey) : null;
       var forEach = holdsAwait(forBodyJS, options) ? 'await _utils.eachAsync(__l, async function (' : '_utils.each(__l, function (',
         forEachHead = '  ' + forEach + forValId + ', ' + forKeyId + ') {\n',
         forBindJS = bindLoopItem(node, ctx + forVal, forKeyTarget, '    ', forValId, forKeyId) +
@@ -647,7 +650,7 @@ exports.compile = function (template, parents, options, blockName) {
         forHead = '  var __l = ' + forIterable + ';\n' +
           '  if (__l) {\n' +
           '    var __fseq = _utils.isArray(__l) || typeof __l === "string", __fout = __fseq ? [] : {}, __fval = ' + ctx + forVal + (forKeyBound ? ', __fkey = ' + ctx + forKey : '') +
-          (forValAbsent ? ', __fvabsent = !("' + forVal + '" in _ctx)' : '') + (forKeyAbsent ? ', __fkabsent = !("' + forKey + '" in _ctx)' : '') + ';\n' +
+          (forValAbsent ? ', __fvabsent = ' + forValAbsent : '') + (forKeyAbsent ? ', __fkabsent = ' + forKeyAbsent : '') + ';\n' +
           '    _utils.each(__l, function (__value, __key) {\n' +
           bindLoopItem(node, ctx + forVal, forKeyTarget, '      ', '__value', '__key', '__fseq') +
           '      if (' + exports.emitExpr(node.test) + ') { if (__fseq) { __fout.push(__value); } else { _utils.setOwn(__fout, __key, __value); } }\n' +
@@ -661,7 +664,7 @@ exports.compile = function (template, parents, options, blockName) {
       out += exports.iife('', forHead +
         forEmptyCheck +
         '    var ' + ctxloopcache + ' = { ' + loopName + ': ' + ctxloop + ', ' + forVal + ': ' + ctx + forVal + (forKeyBound ? ', ' + forKey + ': ' + ctx + forKey : '') + ' }' +
-        (forValAbsent ? ', __vabsent = !("' + forVal + '" in _ctx)' : '') + (forKeyAbsent ? ', __kabsent = !("' + forKey + '" in _ctx)' : '') + ';\n' +
+        (forValAbsent ? ', __vabsent = ' + forValAbsent : '') + (forKeyAbsent ? ', __kabsent = ' + forKeyAbsent : '') + ';\n' +
         '    ' + ctxloop + ' = { first: false, ' + fIndex + ': 1, ' + fIndex0 + ': 0, ' + fRevindex + ': __len, ' + fRevindex0 + ': __len - 1, length: __len, last: false' + parentloopJS + ' };\n' +
         forEachHead +
         forBindJS +

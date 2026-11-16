@@ -34,7 +34,7 @@ var INTERNAL = ('_swig _ctx _filters _utils _fn _ext _output _exports _blocks _p
 
 /*!
  * The standard globals of the backend's NOT_CLOSURE list: read through the
- * fallback only when the context has no such key ("<name>" in _ctx; an own
+ * fallback only when the context has no such key ("<name>" in Object(_ctx); an own
  * key holding undefined, such as a loop item, does not fall back).
  * @private
  */
@@ -78,13 +78,25 @@ function closureClass(head) {
 }
 
 /*!
- * True for a name of the global class, whose read falls back only while the
- * context has no such key; the For emit restores such a loop name by deleting
- * a key the context did not have.
+ * The test, in emitted code, that the context holds no key of a name. A
+ * context that is not an object (an include given a string or a number with
+ * `only`) holds none, where `in` alone would throw.
  * @private
  */
-exports.globalName = function (name) {
-  return typeof name === 'string' && closureClass(name) === 'global';
+function noKey(name) {
+  return '!("' + name + '" in Object(_ctx))';
+}
+
+/*!
+ * The test, in emitted code, that the context holds no key of a loop name
+ * whose read takes a global when the context has none (Math, JSON ...), or
+ * null for any other name. The For emit takes it where it saves the name
+ * and, when it held, deletes the key the loop wrote instead of writing the
+ * saved value back.
+ * @private
+ */
+exports.absentTest = function (name) {
+  return typeof name === 'string' && closureClass(name) === 'global' ? noKey(name) : null;
 };
 
 /*!
@@ -123,7 +135,7 @@ function closureWalk(path) {
     return null;
   }
   w = walk(path, '');
-  return cls === 'global' ? '(!("' + path[0] + '" in _ctx) && ' + w + ')' : w;
+  return cls === 'global' ? '(' + noKey(path[0]) + ' && ' + w + ')' : w;
 }
 
 /*!
@@ -172,7 +184,7 @@ exports.rawExpr = function (path) {
       return '(' + ctxPart + ' ? _ctx.' + leaf + ' : undefined)';
     }
     if (cls === 'global') {
-      return '(' + ctxPart + ' ? _ctx.' + leaf + ' : (!("' + leaf + '" in _ctx) && typeof ' + leaf + ' !== "undefined" ? ' + leaf + ' : undefined))';
+      return '(' + ctxPart + ' ? _ctx.' + leaf + ' : (' + noKey(leaf) + ' && typeof ' + leaf + ' !== "undefined" ? ' + leaf + ' : undefined))';
     }
     return '(' + ctxPart + ' ? _ctx.' + leaf + ' : (typeof ' + leaf + ' !== "undefined" ? ' + leaf + ' : undefined))';
   }
@@ -189,7 +201,7 @@ exports.rawExpr = function (path) {
     clPart += ' && !_utils.protoMember(' + head.join('.') + ', "' + last + '")';
   }
   if (cls === 'global') {
-    clPart = '!("' + path[0] + '" in _ctx) && ' + clPart;
+    clPart = noKey(path[0]) + ' && ' + clPart;
   }
   return '((' + ctxPart + ') ? _ctx.' + leaf + ' : ((' + clPart + ') ? ' + leaf + ' : undefined))';
 };
@@ -208,7 +220,7 @@ exports.callHead = function (name) {
     return '((' + test + ') ? _ctx.' + name + ' : _fn)';
   }
   if (closureClass(name) === 'global') {
-    return '((' + test + ') ? _ctx.' + name + ' : ((!("' + name + '" in _ctx) && typeof ' + name + ' !== "undefined") ? ' + name + ' : _fn))';
+    return '((' + test + ') ? _ctx.' + name + ' : ((' + noKey(name) + ' && typeof ' + name + ' !== "undefined") ? ' + name + ' : _fn))';
   }
   return '((' + test + ') ? _ctx.' + name + ' : ((typeof ' + name + ' !== "undefined") ? ' + name + ' : _fn))';
 };
