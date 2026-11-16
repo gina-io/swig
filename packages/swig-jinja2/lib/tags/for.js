@@ -235,6 +235,7 @@ exports.compile = function (compiler, args, content, parents, options, blockName
   // list, one name binds each key of a mapping.
   if (args.length === 2) {
     node.unpack = true;
+    node.keyNamed = true;
   } else {
     node.mapKeys = true;
   }

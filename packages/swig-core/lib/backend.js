@@ -234,7 +234,9 @@ function emitMacroFn(node, options) {
       var id = closureSafe(p.name) ? p.name : '__a' + i;
       macroNames.push(p.name);
       macroIds.push(id);
-      if (id !== p.name) {
+      // A name that cannot be a JavaScript parameter (closureSafe) is bound
+      // in the context for the call, even one already named __a<i>.
+      if (!closureSafe(p.name)) {
         macroBindJS += '  _ctx[' + JSON.stringify(p.name) + '] = (' + id + ' === undefined ? null : ' + id + ');\n';
         macroUnbindJS += '  delete _ctx[' + JSON.stringify(p.name) + '];\n';
       }
@@ -610,11 +612,12 @@ exports.compile = function (template, parents, options, blockName) {
       // counters and the output keep their order; other loops keep each.
       // A one-name loop passes the key name '__k', which is no template
       // name: bind no _ctx.__k, so a context name __k (a macro) keeps its
-      // value inside the loop; loop.key reads the callback parameter. A
-      // loop name that is not closureSafe (_utils, Math, a reserved word)
-      // is no callback parameter, so it hides no name emitted code reads;
-      // the body reads it from the context.
-      var forKeyBound = forKey !== '__k',
+      // value inside the loop; loop.key reads the callback parameter. A key
+      // the template names binds, even one named __k: the for tags set the
+      // opt-in keyNamed flag. A loop name that is not closureSafe (_utils,
+      // Math, a reserved word) is no callback parameter, so it hides no name
+      // emitted code reads; the body reads it from the context.
+      var forKeyBound = node.keyNamed || forKey !== '__k',
         forKeyTarget = forKeyBound ? ctx + forKey : null,
         forRename = !closureSafe(forVal) || (forKeyBound && !closureSafe(forKey)),
         forValId = forRename ? '__value' : forVal,

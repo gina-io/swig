@@ -153,6 +153,7 @@
  * @property {boolean} [loopParent]           Opt-in: expose the enclosing loop as `<loopName>.parentloop` (Django forloop.parentloop).
  * @property {boolean} [mapKeys]              Opt-in: one name over a mapping binds each key (Jinja2, Django).
  * @property {boolean} [unpack]               Opt-in: two names over a list unpack each item into its first and second values (Jinja2, Django).
+ * @property {boolean} [keyNamed]             Opt-in: the template named the loop key, which then binds even when it is named `__k`, the key a one-name loop passes (the four for tags).
  * @property {Object} [dictIter]              Opt-in dict iteration: `{ name, pairs }`, the mapping's own key read first (Django).
  * @property {IRExpr} [test]                  Opt-in loop filter: only the items it holds for are iterated (Jinja2).
  * @property {IRLoc} [loc]

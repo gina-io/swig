@@ -129,6 +129,9 @@ exports.compile = function (compiler, args, content, parents, options, blockName
     val = args[0];
     key = '__k';
   }
-  var bodyJS = compiler(content, parents, options, blockName);
-  return ir.forStmt(val, token.irExpr, [ir.legacyJS(bodyJS)], key);
+  var bodyJS = compiler(content, parents, options, blockName),
+    node = ir.forStmt(val, token.irExpr, [ir.legacyJS(bodyJS)], key);
+  // The template named the key: it binds even when it is named __k.
+  if (args.length === 2) { node.keyNamed = true; }
+  return node;
 };
