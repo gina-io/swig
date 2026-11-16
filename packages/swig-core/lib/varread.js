@@ -90,13 +90,31 @@ function noKey(name) {
 /*!
  * The test, in emitted code, that the context holds no key of a loop name
  * whose read takes a global when the context has none (Math, JSON ...), or
- * null for any other name. The For emit takes it where it saves the name
+ * that the context only inherits from Object.prototype (toString ...), so
+ * the name reads as missing after the loop; null for any other name. The For emit takes it where it saves the name
  * and, when it held, deletes the key the loop wrote instead of writing the
  * saved value back.
  * @private
  */
 exports.absentTest = function (name) {
-  return typeof name === 'string' && closureClass(name) === 'global' ? noKey(name) : null;
+  if (typeof name !== 'string') {
+    return null;
+  }
+  if (closureClass(name) === 'global') {
+    return noKey(name);
+  }
+  return protoName(name) ? '_utils.protoMember(_ctx, "' + name + '")' : null;
+};
+
+/*!
+ * True for a name of the plain class, whose read falls back to a JavaScript
+ * variable of the same name. The backend makes no other name a JavaScript
+ * variable (a macro parameter, a loop callback parameter, a closure variable
+ * of a sync import): a read of it would not reach that variable.
+ * @private
+ */
+exports.plainName = function (name) {
+  return typeof name === 'string' && closureClass(name) === 'plain';
 };
 
 /*!

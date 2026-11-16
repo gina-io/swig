@@ -131,11 +131,13 @@ var NOT_CLOSURE = ('break case catch class const continue debugger default delet
 
 /*!
  * Whether a name a sync import binds can be a closure variable of its scope
- * function (see NOT_CLOSURE).
+ * function (see NOT_CLOSURE), or a macro or loop callback parameter: only a
+ * name whose read falls back to a JavaScript variable (varread.plainName;
+ * not an Object.prototype member such as toString, nor _parentTpl) can.
  * @private
  */
 function closureSafe(name) {
-  return /^[A-Za-z_$][\w$]*$/.test(name) && name.slice(0, 2) !== '__' && NOT_CLOSURE.indexOf(name) === -1;
+  return /^[A-Za-z_$][\w$]*$/.test(name) && name.slice(0, 2) !== '__' && NOT_CLOSURE.indexOf(name) === -1 && varread.plainName(name);
 }
 
 /**
@@ -388,9 +390,10 @@ function bindLoopItem(node, target, keyTarget, indent, value, key, seq) {
 }
 
 /*!
- * The restore of a loop name of the global class (Math, JSON, document ...;
- * varread.absentTest), which a read takes from the JavaScript global only
- * while the context has no such key: delete a key the context did not have,
+ * The restore of a loop name of the global class (Math, JSON, document ...)
+ * or named like an Object.prototype member (toString; varread.absentTest),
+ * which a read takes from the JavaScript global, or reads as missing, only
+ * while the context has no such key of its own: delete a key the context did not have,
  * instead of leaving an own key holding undefined; otherwise put the saved
  * value back.
  * @private
@@ -622,7 +625,8 @@ exports.compile = function (template, parents, options, blockName) {
         forRename = !closureSafe(forVal) || (forKeyBound && !closureSafe(forKey)),
         forValId = forRename ? '__value' : forVal,
         forKeyId = forRename ? '__key' : forKey;
-      // A loop name of the global class keeps a flag, taken where the name is
+      // A loop name of the global class, or one an object gets from
+      // Object.prototype (toString), keeps a flag, taken where the name is
       // saved, telling whether the context had no such key (varread.absentTest,
       // which reads a context that is not an object as holding none); the
       // restore then deletes the key (restoreLoopName). Other names restore as
