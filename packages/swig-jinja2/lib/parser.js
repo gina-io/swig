@@ -261,6 +261,16 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
       bail('Unsafe access to "' + segment + '" is not allowed in templates (prototype-chain guard)');
     }
   }
+
+  // super() renders the parent block's content in Jinja2, which swig-jinja2
+  // does not support: a call of the bare name is a compile error. A read of
+  // the name and a call of a member named super are left as they are.
+  function refuseParentCall(callee) {
+    if (callee.type === 'VarRef' && callee.path.length === 1 && callee.path[0] === 'super') {
+      bail('"super()" is not supported (swig-jinja2 does not render parent blocks)');
+    }
+    return callee;
+  }
   function guardBracketString(value) {
     if (_dangerousProps.indexOf(value) !== -1) {
       bail('Unsafe access to "' + value + '" via bracket notation is not allowed in templates (prototype-chain guard)');
@@ -550,7 +560,7 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
         expr = parseSubscript(expr);
       } else if (tok.type === _t.PARENOPEN) {
         consume();
-        expr = ir.fnCall(expr, parseArgList(_t.PARENCLOSE));
+        expr = ir.fnCall(refuseParentCall(expr), parseArgList(_t.PARENCLOSE));
       } else if (withFilter && (tok.type === _t.IS || tok.type === _t.ISNOT)) {
         consume();
         expr = lowerTest(expr, tok.type === _t.ISNOT);
@@ -625,9 +635,9 @@ exports.parseExpr = function (tokens, filters, _posOut, _scope) {
       }
       guardSegment(m);
       if (tok.type === _t.FUNCTIONEMPTY) {
-        return ir.fnCall(ir.varRef([m]), []);
+        return ir.fnCall(refuseParentCall(ir.varRef([m])), []);
       }
-      return ir.fnCall(ir.varRef([m]), parseArgList(_t.PARENCLOSE));
+      return ir.fnCall(refuseParentCall(ir.varRef([m])), parseArgList(_t.PARENCLOSE));
     }
     bail('Unexpected token "' + tok.match + '"');
     return null;
