@@ -37,12 +37,15 @@ function escapeTextValue(value) {
 /*!
  * True when JS emitted for a body in async codegen mode holds an `await` (a
  * deferred include, import or from, a block, or a {% parent %}), so the
- * function that wraps that body must be async and its call awaited. The word
- * `await` in template text or in a name also matches, which only makes that
- * wrapper async for nothing. @private
+ * function that wraps that body must be async and its call awaited. The match
+ * leaves out string literals (each on one line, as the emits write them), a
+ * member `.await` and an object key `await:`, so the word `await` in template
+ * text, in a string or as a name does not count. A quote outside a string
+ * literal (in a comment or a regular expression a custom tag writes) can pair
+ * with another on the same line and hide an `await` between them. @private
  */
 function holdsAwait(js, options) {
-  return !!(options && options.codegenMode === 'async' && /\bawait\b/.test(js));
+  return !!(options && options.codegenMode === 'async' && /(^|[^.\w$])await\b(?!\s*:)/.test(js.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""')));
 }
 
 /*!
