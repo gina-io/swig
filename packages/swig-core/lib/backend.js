@@ -208,7 +208,8 @@ exports.scopeBinding = function (name) {
  *
  * `params` is IRMacroParam[], structured `{name, default?}` entries: the JS
  * parameter list is `names.join(', ')` and the _utils.each shadow-delete
- * indexOf list is `names.map(JSON.stringify).join(',')`. A string[] fallback
+ * indexOf list holds the closureSafe names (a renamed parameter is bound in
+ * the context right after its own default line instead). A string[] fallback
  * is preserved for userland setTag tags that may still hand in the legacy
  * raw-token slice (including the `, ` separator quirk). The frontend's macro
  * parse handler has already applied the CVE-2023-25345 guard on the macro
@@ -227,21 +228,13 @@ function emitMacroFn(node, options) {
   var macroParams = node.params || [],
     macroSigJS,
     macroIndexOfJS,
-    macroBindJS = '',
     macroUnbindJS = '',
     macroDefaultsJS = '';
   if (macroParams.length && typeof macroParams[0] === 'object' && macroParams[0] !== null && typeof macroParams[0].name === 'string') {
     var macroNames = [], macroIds = [];
     utils.each(macroParams, function (p, i) {
       var id = closureSafe(p.name) ? p.name : '__a' + i;
-      macroNames.push(p.name);
       macroIds.push(id);
-      // A name that cannot be a JavaScript parameter (closureSafe) is bound
-      // in the context for the call, even one already named __a<i>.
-      if (!closureSafe(p.name)) {
-        macroBindJS += '  _ctx[' + JSON.stringify(p.name) + '] = (' + id + ' === undefined ? null : ' + id + ');\n';
-        macroUnbindJS += '  delete _ctx[' + JSON.stringify(p.name) + '];\n';
-      }
       // Parameter defaults — `{% macro foo(a, b='x') %}` carries an
       // IRExpr on `p.default`. Emit `if (b === undefined) { b = <expr>; }`
       // at the top of the macro body, before the _ctx shadow-delete, so a
@@ -251,6 +244,18 @@ function emitMacroFn(node, options) {
       // leaving an explicit falsy value (`0`, `false`, `''`) alone.
       if (p['default']) {
         macroDefaultsJS += '  if (' + id + ' === undefined) { ' + id + ' = ' + exports.emitExpr(p['default']) + '; }\n';
+      }
+      // A name that cannot be a JavaScript parameter (closureSafe) is bound
+      // in the context for the call, even one already named __a<i>, right
+      // after its own default line: no JavaScript variable of that name
+      // holds it, so a later default reads it in the context. The
+      // shadow-delete, which runs after these lines, lists only the
+      // closureSafe names.
+      if (closureSafe(p.name)) {
+        macroNames.push(p.name);
+      } else {
+        macroDefaultsJS += '  _ctx[' + JSON.stringify(p.name) + '] = (' + id + ' === undefined ? null : ' + id + ');\n';
+        macroUnbindJS += '  delete _ctx[' + JSON.stringify(p.name) + '];\n';
       }
     });
     macroSigJS = macroIds.join(', ');
@@ -268,7 +273,6 @@ function emitMacroFn(node, options) {
     '  _utils.each(_ctx, function (v, k) {\n' +
     '    if ([' + macroIndexOfJS + '].indexOf(k) !== -1) { delete _ctx[k]; }\n' +
     '  });\n' +
-    macroBindJS +
     macroBodyJS + '\n' +
     macroUnbindJS +
     ' _ctx = _utils.extend(_ctx, __ctx);\n' +
