@@ -38,14 +38,16 @@ function escapeTextValue(value) {
  * True when JS emitted for a body in async codegen mode holds an `await` (a
  * deferred include, import or from, a block, or a {% parent %}), so the
  * function that wraps that body must be async and its call awaited. The match
- * leaves out string literals (each on one line, as the emits write them), a
- * member `.await` and an object key `await:`, so the word `await` in template
- * text, in a string or as a name does not count. A quote outside a string
- * literal (in a comment or a regular expression a custom tag writes) can pair
- * with another on the same line and hide an `await` between them. @private
+ * leaves out single- and double-quoted string literals (each on one line, as
+ * the emits write them), a member `.await` and an object key `await:`, so the
+ * word `await` in template text, in a string or as a name does not count; an
+ * `await` right after the three dots of a spread counts. A quote that is not
+ * part of such a literal (in a regular expression, a comment or a template
+ * literal a custom tag writes) can pair with another quote of the same kind
+ * later on its line and hide an `await` between them. @private
  */
 function holdsAwait(js, options) {
-  return !!(options && options.codegenMode === 'async' && /(^|[^.\w$])await\b(?!\s*:)/.test(js.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""')));
+  return !!(options && options.codegenMode === 'async' && /(^|[^.\w$]|\.\.\.)await\b(?!\s*:)/.test(js.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""')));
 }
 
 /*!

@@ -10,11 +10,14 @@ var swig = require('../../lib/swig'),
  * import or a block throws an error when it is called. The word await in a
  * macro's text, in a string it writes or as a name it reads, sets or loops
  * over does not make it throw; a real await in a macro (a deferred include,
- * import or block, or a custom tag that awaits) still does. A custom tag that
- * writes its await between two quotes outside string literals on one line is
- * not seen as awaiting: in a loop or a macro the template then fails to
- * compile. Templates outside macros, plain names and the word wait are the
- * controls.
+ * import or block, or a custom tag that awaits) still does. A custom tag
+ * whose code writes its await on a line after a quote that is not part of a
+ * single- or double-quoted string literal (in a regular expression, a comment
+ * or a template literal), with another quote of the same kind later on that
+ * line, is not seen as awaiting: in a for loop or its else or empty branch, a
+ * with, filter, apply or set block, a swig-django spaceless block or a macro,
+ * also one that is never called, the template then fails to compile.
+ * Templates outside macros, plain names and the word wait are the controls.
  * Each case runs on the sync and the async render paths; the expectations
  * are generated and were checked against recorded renders of the same shapes.
  */
