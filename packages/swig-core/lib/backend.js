@@ -254,16 +254,19 @@ function emitMacroFn(node, options) {
       // in the context for the call, even one already named __a<i>, right
       // after its own default line: no JavaScript variable of that name
       // holds it, so a later default reads it in the context. When the macro
-      // has a default, it is also bound before the first default line (the
-      // argument, or null), so a default that reads its own parameter or a
-      // later one reads that parameter, not a JavaScript global or a context
-      // key of that name. The shadow-delete, which runs after these lines,
-      // lists only the closureSafe names.
+      // has a default, it is also bound before the first default line, so a
+      // default that reads its own parameter or a later one reads that
+      // parameter, not a JavaScript global or a context key of that name.
+      // Both binds write the value as the JavaScript parameter holds it,
+      // undefined when the call gave no argument: a null would pass the typeof
+      // test of a call and throw, where the call of a name that holds nothing
+      // renders an empty string. The shadow-delete, which runs after these
+      // lines, lists only the closureSafe names.
       if (closureSafe(p.name)) {
         macroNames.push(p.name);
       } else {
-        macroEntryJS += '  _ctx[' + JSON.stringify(p.name) + '] = (' + id + ' === undefined ? null : ' + id + ');\n';
-        macroDefaultsJS += '  _ctx[' + JSON.stringify(p.name) + '] = (' + id + ' === undefined ? null : ' + id + ');\n';
+        macroEntryJS += '  _ctx[' + JSON.stringify(p.name) + '] = ' + id + ';\n';
+        macroDefaultsJS += '  _ctx[' + JSON.stringify(p.name) + '] = ' + id + ';\n';
         macroUnbindJS += '  delete _ctx[' + JSON.stringify(p.name) + '];\n';
       }
     });
@@ -345,7 +348,7 @@ function refsInJS(js) {
 // handing it on (((typeof _ctx !== "object" && typeof _ctx !== "function") ||
 // _ctx === null || !("<name>" in _ctx)), _utils.protoMember(_ctx, ...):
 // varread.js).
-var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);|_ctx\["[^"\n]*"\] = \(__a\d+ === undefined \? null : __a\d+\);|delete _ctx\["[^"\n]*"\];|\(\(typeof _ctx !== "object" && typeof _ctx !== "function"\) \|\| _ctx === null \|\| !\("[^"\n]*" in _ctx\)\)|_utils\.protoMember\(_ctx, "[^"\n]*"\)/g;
+var MACRO_CTX_USES = /__ctx = _utils\.extend\(\{\}, _ctx\);|_utils\.each\(_ctx, function \(v, k\) \{\n {4}if \(\[[^\]]*\]\.indexOf\(k\) !== -1\) \{ delete _ctx\[k\]; \}\n {2}\}\);|_ctx = _utils\.extend\(_ctx, __ctx\);|_ctx\["[^"\n]*"\] = __a\d+;|delete _ctx\["[^"\n]*"\];|\(\(typeof _ctx !== "object" && typeof _ctx !== "function"\) \|\| _ctx === null \|\| !\("[^"\n]*" in _ctx\)\)|_utils\.protoMember\(_ctx, "[^"\n]*"\)/g;
 
 /*!
  * True when a macro function's JS uses the context object itself (`_ctx`,
