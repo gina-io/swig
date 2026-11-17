@@ -639,12 +639,17 @@ exports.compile = function (template, parents, options, blockName) {
       // the template names binds, even one named __k: the for tags set the
       // opt-in keyNamed flag. A loop name that is not closureSafe (_utils,
       // Math, a reserved word) is no callback parameter, so it hides no name
-      // emitted code reads; the body reads it from the context.
+      // emitted code reads; the body reads it from the context. Each name of
+      // a two-name loop is decided on its own: the other name stays a
+      // callback parameter, so a null item of it reads as empty, not as an
+      // enclosing variable of that name. A one-name loop over such a name
+      // also passes its key as __key.
       var forKeyBound = node.keyNamed || forKey !== '__k',
         forKeyTarget = forKeyBound ? ctx + forKey : null,
-        forRename = !closureSafe(forVal) || (forKeyBound && !closureSafe(forKey)),
-        forValId = forRename ? '__value' : forVal,
-        forKeyId = forRename ? '__key' : forKey;
+        forValRename = !closureSafe(forVal),
+        forKeyRename = forKeyBound ? !closureSafe(forKey) : forValRename,
+        forValId = forValRename ? '__value' : forVal,
+        forKeyId = forKeyRename ? '__key' : forKey;
       // A loop name of the global class, or one an object gets from
       // Object.prototype (toString), keeps a flag, taken where the name is
       // saved, telling whether the context had no such key (varread.absentTest,
