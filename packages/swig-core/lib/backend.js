@@ -207,9 +207,11 @@ exports.scopeBinding = function (name) {
  * the context shadowing of the parameter names, and the body.
  *
  * `params` is IRMacroParam[], structured `{name, default?}` entries: the JS
- * parameter list is `names.join(', ')` and the _utils.each shadow-delete
- * indexOf list holds the closureSafe names (a renamed parameter is bound in
- * the context right after its own default line instead). A string[] fallback
+ * parameter list is the ids (a closureSafe name itself, `__a<i>` for any
+ * other) and the _utils.each shadow-delete indexOf list holds the closureSafe
+ * names. A renamed parameter is bound in the context instead, at its place
+ * among the default lines and, when the macro has a default, also before the
+ * first default line. A string[] fallback
  * is preserved for userland setTag tags that may still hand in the legacy
  * raw-token slice (including the `, ` separator quirk). The frontend's macro
  * parse handler has already applied the CVE-2023-25345 guard on the macro
@@ -229,6 +231,8 @@ function emitMacroFn(node, options) {
     macroSigJS,
     macroIndexOfJS,
     macroUnbindJS = '',
+    macroEntryJS = '',
+    macroHasDefault = false,
     macroDefaultsJS = '';
   if (macroParams.length && typeof macroParams[0] === 'object' && macroParams[0] !== null && typeof macroParams[0].name === 'string') {
     var macroNames = [], macroIds = [];
@@ -243,21 +247,29 @@ function emitMacroFn(node, options) {
       // arrive as `undefined`, so the guard applies the default while
       // leaving an explicit falsy value (`0`, `false`, `''`) alone.
       if (p['default']) {
+        macroHasDefault = true;
         macroDefaultsJS += '  if (' + id + ' === undefined) { ' + id + ' = ' + exports.emitExpr(p['default']) + '; }\n';
       }
       // A name that cannot be a JavaScript parameter (closureSafe) is bound
       // in the context for the call, even one already named __a<i>, right
       // after its own default line: no JavaScript variable of that name
-      // holds it, so a later default reads it in the context. The
-      // shadow-delete, which runs after these lines, lists only the
-      // closureSafe names.
+      // holds it, so a later default reads it in the context. When the macro
+      // has a default, it is also bound before the first default line (the
+      // argument, or null), so a default that reads its own parameter or a
+      // later one reads that parameter, not a JavaScript global or a context
+      // key of that name. The shadow-delete, which runs after these lines,
+      // lists only the closureSafe names.
       if (closureSafe(p.name)) {
         macroNames.push(p.name);
       } else {
+        macroEntryJS += '  _ctx[' + JSON.stringify(p.name) + '] = (' + id + ' === undefined ? null : ' + id + ');\n';
         macroDefaultsJS += '  _ctx[' + JSON.stringify(p.name) + '] = (' + id + ' === undefined ? null : ' + id + ');\n';
         macroUnbindJS += '  delete _ctx[' + JSON.stringify(p.name) + '];\n';
       }
     });
+    if (macroHasDefault) {
+      macroDefaultsJS = macroEntryJS + macroDefaultsJS;
+    }
     macroSigJS = macroIds.join(', ');
     var macroJsonNames = [];
     utils.each(macroNames, function (n) { macroJsonNames.push(JSON.stringify(n)); });
