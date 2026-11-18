@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-jinja2 `{{ super() }}` and swig-twig `{{ parent() }}` fail at compile, wherever the call stands and on both render paths, with « "super()" is not supported (swig-jinja2 does not render parent blocks) » or « "parent()" is not supported (swig-twig does not render parent blocks) » and the line and file: neither flavor renders a parent block''s content. Before, swig-jinja2 failed with a raw « ''super'' keyword unexpected here » SyntaxError where the template was compiled, and ignored the call at the top level of an extending template outside its blocks, and on the sync path in a block the parent does not define and at the top level of an imported file; swig-twig rendered the overriding block without the parent''s content, and called a macro, an imported macro or a function from the data named parent. A read of the name (`{{ parent }}`, `{{ parent.x }}`) and a call of a member of that name (`{{ o.parent() }}`) are unchanged.'
-time: 2026-11-16T06:33:26.738391+00:00
-custom:
-  Issue: ""
