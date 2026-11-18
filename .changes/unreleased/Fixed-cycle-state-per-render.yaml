@@ -1,5 +1,0 @@
-kind: fixed
-body: 'swig-django: a `{% cycle %}` tag keeps its position for one render of its template, as Django keeps it, on both render paths. An included template''s cycle starts again at each include, where under the default memory cache it could carry on from an earlier include of the same template: a for loop over three items that includes a template holding `{% cycle "i1" "i2" "i3" %}` rendered `i1i2i3` and now renders `i1i1i1`, which Django renders (with `cache: false` it already rendered `i1i1i1`). A cycle inside a `{% with %}` body carries on across the iterations of an enclosing loop: `{% for x in xs %}{% with a=1 %}{% cycle "a" "b" %}{% endwith %}{% endfor %}` over three items renders `aba`, which Django renders, where it rendered `aaa` with and without the cache. The change is in the compiled code: a template compiled by 2.12.4 keeps its old cycle positions until it is recompiled, and one compiled by this release renders the new positions on the 2.12.4 runtime too.'
-time: 2026-11-18T14:35:20.761666+00:00
-custom:
-  Issue: ""

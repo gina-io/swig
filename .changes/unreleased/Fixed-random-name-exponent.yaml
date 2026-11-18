@@ -1,5 +1,0 @@
-kind: fixed
-body: 'A for loop, in all four flavors, and a swig-django `{% cycle %}` tag no longer fail to compile when `Math.random()` returns a value under 1e-6 (about one draw in a million; each loop or cycle tag draws once when its template compiles): the compiled code names the loop''s scratch variable and the cycle''s state key from that value, and such a value prints in exponent form (`1.5e-7`), whose minus sign made the template fail with « Unexpected token ''-'' » or « Invalid left-hand side in assignment » on both render paths. Every other value gives the same name as before, so compiled code is otherwise unchanged.'
-time: 2026-11-18T12:14:40.672696+00:00
-custom:
-  Issue: ""

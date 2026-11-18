@@ -1,5 +1,0 @@
-kind: fixed
-body: 'A template function compiled with `codegenMode: ''async''` and registered with `register()`, `registerBundle()` or `run(tpl, locals, path)` is now used on the async render path, in all four flavors: `renderFile(path, locals, cb)` with an async loader, `compileFile(path, { codegenMode: ''async'' })`, and the `{% include %}`, `{% import %}`, `{% from %}` and `{% extends %}` of templates rendered on that path (import and from in the flavors that have them) read it before the loader, where they failed with the loader''s not-found error, or used the loader''s source when the loader also held the name. It then takes part in the render that reaches it, as a template from the loader does: a `{% set %}` in a registered include reaches the including template, and a registered template that includes or extends itself stops with the nesting or the circular-extends error. A sync-compiled registration, such as the swig CLI''s output, is still used by the sync calls only. A function compiled in async mode by 2.12.4 is used as it is.'
-time: 2026-11-18T15:47:35.757041+00:00
-custom:
-  Issue: ""
