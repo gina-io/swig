@@ -44,10 +44,12 @@ function escapeTextValue(value) {
  * `await` right after the three dots of a spread counts. A quote that is not
  * part of such a literal (in a regular expression, a comment or a template
  * literal a custom tag writes) can pair with another quote of the same kind
- * later on its line and hide an `await` between them. @private
+ * later on its line and hide an `await` between them. A body with no
+ * `await` in it at all skips the strip, which cannot create the word: each
+ * literal becomes "", so no letters join. @private
  */
 function holdsAwait(js, options) {
-  return !!(options && options.codegenMode === 'async' && /(^|[^.\w$]|\.\.\.)await\b(?!\s*:)/.test(js.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""')));
+  return !!(options && options.codegenMode === 'async' && js.indexOf('await') !== -1 && /(^|[^.\w$]|\.\.\.)await\b(?!\s*:)/.test(js.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""')));
 }
 
 /*!
