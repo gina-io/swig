@@ -720,7 +720,11 @@ exports.install = function (self, frontend) {
   /*!
    * Wrap a pre-compiled template function in the locals-binding call shape
    * cached entries have — include-emitted code invokes them as
-   * `(context)`, so the raw five-argument function is the wrong shape.
+   * `(context)`, so the raw five-argument function is the wrong shape. The
+   * wrapper takes the arguments compile's cached function takes,
+   * `(locals, blocks, view)`: when getTemplate serves a registered async
+   * template to an async render, that render passes its per-render view as
+   * the third.
    * @private
    */
   function buildRegistered(fn) {
@@ -728,7 +732,7 @@ exports.install = function (self, frontend) {
       contextLength = utils.keys(context).length,
       asyncFn = fn instanceof AsyncFunction;
 
-    return function registered(locals, blocks) {
+    return function registered(locals, blocks, view) {
       var lcls;
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
@@ -737,10 +741,13 @@ exports.install = function (self, frontend) {
         // macros, loop names) must not land in the caller's object, where a
         // later render given the same object would read them and two async
         // renders given one object would read each other's.
-        // An include, rendered while its includer's sync render runs, shares
-        // its includer's context.
+        // A template of the same render (a sync include rendered while its
+        // includer runs, or an async one given the render's view) shares the
+        // context it is given, as compiled() does, so a set in a registered
+        // include reaches its includer on the async path too.
         // lcls = locals;
-        lcls = (!asyncFn && syncDepth) ? locals : utils.copyContext(locals);
+        // lcls = (!asyncFn && syncDepth) ? locals : utils.copyContext(locals);
+        lcls = (asyncFn ? view : syncDepth) ? locals : utils.copyContext(locals);
       } else if (!locals && contextLength) {
         // A copy: the default locals object is shared by every render of this
         // instance, so a render's own writes ({% set %}, macros, loop names)
@@ -751,9 +758,16 @@ exports.install = function (self, frontend) {
         lcls = {};
       }
       if (asyncFn) {
-        // A per-render view, as compiled() gives an async template, so the
-        // templates it includes or imports belong to the same render.
-        return fn(renderView({ nesting: 0 }, []), lcls, filters, utils, efn, blocks);
+        // The view of the render that reaches this template, when getTemplate
+        // serves it to an async render: that render's nesting count and
+        // extends chain then cover it, so a registered template that includes
+        // or extends itself stops with their error, where a fresh view on
+        // each level would start the count again and the render would never
+        // end. A call from outside a render gets a view of its own, as
+        // compiled() gives an async template, so the templates it includes
+        // or imports belong to the same render.
+        // return fn(renderView({ nesting: 0 }, []), lcls, filters, utils, efn, blocks);
+        return fn(view || renderView({ nesting: 0 }, []), lcls, filters, utils, efn, blocks);
       }
       syncDepth += 1;
       try {
@@ -762,6 +776,26 @@ exports.install = function (self, frontend) {
         syncDepth -= 1;
       }
     };
+  }
+
+  /*!
+   * Store a registered template function in the compile cache. The wrapper
+   * goes under the resolved name, which the sync render path reads (include,
+   * compileFile, renderFile), and, for a function compiled with
+   * `codegenMode: 'async'`, under the async-mode key as well, which the async
+   * render path reads (getTemplate, compileFile in that mode), so an async
+   * render uses the registration before the loader. A sync-compiled function
+   * stays off the async path, which reads the `{ output, exports }` an async
+   * template returns. An async-compiled one keeps its sync-path entry too,
+   * so compileFile(path) still returns it.
+   * @private
+   */
+  function storeRegistered(resolved, fn) {
+    var wrapper = buildRegistered(fn);
+    cacheSet(resolved, {}, wrapper);
+    if (fn instanceof AsyncFunction) {
+      cacheSet(compileCacheKey(resolved, { codegenMode: 'async' }), {}, wrapper);
+    }
   }
 
   /*!
@@ -783,27 +817,39 @@ exports.install = function (self, frontend) {
 
   /**
    * Register a pre-compiled template function under a template path so
-   * later `include` lookups and `compileFile` / `renderFile` calls are
-   * served from the template cache without compiling. The path is
-   * normalized through the active loader's `resolve` so a registration
-   * and an include-site lookup agree on the cache key.
+   * later lookups of that path are served from the template cache without
+   * compiling. The path is normalized through the active loader's
+   * `resolve` so a registration and an include-site lookup agree on the
+   * cache key.
+   *
+   * Which lookups a registration serves depends on how the function was
+   * compiled. One compiled in the default sync mode (the swig CLI's
+   * output) serves the sync render path: `include`, `compileFile(path)`,
+   * `renderFile(path, locals)`, and `renderFile(path, locals, cb)` when the
+   * loader is not async. One compiled with `codegenMode: 'async'` also
+   * serves the async render path: `renderFile(path, locals, cb)` with an
+   * async loader, `compileFile(path, { codegenMode: 'async' })`, and the
+   * `include`, `import`, `from` and `{% extends %}` of templates rendered
+   * on that path use it before the loader; it then takes part in the render
+   * that reaches it, as a template from the loader does. On the sync path it
+   * keeps its async call shape (a Promise of `{ output, exports }`), so
+   * register async-compiled output for templates the async path renders.
    *
    * The registered entry is stored as a locals-binding wrapper with the
    * same call contract as `compile`'s cached closure — `include`-emitted
    * code invokes cached entries as `(context)`, so caching the raw
-   * five-argument template function (what `run`'s priming side effect
-   * stores) breaks any partial that touches `_ctx` / `_filters`. The
-   * wrapper closes over this instance's filters and default locals,
-   * mirroring `compiled(locals, blocks)` below.
+   * five-argument template function breaks any partial that touches
+   * `_ctx` / `_filters`. The wrapper closes over this instance's filters
+   * and default locals, mirroring `compiled(locals, blocks, view)` below.
    *
    * Throws when caching is disabled on the instance (any falsy `cache`) —
    * the registry IS the compile cache, so nothing could retain the
    * registration. `invalidateCache()` therefore also drops every
    * registration made against the built-in memory cache.
    *
-   * A registered entry cannot serve as an `{% extends %}` parent: it carries
-   * no parse tree, so the parent's source must still be reachable through
-   * the loader.
+   * On the sync render path a registered entry cannot serve as an
+   * `{% extends %}` parent: it carries no parse tree, so the parent's
+   * source must still be reachable through the loader there.
    *
    * @param  {string}   path  Template path to register under.
    * @param  {function} fn    Pre-compiled template function (CLI/AOT output).
@@ -812,7 +858,7 @@ exports.install = function (self, frontend) {
   self.register = function (path, fn) {
     validateRegistration(path, fn);
 
-    cacheSet(self.options.loader.resolve(path), {}, buildRegistered(fn));
+    storeRegistered(self.options.loader.resolve(path), fn);
     return self;
   };
 
@@ -1196,10 +1242,11 @@ exports.install = function (self, frontend) {
     // var context = getLocals({ locals: locals });
     var context = locals ? getLocals({ locals: locals }) : copyLocals(getLocals());
     if (filepath) {
-      // Cache the same wrapper `register` stores, under the same resolved
-      // key, so a template primed this way is actually usable by a later
-      // include instead of crashing on the raw function's argument shape.
-      cacheSet(self.options.loader.resolve(filepath), {}, buildRegistered(tpl));
+      // Store the template as `register` does (the same wrapper, under the
+      // same resolved key, and under the async-mode key too when it was
+      // compiled in that mode), so a template primed this way is usable by a
+      // later include instead of crashing on the raw function's argument shape.
+      storeRegistered(self.options.loader.resolve(filepath), tpl);
     }
     if (tpl instanceof AsyncFunction) {
       // A per-render view, as compiled() gives an async template, so the
