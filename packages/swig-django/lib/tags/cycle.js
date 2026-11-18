@@ -6,14 +6,19 @@
  *
  * Cycles through its values, emitting the next one on each invocation — so
  * inside a `{% for %}` loop it alternates per iteration. State is a
- * per-occurrence counter stored on `_ctx` under a unique key (the same
- * `Math.random()` scheme the for-loop uses for its loopcache), so it
- * persists across loop iterations within a render. A render's `_ctx` is a
- * fresh object (a copy of the locals the call passes, or of the default
- * locals when it passes none), so the cycle starts again on the next render;
- * only a template rendered from inside another render of the same instance
- * works on the context it is given. Two distinct `{% cycle %}` tags never
- * share state.
+ * per-occurrence counter under a unique key (the same `Math.random()` scheme
+ * the for-loop uses for its loopcache) in `__cycles`, a local that the parser
+ * declares at the top of the compiled function of every template holding a
+ * cycle tag. So a cycle's position lasts for one render of its template, as
+ * Django keeps it in the template's render_context: it carries on across loop
+ * iterations and through `{% with %}` and `{% spaceless %}` bodies, and starts
+ * again at each include of the template and on the next render. The counter
+ * is not kept on `_ctx`, which does not follow a template's render: a
+ * `{% with %}` body runs on a copy of `_ctx`, which lost a counter first
+ * written there when the body ended, and a plain `{% include %}` passes `_ctx`
+ * itself, so under the memory cache, where each include runs the same compiled
+ * function and key, an included template's counter carried on from an earlier
+ * include. Two distinct `{% cycle %}` tags never share state.
  *
  * Values are evaluated fresh on each invocation (Django re-evaluates), and
  * the emitted value is autoescaped per the enclosing region (`token.escape`).
@@ -85,8 +90,9 @@ exports.parse = function (str, line, parser, types, stack, opts, swig, token) {
 };
 
 /**
- * Emit the stateful cycle: build the value array, advance a per-occurrence
- * counter on `_ctx`, and append the current value (escaped per the region).
+ * Emit the stateful cycle: build the value array, advance the tag's counter
+ * in `__cycles` (declared by the parser at the top of the template's
+ * function), and append the current value (escaped per the region).
  *
  * @return {object} IRLegacyJS node.
  */
@@ -97,7 +103,7 @@ exports.compile = function (compiler, args, content, parents, options, blockName
   // A draw under 1e-6 prints in exponent form ("1.5e-7"), so its minus
   // sign is dropped along with the dot: the key stays a property name.
   var key = ('__cycle' + Math.random()).replace(/[.-]/g, '');
-  var value = '__cv[_ctx.' + key + ' % __cv.length]';
+  var value = '__cv[__cycles.' + key + ' % __cv.length]';
   // A string escape strategy (the `autoescape: 'js'` option) goes to the
   // `e` filter as its argument, as firstof and `{{ }}` pass it.
   var strategy = (typeof token.escape === 'string') ? ', ' + backend.emitExpr(ir.literal('string', token.escape)) : '';
@@ -106,7 +112,7 @@ exports.compile = function (compiler, args, content, parents, options, blockName
   return ir.legacyJS(
     '(function () {\n' +
     '  var __cv = [' + parts.join(', ') + '];\n' +
-    '  _ctx.' + key + ' = (_ctx.' + key + ' === undefined) ? 0 : (_ctx.' + key + ' + 1);\n' +
+    '  __cycles.' + key + ' = (__cycles.' + key + ' === undefined) ? 0 : (__cycles.' + key + ' + 1);\n' +
     '  _output += ' + emit + ';\n' +
     '})();\n'
   );

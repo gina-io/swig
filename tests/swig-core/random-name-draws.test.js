@@ -484,14 +484,14 @@ describe('Loop and cycle names under a Math.random draw below 1e-6', function ()
 
   describe('C3 a cycle loop that includes a template with its own cycle', function () {
     it('django, sync, cache memory', function () {
-      expect(renderSync('django', FILES.C3, locals({}), 'memory')).to.equal('o1<i1>o2<i2>o1<i3>');
+      expect(renderSync('django', FILES.C3, locals({}), 'memory')).to.equal('o1<i1>o2<i1>o1<i1>');
     });
     it('django, sync, no cache', function () {
       expect(renderSync('django', FILES.C3, locals({}), false)).to.equal('o1<i1>o2<i1>o1<i1>');
     });
     it('django, async, cache memory', function () {
       return renderAsync('django', FILES.C3, locals({}), 'memory').then(function (out) {
-        expect(out).to.equal('o1<i1>o2<i2>o1<i3>');
+        expect(out).to.equal('o1<i1>o2<i1>o1<i1>');
       });
     });
     it('django, async, no cache', function () {
@@ -503,14 +503,14 @@ describe('Loop and cycle names under a Math.random draw below 1e-6', function ()
 
   describe('C4 two includes of a cycle per iteration', function () {
     it('django, sync, cache memory', function () {
-      expect(renderSync('django', FILES.C4, locals({}), 'memory')).to.equal('<i1i2><i3i1><i2i3>');
+      expect(renderSync('django', FILES.C4, locals({}), 'memory')).to.equal('<i1i1><i1i1><i1i1>');
     });
     it('django, sync, no cache', function () {
       expect(renderSync('django', FILES.C4, locals({}), false)).to.equal('<i1i1><i1i1><i1i1>');
     });
     it('django, async, cache memory', function () {
       return renderAsync('django', FILES.C4, locals({}), 'memory').then(function (out) {
-        expect(out).to.equal('<i1i2><i3i1><i2i3>');
+        expect(out).to.equal('<i1i1><i1i1><i1i1>');
       });
     });
     it('django, async, no cache', function () {

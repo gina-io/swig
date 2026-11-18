@@ -20,6 +20,22 @@ function escapeRegExp(str) {
 }
 
 /**
+ * True if a `{% cycle %}` tag is in `list` or in the body of any tag in it,
+ * at any depth (the else, elif and empty branches are in their tag's body).
+ * @param  {Array}   list Parsed tokens.
+ * @return {boolean}
+ * @private
+ */
+function holdsCycle(list) {
+  var i, t;
+  for (i = 0; i < list.length; i += 1) {
+    t = list[i];
+    if (t && (t.name === 'cycle' || (t.content && holdsCycle(t.content)))) { return true; }
+  }
+  return false;
+}
+
+/**
  * Reserved JS keywords that cannot be used as variable names.
  * @private
  */
@@ -859,6 +875,30 @@ exports.parse = function (swig, source, opts, tags, filters) {
 
   if (stack.length) {
     utils.throwError('Missing end tag for "' + stack[stack.length - 1].name + '"', line, opts.filename);
+  }
+
+  // A template that holds a {% cycle %} tag gets a block-level token that
+  // declares `__cycles`, the local of its compiled function in which the tag
+  // keeps its counters (tags/cycle.js), so a cycle's position lasts for one
+  // render of its template, as Django keeps it in the render_context. The
+  // token goes first in the tokens, and in `blocks` under a key that no block
+  // name can take (it holds a space), because both render paths run an
+  // extending template's block-level entries ahead of its parent: the sync
+  // path prepends them to the root's tokens, whose function runs the blocks;
+  // the async path runs them in the extending template's function before it
+  // calls the parent, and the block functions the parent calls are closures
+  // of that function. Either way a cycle in a block finds `__cycles` declared.
+  if (holdsCycle(tokens)) {
+    var cycleState = {
+      name: 'cycle state',
+      block: true,
+      compile: function () { return ir.legacyJS('var __cycles = {};\n'); },
+      args: [],
+      content: [],
+      ends: false
+    };
+    tokens.unshift(cycleState);
+    blocks['cycle state'] = cycleState;
   }
 
   return {
