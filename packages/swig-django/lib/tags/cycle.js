@@ -94,7 +94,9 @@ exports.compile = function (compiler, args, content, parents, options, blockName
   var parts = [];
   utils.each(token.irArgs, function (a) { parts.push(backend.emitExpr(a)); });
 
-  var key = ('__cycle' + Math.random()).replace(/\./g, '');
+  // A draw under 1e-6 prints in exponent form ("1.5e-7"), so its minus
+  // sign is dropped along with the dot: the key stays a property name.
+  var key = ('__cycle' + Math.random()).replace(/[.-]/g, '');
   var value = '__cv[_ctx.' + key + ' % __cv.length]';
   // A string escape strategy (the `autoescape: 'js'` option) goes to the
   // `e` filter as its argument, as firstof and `{{ }}` pass it.

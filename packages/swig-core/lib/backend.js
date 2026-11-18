@@ -570,14 +570,16 @@ exports.compile = function (template, parents, options, blockName) {
       // iterable, body) and the backend owns all JS plumbing. `iterable`
       // is an IRExpr node — backward-compat string fallback
       // preserved for userland setTag tags that may still hand in a raw
-      // JS fragment. The loopcache identifier uses `Math.random()`
-      // per-occurrence to keep nested loops from clobbering each other's
-      // cache (gh-433).
+      // JS fragment. The loopcache identifier uses `Math.random()` per
+      // occurrence (gh-433); each loop declares it in its own function. A
+      // draw under 1e-6 prints in exponent form ("1.5e-7"), so its minus
+      // sign is dropped along with the dots, which leaves the name of every
+      // other draw as it was.
       var forVal = node.value,
         forKey = node.key,
         forIterable,
         forBodyJS = '',
-        ctxloopcache = ('_ctx.__loopcache' + Math.random()).replace(/\./g, ''),
+        ctxloopcache = ('_ctx.__loopcache' + Math.random()).replace(/[.-]/g, ''),
         ctx = '_ctx.',
         // Opt-in loop-context naming. A frontend may rename the loop
         // variable (Django uses `forloop`), rename the counter fields, and
