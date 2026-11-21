@@ -49,7 +49,60 @@ function escapeTextValue(value) {
  * literal becomes "", so no letters join. @private
  */
 function holdsAwait(js, options) {
-  return !!(options && options.codegenMode === 'async' && js.indexOf('await') !== -1 && /(^|[^.\w$]|\.\.\.)await\b(?!\s*:)/.test(js.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""')));
+  // The regex strip below takes time quadratic in a line's length on an
+  // unclosed quote followed by many escaped quotes of the same kind (10 to 15
+  // s to compile a template holding a line of 60 000 of them, in one
+  // measurement); blankStringLiterals gives the same output in linear time.
+  // return !!(options && options.codegenMode === 'async' && js.indexOf('await') !== -1 && /(^|[^.\w$]|\.\.\.)await\b(?!\s*:)/.test(js.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""')));
+  return !!(options && options.codegenMode === 'async' && js.indexOf('await') !== -1 && /(^|[^.\w$]|\.\.\.)await\b(?!\s*:)/.test(blankStringLiterals(js)));
+}
+
+/*!
+ * The JS holdsAwait reads: each single- or double-quoted string literal on
+ * one line replaced by "", as the regex holdsAwait used before gives it, in
+ * one pass. A literal opens at a quote; its body takes any character but that
+ * quote, a backslash or a line feed, or a backslash with the next character
+ * when that one is not a line terminator (LF, CR, U+2028, U+2029); it closes
+ * at the same quote. A scan that stops without the closing quote fails at a
+ * line feed, a backslash before a line terminator, or the end. Every quote of
+ * the same kind between the opening quote and that point is the second
+ * character of a backslash pair of the scan, so a scan from it fails at the
+ * same point: those quotes are skipped instead of scanned again, which keeps
+ * the strip linear. @private
+ */
+function blankStringLiterals(js) {
+  var n = js.length, out = '', last = 0, i = 0, k, c, d, q,
+    failAt = { 34: -1, 39: -1 };
+  while (i < n) {
+    q = js.charCodeAt(i);
+    if ((q === 34 || q === 39) && i >= failAt[q]) {
+      k = i + 1;
+      while (k < n) {
+        c = js.charCodeAt(k);
+        if (c === q || c === 10) {
+          break;
+        }
+        if (c === 92) {
+          d = k + 1 < n ? js.charCodeAt(k + 1) : 10;
+          if (d === 10 || d === 13 || d === 0x2028 || d === 0x2029) {
+            break;
+          }
+          k += 2;
+          continue;
+        }
+        k += 1;
+      }
+      if (k < n && js.charCodeAt(k) === q) {
+        out += js.slice(last, i) + '""';
+        i = k + 1;
+        last = i;
+        continue;
+      }
+      failAt[q] = k;
+    }
+    i += 1;
+  }
+  return out + js.slice(last);
 }
 
 /*!
@@ -849,10 +902,11 @@ exports.compile = function (template, parents, options, blockName) {
     if (node.type === 'IncludeDeferred') {
       // Async-codegen counterpart to Include. Resolves the
       // path via `_swig.getTemplate(...)` at render time (Promise<TemplateFn>),
-      // then awaits the resolved template fn's call. The double-await flows
-      // correctly whether the loaded tpl is sync (returns string) or async-
-      // compiled (returns Promise<string>) — `await <non-Promise>` resolves
-      // to the value unchanged. Mirrors the Include branch's path/context/
+      // then awaits the resolved template fn's call and reads its `.output`.
+      // getTemplate serves only async-mode templates (compiled with
+      // codegenMode 'async', or an async-compiled registration), whose call
+      // returns Promise<{output, exports}>; a sync-compiled registration stays
+      // off this path. Mirrors the Include branch's path/context/
       // isolated/ignoreMissing dispatch; only the runtime call shape differs.
       var incdPathJS, incdCtxJS;
       if (node.path && typeof node.path === 'object' && typeof node.path.type === 'string') {
