@@ -1,5 +1,0 @@
-kind: fixed
-body: 'On the async render path, the check that decides whether a for loop, a tag that wraps its content in a function of its own (such as with or filter) or a macro awaits now blanks the string literals of the compiled code in one pass, in all four flavors: it used a regular expression that took time quadratic in a line''s length on an unclosed quote followed by many escaped quotes of the same kind, which the code of a tag registered with `setTag` can hold (a comment holding 60,000 of them took about 10 to 15 seconds to compile on 2.12.5 in one measurement, and takes about 3 ms now). The check gives the same answers as before: the new blanking returns what the regular expression returned on every string of up to 7 characters made of the two quotes, a backslash, a line feed, a carriage return and a letter, and on 200,000 random strings.'
-time: 2026-11-21T15:56:04.643522+00:00
-custom:
-  Issue: ""

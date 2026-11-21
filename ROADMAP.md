@@ -21,12 +21,17 @@ Nothing is scheduled for the next release yet.
 | On demand | Remaining native parser edges: `{#}`, where the comment open and close overlap, is read as a comment in all four flavors when it stands alone or directly between two tags (beside text it stays text), where Django renders it as text; a native `{% for %}` over a numeric subscript in parentheses, such as `arr[(0)]`, still fails to compile; and the `{% autoescape %}` tag takes only `"html"` or `"js"` as a string, while the `autoescape` option passes any string to the `e` filter. |
 | On demand | Remaining edges in variable reads and macro scope. In native swig, swig-twig and swig-jinja2 an include inside a macro, on the sync render path, sees only the macro's parameters named like a standard JavaScript global, a name the compiled code uses, an `Object.prototype` member, a word that only strict-mode JavaScript reserves or `await`, where Jinja2 shows it every parameter; a context key that holds null and is named like another JavaScript global, such as `setTimeout`, still lets that global through; and a `{% set %}` of a macro parameter with another name stays in the context after the call, where Jinja2 drops it. In swig-jinja2 a macro default that reads an earlier parameter with another name reads a context key of that name when the context holds one, where Jinja2 reads the parameter; a parameter without a default after one with a default takes that default, where Jinja2 refuses the macro; and a null or undefined loop item reads a macro parameter of the loop variable's name. swig-django renders a variable whose name starts with an underscore, where Django refuses it at compile. |
 | On demand | Rendering a parent block's content with swig-jinja2 `{{ super() }}` and swig-twig `{{ parent() }}`, which fail at compile with a clear error since 2.12.4. |
-| On demand | A sync `{% include %}` of a template function compiled with `codegenMode: 'async'` and registered with `register()`, `registerBundle()` or `run(tpl, locals, path)` writes « [object Promise] », in all four flavors. |
 | On demand | Macros on the async render path whose body holds an `{% include %}`, `{% import %}`, `{% from %}` or `{% block %}`. Since 2.9.4, calling such a macro there throws a clear error, and a template that only defines it renders. |
 
 ---
 
 ## Completed
+
+### v2.12.6 (November 2026)
+
+- A template function compiled with `codegenMode: 'async'` and registered with `register()`, `registerBundle()` or `run(tpl, locals, path)` no longer prints `[object Promise]` when a sync render reaches it, in all four flavors and the runtime-only build: a sync `{% include %}` of it now fails with an error that names the template.
+- On the async render path, the check for an await in compiled code blanks string literals in one pass, in all four flavors, so a long line of a custom tag's code holding an unclosed quote and many escaped quotes no longer takes seconds to compile; the check's answers are unchanged.
+- All five packages released in lockstep at `2.12.6`.
 
 ### v2.12.5 (November 2026)
 
