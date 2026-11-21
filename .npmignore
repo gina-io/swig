@@ -30,6 +30,9 @@ scripts/**
 tests/**
 CONTRIBUTING.md
 
+# Scratch output (make coverage writes tmp/lcov.info)
+tmp/
+
 # AI / internal development notes (local only — mirror Gina's convention)
 .claude/
 CLAUDE.md
