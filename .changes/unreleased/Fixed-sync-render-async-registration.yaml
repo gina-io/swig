@@ -1,0 +1,5 @@
+kind: fixed
+body: 'A template function compiled with `codegenMode: ''async''` and registered with `register()`, `registerBundle()` or `run(tpl, locals, path)` no longer prints `[object Promise]` when a sync render reaches it, in all four flavors and the runtime-only build. A sync `{% include %}` of it, or a call a helper makes to `compileFile` or `renderFile` for it while a sync render runs, now fails with an error that names the template and says to render the page on the async render path or to register a sync-compiled function (swig-django renders an empty string for such a helper, as it does for any callable that raises). A top-level call such as `compileFile(path)(locals)` still returns the Promise, and an include marked `ignore missing` renders an empty string. Precompiled templates need no recompile.'
+time: 2026-11-21T21:20:47.657296+00:00
+custom:
+  Issue: ""

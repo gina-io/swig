@@ -724,16 +724,25 @@ exports.install = function (self, frontend) {
    * wrapper takes the arguments compile's cached function takes,
    * `(locals, blocks, view)`: when getTemplate serves a registered async
    * template to an async render, that render passes its per-render view as
-   * the third.
+   * the third. `name` is the resolved name it is registered under.
    * @private
    */
-  function buildRegistered(fn) {
+  function buildRegistered(fn, name) {
     var context = getLocals(),
       contextLength = utils.keys(context).length,
       asyncFn = fn instanceof AsyncFunction;
 
     return function registered(locals, blocks, view) {
       var lcls;
+      // A sync render of this instance reached a template compiled with
+      // codegenMode 'async' (a sync include, or a call a helper makes while
+      // the render runs): its call returns a Promise, which the sync path
+      // printed as [object Promise]. A top-level call still gets the Promise,
+      // and an async render calls this wrapper in a microtask, when no sync
+      // render runs.
+      if (asyncFn && syncDepth) {
+        throw new Error('The registered template "' + name + '" was compiled with codegenMode \'async\', so it cannot render inside a sync render: render the page on the async render path, or register a sync-compiled function for "' + name + '".');
+      }
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
       } else if (locals && !contextLength) {
@@ -787,11 +796,12 @@ exports.install = function (self, frontend) {
    * render uses the registration before the loader. A sync-compiled function
    * stays off the async path, which reads the `{ output, exports }` an async
    * template returns. An async-compiled one keeps its sync-path entry too,
-   * so compileFile(path) still returns it.
+   * so compileFile(path) still returns it; a sync render that reaches that
+   * entry gets an error from the wrapper instead of a Promise.
    * @private
    */
   function storeRegistered(resolved, fn) {
-    var wrapper = buildRegistered(fn);
+    var wrapper = buildRegistered(fn, resolved);
     cacheSet(resolved, {}, wrapper);
     if (fn instanceof AsyncFunction) {
       cacheSet(compileCacheKey(resolved, { codegenMode: 'async' }), {}, wrapper);
@@ -831,9 +841,12 @@ exports.install = function (self, frontend) {
    * async loader, `compileFile(path, { codegenMode: 'async' })`, and the
    * `include`, `import`, `from` and `{% extends %}` of templates rendered
    * on that path use it before the loader; it then takes part in the render
-   * that reaches it, as a template from the loader does. On the sync path it
-   * keeps its async call shape (a Promise of `{ output, exports }`), so
-   * register async-compiled output for templates the async path renders.
+   * that reaches it, as a template from the loader does. On the sync path a
+   * top-level call keeps its async call shape (a Promise of
+   * `{ output, exports }`), and a sync render that reaches it (a sync
+   * `include`, or a call made while a sync render runs) fails with an error
+   * naming it, so register async-compiled output for templates the async
+   * path renders.
    *
    * The registered entry is stored as a locals-binding wrapper with the
    * same call contract as `compile`'s cached closure — `include`-emitted

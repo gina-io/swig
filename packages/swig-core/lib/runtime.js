@@ -191,12 +191,23 @@ exports.create = function (frontend) {
   // locals.
   var syncDepth = 0;
 
-  function buildRegistered(fn) {
+  function buildRegistered(fn, name) {
     var context = getLocals(),
-      contextLength = utils.keys(context).length;
+      contextLength = utils.keys(context).length,
+      // The runtime bundles must not hold the AsyncFunction constructor
+      // idiom (the bundle check refuses it), so the tag tells an async
+      // function apart.
+      asyncFn = Object.prototype.toString.call(fn) === '[object AsyncFunction]';
 
     return function registered(locals, blocks) {
       var lcls;
+      // As in the engine: a sync render of this instance reached a template
+      // compiled with codegenMode 'async', whose call returns a Promise that
+      // the sync path printed as [object Promise]; a top-level call still
+      // gets the Promise. Same message as the engine's.
+      if (asyncFn && syncDepth) {
+        throw new Error('The registered template "' + name + '" was compiled with codegenMode \'async\', so it cannot render inside a sync render: render the page on the async render path, or register a sync-compiled function for "' + name + '".');
+      }
       if (locals && contextLength) {
         lcls = utils.extend({}, context, locals);
       } else if (locals && !contextLength) {
@@ -253,8 +264,10 @@ exports.create = function (frontend) {
    * @return {object}         The instance, for chaining.
    */
   self.register = function (path, fn) {
+    var resolved;
     validateRegistration(path, fn);
-    cacheSet(self.options.loader.resolve(path), {}, buildRegistered(fn));
+    resolved = self.options.loader.resolve(path);
+    cacheSet(resolved, {}, buildRegistered(fn, resolved));
     return self;
   };
 
@@ -301,9 +314,11 @@ exports.create = function (frontend) {
     // A copy when no locals are given: getLocals returns the shared default
     // locals object itself, and the template's writes must not land in it.
     // var context = getLocals({ locals: locals });
-    var context = locals ? getLocals({ locals: locals }) : copyLocals(getLocals());
+    var context = locals ? getLocals({ locals: locals }) : copyLocals(getLocals()),
+      resolved;
     if (filepath) {
-      cacheSet(self.options.loader.resolve(filepath), {}, buildRegistered(tpl));
+      resolved = self.options.loader.resolve(filepath);
+      cacheSet(resolved, {}, buildRegistered(tpl, resolved));
     }
     syncDepth += 1;
     try {
